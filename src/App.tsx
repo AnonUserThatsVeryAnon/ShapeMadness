@@ -6,6 +6,8 @@ import type {
   PowerUp,
   Particle,
   GameStats,
+  FloatingText,
+  LaserBeam,
 } from "./types/game";
 import { GameState, EnemyType, PowerUpType } from "./types/game";
 import { audioSystem } from "./utils/audio";
@@ -70,6 +72,9 @@ function App() {
   const bulletsRef = useRef<Bullet[]>([]);
   const powerUpsRef = useRef<PowerUp[]>([]);
   const particlesRef = useRef<Particle[]>([]);
+  const floatingTextsRef = useRef<FloatingText[]>([]);
+  const lasersRef = useRef<LaserBeam[]>([]);
+  const lastLaserTimeRef = useRef<number>(0);
 
   const statsRef = useRef<GameStats>({
     score: 0,
@@ -306,6 +311,63 @@ function App() {
     // Update particles
     particlesRef.current = updateParticles(particlesRef.current, deltaTime);
 
+    // Update floating texts
+    floatingTextsRef.current = floatingTextsRef.current.filter((text) => {
+      const age = now - text.createdAt;
+      if (age >= text.lifetime) return false;
+
+      text.position.x += text.velocity.x;
+      text.position.y += text.velocity.y;
+      text.velocity.y -= 0.1; // Slight upward acceleration
+
+      return true;
+    });
+
+    // Spawn laser beams at higher rounds (randomly)
+    if (stats.round >= 5 && now - lastLaserTimeRef.current > 8000) {
+      const random = Math.random();
+      // 15% chance every 8 seconds at round 5+, increasing with rounds
+      const spawnChance = Math.min(0.3, 0.15 + (stats.round - 5) * 0.02);
+
+      if (random < spawnChance) {
+        spawnLaser(now);
+        lastLaserTimeRef.current = now;
+      }
+    }
+
+    // Update laser beams
+    lasersRef.current = lasersRef.current.filter((laser) => {
+      const age = now - laser.createdAt;
+
+      // Warning phase
+      if (age < laser.warningTime) {
+        laser.isWarning = true;
+        return true;
+      }
+
+      // Active damage phase
+      if (age < laser.warningTime + laser.activeTime) {
+        laser.isWarning = false;
+
+        // Check collision with player
+        if (!player.invulnerable) {
+          const distToLine = pointToLineDistance(
+            player.position,
+            { x: laser.startX, y: laser.startY },
+            { x: laser.endX, y: laser.endY }
+          );
+
+          if (distToLine < laser.width / 2 + player.radius) {
+            damagePlayer(20, now);
+          }
+        }
+
+        return true;
+      }
+
+      return false;
+    });
+
     // Combo system - decay over time
     if (now - stats.lastComboTime > 3000 && stats.combo > 0) {
       stats.combo = 0;
@@ -378,6 +440,17 @@ function App() {
     enemy.health -= damage;
     audioSystem.playHit();
 
+    // Show damage number on hit
+    floatingTextsRef.current.push({
+      position: { ...enemy.position },
+      text: `-${Math.floor(damage)}`,
+      color: "#ffeb3b",
+      size: 16,
+      lifetime: 800,
+      createdAt: now,
+      velocity: { x: (Math.random() - 0.5) * 2, y: -3 },
+    });
+
     if (enemy.health <= 0) {
       enemy.active = false;
       const stats = statsRef.current;
@@ -398,9 +471,38 @@ function App() {
       stats.kills++;
 
       audioSystem.playEnemyDeath();
+
+      // Enhanced death particles
       particlesRef.current.push(
-        ...createParticles(enemy.position, 25, enemy.color, 6)
+        ...createParticles(enemy.position, 30, enemy.color, 8)
       );
+
+      // Add white flash particles for impact
+      particlesRef.current.push(
+        ...createParticles(enemy.position, 10, "#ffffff", 6, 300)
+      );
+
+      // Floating text for kill
+      floatingTextsRef.current.push({
+        position: { ...enemy.position },
+        text: "KILL!",
+        color: "#ff4444",
+        size: 20,
+        lifetime: 1000,
+        createdAt: now,
+        velocity: { x: 0, y: -2 },
+      });
+
+      // Money earned text
+      floatingTextsRef.current.push({
+        position: { x: enemy.position.x, y: enemy.position.y + 20 },
+        text: `+$${earnedMoney}`,
+        color: "#00ff88",
+        size: 18,
+        lifetime: 1200,
+        createdAt: now,
+        velocity: { x: 0, y: -1.5 },
+      });
 
       // Spawn power-up chance
       if (Math.random() < 0.15) {
@@ -449,6 +551,101 @@ function App() {
     particlesRef.current.push(
       ...createParticles(player.position, 20, "#ff0000", 5)
     );
+
+    // Damage indicator text
+    floatingTextsRef.current.push({
+      position: { ...player.position },
+      text: `-${damage}`,
+      color: "#ff0000",
+      size: 24,
+      lifetime: 1000,
+      createdAt: now,
+      velocity: { x: 0, y: -3 },
+    });
+  };
+
+  const spawnLaser = (now: number) => {
+    const edge = Math.floor(Math.random() * 4);
+    const angle = Math.random() * Math.PI * 2;
+    let startX = 0,
+      startY = 0,
+      endX = 0,
+      endY = 0;
+
+    // Spawn from random edge
+    switch (edge) {
+      case 0: // Top
+        startX = Math.random() * CANVAS_WIDTH;
+        startY = 0;
+        endX = startX + Math.cos(angle) * CANVAS_HEIGHT * 2;
+        endY = startY + Math.sin(angle) * CANVAS_HEIGHT * 2;
+        break;
+      case 1: // Right
+        startX = CANVAS_WIDTH;
+        startY = Math.random() * CANVAS_HEIGHT;
+        endX = startX + Math.cos(angle) * CANVAS_WIDTH * 2;
+        endY = startY + Math.sin(angle) * CANVAS_WIDTH * 2;
+        break;
+      case 2: // Bottom
+        startX = Math.random() * CANVAS_WIDTH;
+        startY = CANVAS_HEIGHT;
+        endX = startX + Math.cos(angle) * CANVAS_HEIGHT * 2;
+        endY = startY + Math.sin(angle) * CANVAS_HEIGHT * 2;
+        break;
+      case 3: // Left
+        startX = 0;
+        startY = Math.random() * CANVAS_HEIGHT;
+        endX = startX + Math.cos(angle) * CANVAS_WIDTH * 2;
+        endY = startY + Math.sin(angle) * CANVAS_WIDTH * 2;
+        break;
+    }
+
+    lasersRef.current.push({
+      startX,
+      startY,
+      endX,
+      endY,
+      width: 40,
+      warningTime: 1500,
+      activeTime: 500,
+      createdAt: now,
+      isWarning: true,
+      angle,
+    });
+  };
+
+  const pointToLineDistance = (
+    point: { x: number; y: number },
+    lineStart: { x: number; y: number },
+    lineEnd: { x: number; y: number }
+  ): number => {
+    const A = point.x - lineStart.x;
+    const B = point.y - lineStart.y;
+    const C = lineEnd.x - lineStart.x;
+    const D = lineEnd.y - lineStart.y;
+
+    const dot = A * C + B * D;
+    const lenSq = C * C + D * D;
+    let param = -1;
+
+    if (lenSq !== 0) param = dot / lenSq;
+
+    let xx, yy;
+
+    if (param < 0) {
+      xx = lineStart.x;
+      yy = lineStart.y;
+    } else if (param > 1) {
+      xx = lineEnd.x;
+      yy = lineEnd.y;
+    } else {
+      xx = lineStart.x + param * C;
+      yy = lineStart.y + param * D;
+    }
+
+    const dx = point.x - xx;
+    const dy = point.y - yy;
+    return Math.sqrt(dx * dx + dy * dy);
   };
 
   const spawnPowerUp = (position: { x: number; y: number }, now: number) => {
@@ -638,6 +835,66 @@ function App() {
       ctx,
       particlesRef.current.filter((p) => p.size >= 3)
     );
+
+    // Draw laser beams
+    lasersRef.current.forEach((laser) => {
+      const age = now - laser.createdAt;
+
+      if (laser.isWarning) {
+        // Warning phase - blinking red line
+        const alpha = Math.sin(age / 100) * 0.3 + 0.4;
+        ctx.strokeStyle = `rgba(255, 0, 0, ${alpha})`;
+        ctx.lineWidth = laser.width;
+        ctx.setLineDash([20, 10]);
+        ctx.beginPath();
+        ctx.moveTo(laser.startX, laser.startY);
+        ctx.lineTo(laser.endX, laser.endY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      } else {
+        // Active phase - solid bright laser
+        // Outer glow
+        ctx.strokeStyle = "rgba(255, 100, 100, 0.3)";
+        ctx.lineWidth = laser.width + 10;
+        ctx.beginPath();
+        ctx.moveTo(laser.startX, laser.startY);
+        ctx.lineTo(laser.endX, laser.endY);
+        ctx.stroke();
+
+        // Inner beam
+        ctx.strokeStyle = "#ff3333";
+        ctx.lineWidth = laser.width;
+        ctx.beginPath();
+        ctx.moveTo(laser.startX, laser.startY);
+        ctx.lineTo(laser.endX, laser.endY);
+        ctx.stroke();
+
+        // Core
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = laser.width / 3;
+        ctx.beginPath();
+        ctx.moveTo(laser.startX, laser.startY);
+        ctx.lineTo(laser.endX, laser.endY);
+        ctx.stroke();
+      }
+    });
+
+    // Draw floating texts
+    floatingTextsRef.current.forEach((text) => {
+      const age = now - text.createdAt;
+      const alpha = 1 - age / text.lifetime;
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.font = `bold ${text.size}px monospace`;
+      ctx.fillStyle = text.color;
+      ctx.strokeStyle = "#000000";
+      ctx.lineWidth = 3;
+      ctx.textAlign = "center";
+      ctx.strokeText(text.text, text.position.x, text.position.y);
+      ctx.fillText(text.text, text.position.x, text.position.y);
+      ctx.restore();
+    });
 
     ctx.restore();
 
@@ -847,31 +1104,44 @@ function App() {
           <h1 className="shop-title">🛒 UPGRADE SHOP</h1>
           <p className="shop-money">Money: ${playerRef.current.money}</p>
           <div className="upgrades-grid">
-            {UPGRADES.map((upgrade) => (
-              <div key={upgrade.id} className="upgrade-card">
-                <div className="upgrade-icon">{upgrade.icon}</div>
-                <h3>{upgrade.name}</h3>
-                <p className="upgrade-desc">{upgrade.description}</p>
-                <p className="upgrade-level">
-                  Level: {upgrade.currentLevel}/{upgrade.maxLevel}
-                </p>
-                <button
-                  className="upgrade-button"
-                  disabled={
-                    playerRef.current.money < upgrade.cost ||
-                    upgrade.currentLevel >= upgrade.maxLevel
-                  }
-                  onClick={() => {
-                    if (purchaseUpgrade(upgrade, playerRef.current)) {
-                      audioSystem.playPurchase();
-                      forceUpdate({}); // Force re-render to update UI
+            {UPGRADES.map((upgrade) => {
+              const progressPercent =
+                (upgrade.currentLevel / upgrade.maxLevel) * 100;
+              const isMaxLevel = upgrade.currentLevel >= upgrade.maxLevel;
+
+              return (
+                <div key={upgrade.id} className="upgrade-card">
+                  <div className="upgrade-icon">{upgrade.icon}</div>
+                  <h3>{upgrade.name}</h3>
+                  <p className="upgrade-desc">{upgrade.description}</p>
+                  <p className="upgrade-level">
+                    Level: {upgrade.currentLevel}/{upgrade.maxLevel}
+                  </p>
+                  <div className="upgrade-progress-container">
+                    <div
+                      className={`upgrade-progress-bar ${
+                        isMaxLevel ? "max-level" : ""
+                      }`}
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </div>
+                  <button
+                    className="upgrade-button"
+                    disabled={
+                      playerRef.current.money < upgrade.cost || isMaxLevel
                     }
-                  }}
-                >
-                  ${upgrade.cost}
-                </button>
-              </div>
-            ))}
+                    onClick={() => {
+                      if (purchaseUpgrade(upgrade, playerRef.current)) {
+                        audioSystem.playPurchase();
+                        forceUpdate({}); // Force re-render to update UI
+                      }
+                    }}
+                  >
+                    {isMaxLevel ? "MAX" : `$${upgrade.cost}`}
+                  </button>
+                </div>
+              );
+            })}
           </div>
           <button className="menu-button continue-button" onClick={startRound}>
             CONTINUE TO ROUND {statsRef.current.round}

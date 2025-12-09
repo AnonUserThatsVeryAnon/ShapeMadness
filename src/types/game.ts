@@ -56,6 +56,29 @@ export interface Particle {
   createdAt: number;
 }
 
+export interface FloatingText {
+  position: Vector2;
+  text: string;
+  color: string;
+  size: number;
+  lifetime: number;
+  createdAt: number;
+  velocity: Vector2;
+}
+
+export interface LaserBeam {
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+  width: number;
+  warningTime: number;
+  activeTime: number;
+  createdAt: number;
+  isWarning: boolean;
+  angle: number;
+}
+
 export const GameState = {
   MENU: 'MENU',
   PLAYING: 'PLAYING',
