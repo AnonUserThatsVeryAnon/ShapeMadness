@@ -2153,37 +2153,54 @@ function App() {
               const progressPercent =
                 (upgrade.currentLevel / upgrade.maxLevel) * 100;
               const isMaxLevel = upgrade.currentLevel >= upgrade.maxLevel;
+              const canAfford = playerRef.current.money >= upgrade.cost;
 
               return (
-                <div key={upgrade.id} className="upgrade-card">
+                <div
+                  key={upgrade.id}
+                  className={`upgrade-card ${
+                    canAfford && !isMaxLevel ? "affordable" : ""
+                  } ${isMaxLevel ? "max-level" : ""}`}
+                >
                   <div className="upgrade-icon">{upgrade.icon}</div>
-                  <h3>{upgrade.name}</h3>
-                  <p className="upgrade-desc">{upgrade.description}</p>
-                  <p className="upgrade-level">
-                    Level: {upgrade.currentLevel}/{upgrade.maxLevel}
-                  </p>
-                  <div className="upgrade-progress-container">
-                    <div
-                      className={`upgrade-progress-bar ${
-                        isMaxLevel ? "max-level" : ""
-                      }`}
-                      style={{ width: `${progressPercent}%` }}
-                    />
+                  <div className="upgrade-info">
+                    <h3>{upgrade.name}</h3>
+                    <p className="upgrade-desc">{upgrade.description}</p>
+                    <p className="upgrade-level">
+                      Level {upgrade.currentLevel}/{upgrade.maxLevel}
+                    </p>
+                    <div className="upgrade-progress-container">
+                      <div
+                        className={`upgrade-progress-bar ${
+                          isMaxLevel ? "max-level" : ""
+                        }`}
+                        style={{ width: `${progressPercent}%` }}
+                      />
+                    </div>
                   </div>
-                  <button
-                    className="upgrade-button"
-                    disabled={
-                      playerRef.current.money < upgrade.cost || isMaxLevel
-                    }
-                    onClick={() => {
-                      if (purchaseUpgrade(upgrade, playerRef.current)) {
-                        audioSystem.playPurchase();
-                        forceUpdate({}); // Force re-render to update UI
-                      }
-                    }}
-                  >
-                    {isMaxLevel ? "MAX" : `$${upgrade.cost}`}
-                  </button>
+                  <div className="upgrade-action">
+                    {!isMaxLevel && (
+                      <div
+                        className={`upgrade-cost ${
+                          canAfford ? "affordable" : ""
+                        }`}
+                      >
+                        ${upgrade.cost}
+                      </div>
+                    )}
+                    <button
+                      className={`upgrade-button ${isMaxLevel ? "max" : ""}`}
+                      disabled={!canAfford || isMaxLevel}
+                      onClick={() => {
+                        if (purchaseUpgrade(upgrade, playerRef.current)) {
+                          audioSystem.playPurchase();
+                          forceUpdate({}); // Force re-render to update UI
+                        }
+                      }}
+                    >
+                      {isMaxLevel ? "MAXED" : "UPGRADE"}
+                    </button>
+                  </div>
                 </div>
               );
             })}
