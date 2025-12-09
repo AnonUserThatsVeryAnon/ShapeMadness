@@ -247,7 +247,12 @@ function App() {
     );
 
     // Auto-shoot at nearest enemy
-    if (enemies.length > 0 && now - player.lastShot > player.fireRate) {
+    // Apply time slow debuff (2x fire rate delay when slowed)
+    const fireRateMultiplier =
+      player.slowedUntil && now < player.slowedUntil ? 2 : 1;
+    const effectiveFireRate = player.fireRate * fireRateMultiplier;
+
+    if (enemies.length > 0 && now - player.lastShot > effectiveFireRate) {
       const nearestEnemy = enemies.reduce((nearest, enemy) => {
         if (!enemy.active) return nearest;
         const dist = distance(player.position, enemy.position);
@@ -323,6 +328,30 @@ function App() {
             );
           }
         }
+      }
+
+      // Timebomb (TIME_DISTORTION) - Slow field effect
+      if (enemy.type === EnemyType.TIME_DISTORTION) {
+        const slowFieldRadius = enemy.slowFieldRadius || 300; // Use individual radius
+        const distToPlayer = distance(enemy.position, player.position);
+
+        // Mark enemy as having active slow field for visual rendering
+        enemy.lastSpecialAbility = now;
+
+        // Slow player fire rate when in range
+        if (distToPlayer < slowFieldRadius) {
+          player.slowedUntil = now + 200; // 0.2s slow persistence
+        }
+
+        // Slow bullets that pass through the field
+        bulletsRef.current.forEach((bullet) => {
+          if (!bullet.active) return;
+          const distToBullet = distance(enemy.position, bullet.position);
+          if (distToBullet < slowFieldRadius) {
+            // Reduce bullet velocity to 40% speed
+            bullet.velocity = multiply(bullet.velocity, 0.4);
+          }
+        });
       }
 
       // Shooter enemies fire projectiles
@@ -1314,6 +1343,68 @@ function App() {
           enemy.position.x,
           enemy.position.y,
           auraRadius * pulse,
+          0,
+          Math.PI * 2
+        );
+        ctx.stroke();
+      }
+
+      // Timebomb (TIME_DISTORTION) slow field visual
+      if (enemy.type === EnemyType.TIME_DISTORTION) {
+        const slowFieldRadius = enemy.slowFieldRadius || 300; // Use individual radius
+
+        // Draw distortion field with multiple rings (no pulsation)
+        for (let i = 0; i < 3; i++) {
+          const ringRadius = (slowFieldRadius * (i + 1)) / 3;
+          const alpha = 0.15 - i * 0.04;
+
+          ctx.strokeStyle = `rgba(103, 58, 183, ${alpha})`;
+          ctx.lineWidth = 3;
+          ctx.setLineDash([10, 10]);
+          ctx.beginPath();
+          ctx.arc(
+            enemy.position.x,
+            enemy.position.y,
+            ringRadius,
+            now / 1000 + i,
+            now / 1000 + i + Math.PI * 1.8
+          );
+          ctx.stroke();
+        }
+        ctx.setLineDash([]);
+
+        // Gradient field effect (constant size)
+        const fieldGradient = ctx.createRadialGradient(
+          enemy.position.x,
+          enemy.position.y,
+          0,
+          enemy.position.x,
+          enemy.position.y,
+          slowFieldRadius
+        );
+        fieldGradient.addColorStop(0, "rgba(103, 58, 183, 0.2)");
+        fieldGradient.addColorStop(0.5, "rgba(103, 58, 183, 0.1)");
+        fieldGradient.addColorStop(1, "rgba(103, 58, 183, 0)");
+
+        ctx.fillStyle = fieldGradient;
+        ctx.beginPath();
+        ctx.arc(
+          enemy.position.x,
+          enemy.position.y,
+          slowFieldRadius,
+          0,
+          Math.PI * 2
+        );
+        ctx.fill();
+
+        // Warning ring at edge (constant opacity)
+        ctx.strokeStyle = `rgba(103, 58, 183, 0.6)`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(
+          enemy.position.x,
+          enemy.position.y,
+          slowFieldRadius,
           0,
           Math.PI * 2
         );

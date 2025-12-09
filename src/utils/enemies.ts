@@ -128,7 +128,7 @@ export const ENEMY_CONFIGS = {
 
 export function createEnemy(type: EnemyType, position: Vector2): Enemy {
   const config = ENEMY_CONFIGS[type];
-  return {
+  const enemy: Enemy = {
     type,
     position: { ...position },
     velocity: { x: 0, y: 0 },
@@ -141,6 +141,13 @@ export function createEnemy(type: EnemyType, position: Vector2): Enemy {
     color: config.color,
     active: true,
   };
+
+  // Timebomb gets randomized slow field radius (200-400px)
+  if (type === EnemyType.TIME_DISTORTION) {
+    enemy.slowFieldRadius = 200 + Math.random() * 200; // Random between 200-400
+  }
+
+  return enemy;
 }
 
 export function updateEnemyPosition(enemy: Enemy, player: Player, deltaTime: number): void {
@@ -233,7 +240,15 @@ export function spawnEnemiesForRound(
     let type: EnemyType = EnemyType.BASIC;
     const rand = Math.random();
     
-    if (round >= 15) {
+    if (round >= 20) {
+      // Add Timebomb at round 20+
+      if (rand < 0.1) type = EnemyType.TIME_DISTORTION;
+      else if (rand < 0.2) type = EnemyType.BUFFER;
+      else if (rand < 0.35) type = EnemyType.SHOOTER;
+      else if (rand < 0.55) type = EnemyType.TANK;
+      else if (rand < 0.75) type = EnemyType.SPLITTER;
+      else if (rand < 0.9) type = EnemyType.FAST;
+    } else if (round >= 15) {
       // Add Buffer at round 15+
       if (rand < 0.15) type = EnemyType.BUFFER;
       else if (rand < 0.3) type = EnemyType.SHOOTER;

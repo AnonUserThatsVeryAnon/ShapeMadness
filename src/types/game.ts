@@ -21,6 +21,7 @@ export interface Player extends Entity {
   money: number;
   invulnerable: boolean;
   invulnerableUntil: number;
+  slowedUntil?: number;
 }
 
 export interface Enemy extends Entity {
@@ -45,6 +46,7 @@ export interface Enemy extends Entity {
   sniperCharging?: boolean;
   sniperTarget?: { x: number; y: number };
   lastHealTime?: number;
+  slowFieldRadius?: number; // For Timebomb - randomized per enemy
 }
 
 export interface Bullet extends Entity {
