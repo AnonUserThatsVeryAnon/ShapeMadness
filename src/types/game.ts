@@ -54,6 +54,13 @@ export interface Bullet extends Entity {
   createdAt: number;
 }
 
+export interface EnemyProjectile extends Entity {
+  damage: number;
+  lifetime: number;
+  createdAt: number;
+  color: string;
+}
+
 export interface PowerUp extends Entity {
   type: PowerUpType;
   duration: number;

@@ -3,6 +3,7 @@ import type {
   Player,
   Enemy,
   Bullet,
+  EnemyProjectile,
   PowerUp,
   Particle,
   GameStats,
@@ -77,6 +78,7 @@ function App() {
 
   const enemiesRef = useRef<Enemy[]>([]);
   const bulletsRef = useRef<Bullet[]>([]);
+  const enemyProjectilesRef = useRef<EnemyProjectile[]>([]);
   const powerUpsRef = useRef<PowerUp[]>([]);
   const particlesRef = useRef<Particle[]>([]);
   const floatingTextsRef = useRef<FloatingText[]>([]);
@@ -179,6 +181,7 @@ function App() {
       CANVAS_HEIGHT
     );
     bulletsRef.current = [];
+    enemyProjectilesRef.current = [];
     powerUpsRef.current = [];
     setGameState(GameState.PLAYING);
   };
@@ -264,6 +267,38 @@ function App() {
       if (!enemy.active) return;
       updateEnemyPosition(enemy, player, deltaTime);
 
+      // Shooter enemies fire projectiles
+      if (enemy.type === EnemyType.SHOOTER) {
+        if (!enemy.lastSpecialAbility) enemy.lastSpecialAbility = now;
+
+        // Fire every 2 seconds
+        if (now - enemy.lastSpecialAbility > 2000) {
+          const toPlayer = {
+            x: player.position.x - enemy.position.x,
+            y: player.position.y - enemy.position.y,
+          };
+          const direction = normalize(toPlayer);
+
+          enemyProjectilesRef.current.push({
+            position: { ...enemy.position },
+            velocity: multiply(direction, 6),
+            radius: 6,
+            damage: enemy.damage,
+            lifetime: 3000,
+            createdAt: now,
+            active: true,
+            color: enemy.color,
+          });
+
+          enemy.lastSpecialAbility = now;
+
+          // Muzzle flash particles
+          particlesRef.current.push(
+            ...createParticles(enemy.position, 8, enemy.color, 2)
+          );
+        }
+      }
+
       // Check collision with player
       if (!player.invulnerable && checkCollision(player, enemy)) {
         damagePlayer(enemy.damage, now);
@@ -339,6 +374,40 @@ function App() {
       });
 
       return bullet.active && !hit;
+    });
+
+    // Update enemy projectiles
+    enemyProjectilesRef.current = enemyProjectilesRef.current.filter((proj) => {
+      if (!proj.active) return false;
+
+      // Move projectile
+      proj.position = add(
+        proj.position,
+        multiply(proj.velocity, deltaTime * 60)
+      );
+
+      // Check if out of bounds or lifetime exceeded
+      const age = now - proj.createdAt;
+      if (
+        age > proj.lifetime ||
+        proj.position.x < 0 ||
+        proj.position.x > CANVAS_WIDTH ||
+        proj.position.y < 0 ||
+        proj.position.y > CANVAS_HEIGHT
+      ) {
+        return false;
+      }
+
+      // Check collision with player
+      if (!player.invulnerable && checkCollision(proj, player)) {
+        damagePlayer(proj.damage, now);
+        particlesRef.current.push(
+          ...createParticles(proj.position, 12, proj.color, 3, 500)
+        );
+        return false;
+      }
+
+      return true;
     });
 
     // Update power-ups
@@ -1073,11 +1142,56 @@ function App() {
     enemiesRef.current.forEach((enemy) => {
       if (!enemy.active) return;
 
+      // VISUAL EFFECTS based on type
+      if (enemy.type === EnemyType.FAST) {
+        // Speed trail effect
+        for (let i = 1; i <= 3; i++) {
+          ctx.fillStyle = `rgba(78, 205, 196, ${0.3 / i})`;
+          ctx.beginPath();
+          ctx.arc(
+            enemy.position.x - enemy.velocity.x * i * 3,
+            enemy.position.y - enemy.velocity.y * i * 3,
+            enemy.radius * (1 - i * 0.2),
+            0,
+            Math.PI * 2
+          );
+          ctx.fill();
+        }
+      }
+
+      if (enemy.type === EnemyType.TANK) {
+        // Ground shake effect - draw larger shadow
+        ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
+        ctx.beginPath();
+        ctx.ellipse(
+          enemy.position.x,
+          enemy.position.y + enemy.radius,
+          enemy.radius * 1.2,
+          enemy.radius * 0.4,
+          0,
+          0,
+          Math.PI * 2
+        );
+        ctx.fill();
+      }
+
+      if (
+        enemy.type === EnemyType.SPLITTER &&
+        enemy.health < enemy.maxHealth * 0.3
+      ) {
+        // Warning glow when low HP (about to split)
+        const pulseGlow = Math.sin(now / 100) * 0.5 + 0.5;
+        ctx.shadowBlur = 15 * pulseGlow;
+        ctx.shadowColor = enemy.color;
+      }
+
       // Base circle
       ctx.fillStyle = enemy.color;
       ctx.beginPath();
       ctx.arc(enemy.position.x, enemy.position.y, enemy.radius, 0, Math.PI * 2);
       ctx.fill();
+
+      ctx.shadowBlur = 0;
 
       // Border for emphasis
       ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
@@ -1308,6 +1422,32 @@ function App() {
       ctx.lineTo(
         bullet.position.x - bullet.velocity.x * 2,
         bullet.position.y - bullet.velocity.y * 2
+      );
+      ctx.stroke();
+    });
+
+    // Draw enemy projectiles
+    enemyProjectilesRef.current.forEach((proj) => {
+      if (!proj.active) return;
+
+      // Pulsing red projectile
+      const pulse = Math.sin(now / 100) * 0.3 + 0.7;
+      ctx.fillStyle = proj.color;
+      ctx.shadowBlur = 8 * pulse;
+      ctx.shadowColor = proj.color;
+      ctx.beginPath();
+      ctx.arc(proj.position.x, proj.position.y, proj.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Projectile trail
+      ctx.strokeStyle = `${proj.color}44`;
+      ctx.lineWidth = proj.radius;
+      ctx.beginPath();
+      ctx.moveTo(proj.position.x, proj.position.y);
+      ctx.lineTo(
+        proj.position.x - proj.velocity.x * 3,
+        proj.position.y - proj.velocity.y * 3
       );
       ctx.stroke();
     });
