@@ -41,6 +41,10 @@ import {
   resetUpgrades,
   getUpgradeLevel,
 } from "./utils/upgrades";
+import { discoverEnemy, getCodexState } from "./utils/codexProgress";
+import type { CodexState } from "./types/codex";
+import { EnemyCard } from "./components/EnemyCard";
+import { CodexMenu } from "./components/CodexMenu";
 import "./App.css";
 
 // Dynamic canvas size - uses full window
@@ -58,6 +62,11 @@ function App() {
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
   const [isPaused, setIsPaused] = useState(false);
   const [, forceUpdate] = useState({});
+
+  // Codex state for enemy discovery system
+  const [showingCard, setShowingCard] = useState<EnemyType | null>(null);
+  const [showCodex, setShowCodex] = useState(false);
+  const codexStateRef = useRef<CodexState>(getCodexState());
 
   // Game state refs (for game loop access)
   const playerRef = useRef<Player>({
@@ -300,6 +309,16 @@ function App() {
     // Update enemies
     enemies.forEach((enemy) => {
       if (!enemy.active) return;
+
+      // Check for enemy discovery (codex system)
+      const isNewDiscovery = discoverEnemy(enemy.type);
+      if (isNewDiscovery) {
+        console.log(`🎉 New Enemy Discovered: ${enemy.type}!`);
+        codexStateRef.current = getCodexState(); // Update completion stats
+        setShowingCard(enemy.type);
+        setIsPaused(true);
+      }
+
       updateEnemyPosition(enemy, player, deltaTime);
 
       // Buffer enemies rotate buffs and apply to nearby enemies
@@ -1828,8 +1847,8 @@ function App() {
       const age = now - laser.createdAt;
 
       if (laser.isWarning) {
-        // Warning phase - blinking red line
-        const alpha = Math.sin(age / 100) * 0.3 + 0.4;
+        // Warning phase - subtle blinking red line (more transparent)
+        const alpha = Math.sin(age / 100) * 0.15 + 0.25; // Reduced from 0.3 + 0.4 to 0.15 + 0.25
         ctx.strokeStyle = `rgba(255, 0, 0, ${alpha})`;
         ctx.lineWidth = laser.width;
         ctx.setLineDash([20, 10]);
@@ -2082,6 +2101,17 @@ function App() {
           >
             🐛 DEBUG: Wave 15 + Max Upgrades
           </button>
+          <button
+            className="menu-button"
+            onClick={() => setShowCodex(true)}
+            style={{
+              backgroundColor: "#4ecdcb",
+              fontSize: "16px",
+              marginTop: "10px",
+            }}
+          >
+            📖 VIEW CODEX
+          </button>
           {statsRef.current.highScore > 0 && (
             <p className="high-score">
               High Score: {formatNumber(statsRef.current.highScore)}
@@ -2182,7 +2212,7 @@ function App() {
         </div>
       )}
 
-      {isPaused && gameState === GameState.PLAYING && (
+      {isPaused && gameState === GameState.PLAYING && !showingCard && (
         <div className="menu-overlay pause-overlay">
           <h1 className="pause-title">⏸️ PAUSED</h1>
           <button className="menu-button" onClick={() => setIsPaused(false)}>
@@ -2199,6 +2229,18 @@ function App() {
           </button>
         </div>
       )}
+
+      {showingCard && (
+        <EnemyCard
+          enemyType={showingCard}
+          onClose={() => {
+            setShowingCard(null);
+            setIsPaused(false);
+          }}
+        />
+      )}
+
+      {showCodex && <CodexMenu onClose={() => setShowCodex(false)} />}
     </div>
   );
 }
