@@ -42,13 +42,14 @@ import {
 } from "./utils/upgrades";
 import "./App.css";
 
-const CANVAS_WIDTH = 1200;
-const CANVAS_HEIGHT = 800;
+// Dynamic canvas size - uses full window
+const CANVAS_WIDTH = window.innerWidth;
+const CANVAS_HEIGHT = window.innerHeight;
 const IFRAME_DURATION = 1000; // 1 second invulnerability after hit
 
-// Play zone limits
-const MIN_ZONE_SIZE = 400; // Minimum zone dimension
-const MAX_ZONE_SIZE = Math.min(CANVAS_WIDTH, CANVAS_HEIGHT); // Maximum zone dimension
+// Play zone limits - can now expand beyond initial view!
+const INITIAL_ZONE_SIZE = 400; // Start small
+const MAX_ZONE_EXPANSION = 2.5; // Can expand up to 2.5x the window size
 const ZONE_TRANSITION_DURATION = 3000; // 3 seconds to transition
 const ZONE_DAMAGE = 20; // Damage per tick outside zone (40 HP per second!)
 
@@ -84,18 +85,20 @@ function App() {
   const lastLaserTimeRef = useRef<number>(0);
   const lastZoneDamageRef = useRef<number>(0);
 
-  // Play zone state - starts at full size
+  // Play zone state - starts SMALL (400x400) in center, will expand in first rounds
   const playZoneRef = useRef<PlayZone>({
-    x: 0,
-    y: 0,
-    width: CANVAS_WIDTH,
-    height: CANVAS_HEIGHT,
-    targetWidth: CANVAS_WIDTH,
-    targetHeight: CANVAS_HEIGHT,
-    targetX: 0,
-    targetY: 0,
+    x: (CANVAS_WIDTH - INITIAL_ZONE_SIZE) / 2,
+    y: (CANVAS_HEIGHT - INITIAL_ZONE_SIZE) / 2,
+    width: INITIAL_ZONE_SIZE,
+    height: INITIAL_ZONE_SIZE,
+    targetWidth: INITIAL_ZONE_SIZE,
+    targetHeight: INITIAL_ZONE_SIZE,
+    targetX: (CANVAS_WIDTH - INITIAL_ZONE_SIZE) / 2,
+    targetY: (CANVAS_HEIGHT - INITIAL_ZONE_SIZE) / 2,
     isTransitioning: false,
     transitionProgress: 0,
+    cameraX: 0,
+    cameraY: 0,
   });
 
   const statsRef = useRef<GameStats>({
@@ -141,18 +144,20 @@ function App() {
       lastComboTime: 0,
     };
 
-    // Reset play zone
+    // Reset play zone to small starting size
     playZoneRef.current = {
-      x: 0,
-      y: 0,
-      width: CANVAS_WIDTH,
-      height: CANVAS_HEIGHT,
-      targetWidth: CANVAS_WIDTH,
-      targetHeight: CANVAS_HEIGHT,
-      targetX: 0,
-      targetY: 0,
+      x: (CANVAS_WIDTH - INITIAL_ZONE_SIZE) / 2,
+      y: (CANVAS_HEIGHT - INITIAL_ZONE_SIZE) / 2,
+      width: INITIAL_ZONE_SIZE,
+      height: INITIAL_ZONE_SIZE,
+      targetWidth: INITIAL_ZONE_SIZE,
+      targetHeight: INITIAL_ZONE_SIZE,
+      targetX: (CANVAS_WIDTH - INITIAL_ZONE_SIZE) / 2,
+      targetY: (CANVAS_HEIGHT - INITIAL_ZONE_SIZE) / 2,
       isTransitioning: false,
       transitionProgress: 0,
+      cameraX: 0,
+      cameraY: 0,
     };
 
     resetUpgrades();
@@ -160,8 +165,16 @@ function App() {
 
   // Start new round
   const startRound = () => {
-    // Check if we should change the play zone (every 10 rounds)
-    if (statsRef.current.round % 10 === 0 && statsRef.current.round > 0) {
+    const currentRound = statsRef.current.round;
+
+    // Zone change logic:
+    // - Rounds 1-10: Expand EVERY round to reach full screen
+    // - Round 20, 30, 40+: Random shrink/expand every 10 rounds
+    if (currentRound <= 10 && currentRound > 0) {
+      // Expand every round for first 10 rounds
+      triggerZoneChange();
+    } else if (currentRound % 10 === 0 && currentRound > 10) {
+      // After round 10, only change every 10 rounds (20, 30, 40, etc.)
       triggerZoneChange();
     }
 
@@ -438,14 +451,23 @@ function App() {
       }
     }
 
-    // Check if player is outside zone and apply damage
+    // Check if player is outside zone - but only damage in RED zones (contracted), not GREEN zones (expanded)
     const isOutsideZone =
       player.position.x < zone.x + player.radius ||
       player.position.x > zone.x + zone.width - player.radius ||
       player.position.y < zone.y + player.radius ||
       player.position.y > zone.y + zone.height - player.radius;
 
-    if (isOutsideZone && !player.invulnerable) {
+    // Only damage if outside zone AND inside canvas (red zone, not green expansion zone)
+    const isInCanvas =
+      player.position.x >= 0 &&
+      player.position.x <= CANVAS_WIDTH &&
+      player.position.y >= 0 &&
+      player.position.y <= CANVAS_HEIGHT;
+
+    const isInRedZone = isOutsideZone && isInCanvas;
+
+    if (isInRedZone && !player.invulnerable) {
       // Apply damage over time (every 0.5 seconds)
       if (now - lastZoneDamageRef.current > 500) {
         damagePlayer(ZONE_DAMAGE, now);
@@ -733,55 +755,113 @@ function App() {
 
   const triggerZoneChange = () => {
     const zone = playZoneRef.current;
-    const random = Math.random();
+    const stats = statsRef.current;
 
-    // 50% chance to shrink, 50% to expand
-    const shouldShrink = random < 0.5;
+    // First 10 rounds: Always expand towards full screen
+    if (stats.round <= 10) {
+      const expandFactor = 1.15 + Math.random() * 0.1; // 1.15-1.25x growth per round
+      let newWidth = zone.width * expandFactor;
+      let newHeight = zone.height * expandFactor;
 
-    if (shouldShrink) {
-      // Shrink by 15-25%
-      const shrinkFactor = 0.75 + Math.random() * 0.1; // 0.75-0.85
-      const newWidth = Math.max(MIN_ZONE_SIZE, zone.width * shrinkFactor);
-      const newHeight = Math.max(MIN_ZONE_SIZE, zone.height * shrinkFactor);
+      // Cap at full canvas size for first rounds
+      newWidth = Math.min(newWidth, CANVAS_WIDTH);
+      newHeight = Math.min(newHeight, CANVAS_HEIGHT);
 
-      // Center the shrink
       zone.targetWidth = newWidth;
       zone.targetHeight = newHeight;
       zone.targetX = (CANVAS_WIDTH - newWidth) / 2;
       zone.targetY = (CANVAS_HEIGHT - newHeight) / 2;
 
-      // Notification
       floatingTextsRef.current.push({
         position: { x: CANVAS_WIDTH / 2, y: 100 },
-        text: "⚠️ ZONE SHRINKING! ⚠️",
-        color: "#ff4444",
-        size: 32,
-        lifetime: 3000,
-        createdAt: Date.now(),
-        velocity: { x: 0, y: 0 },
-      });
-    } else {
-      // Expand by 15-25%
-      const expandFactor = 1.15 + Math.random() * 0.1; // 1.15-1.25
-      const newWidth = Math.min(MAX_ZONE_SIZE, zone.width * expandFactor);
-      const newHeight = Math.min(MAX_ZONE_SIZE, zone.height * expandFactor);
-
-      // Center the expand
-      zone.targetWidth = newWidth;
-      zone.targetHeight = newHeight;
-      zone.targetX = (CANVAS_WIDTH - newWidth) / 2;
-      zone.targetY = (CANVAS_HEIGHT - newHeight) / 2;
-
-      // Notification
-      floatingTextsRef.current.push({
-        position: { x: CANVAS_WIDTH / 2, y: 100 },
-        text: "✨ ZONE EXPANDING! ✨",
+        text: `✨ ZONE EXPANDING! (Round ${stats.round}/10) ✨`,
         color: "#00ff88",
         size: 32,
         lifetime: 3000,
         createdAt: Date.now(),
         velocity: { x: 0, y: 0 },
       });
+    } else {
+      // After round 10: Random asymmetric changes - can shrink or expand beyond canvas!
+      const changeWidth = Math.random() < 0.5;
+      const changeHeight = Math.random() < 0.5;
+
+      // Random factors for width and height independently
+      const widthShrink = Math.random() < 0.5;
+      const heightShrink = Math.random() < 0.5;
+
+      let newWidth = zone.width;
+      let newHeight = zone.height;
+      let message = "";
+      let color = "#ffffff";
+
+      if (changeWidth) {
+        if (widthShrink) {
+          // Shrink width (min 300px)
+          const shrinkFactor = 0.7 + Math.random() * 0.15; // 0.7-0.85
+          newWidth = Math.max(300, zone.width * shrinkFactor);
+        } else {
+          // Expand width (can go beyond canvas!)
+          const expandFactor = 1.2 + Math.random() * 0.3; // 1.2-1.5x
+          const maxWidth = CANVAS_WIDTH * MAX_ZONE_EXPANSION;
+          newWidth = Math.min(maxWidth, zone.width * expandFactor);
+        }
+      }
+
+      if (changeHeight) {
+        if (heightShrink) {
+          // Shrink height (min 300px)
+          const shrinkFactor = 0.7 + Math.random() * 0.15;
+          newHeight = Math.max(300, zone.height * shrinkFactor);
+        } else {
+          // Expand height (can go beyond canvas!)
+          const expandFactor = 1.2 + Math.random() * 0.3;
+          const maxHeight = CANVAS_HEIGHT * MAX_ZONE_EXPANSION;
+          newHeight = Math.min(maxHeight, zone.height * expandFactor);
+        }
+      }
+
+      // Determine message
+      const widthChanged = newWidth !== zone.width;
+      const heightChanged = newHeight !== zone.height;
+      const widthExpanded = newWidth > zone.width;
+      const heightExpanded = newHeight > zone.width;
+
+      if (widthChanged && heightChanged) {
+        if (widthExpanded && heightExpanded) {
+          message = "✨ ZONE EXPANDING! ✨";
+          color = "#00ff88";
+        } else if (!widthExpanded && !heightExpanded) {
+          message = "⚠️ ZONE SHRINKING! ⚠️";
+          color = "#ff4444";
+        } else {
+          message = "🔄 ZONE SHIFTING! 🔄";
+          color = "#ffaa00";
+        }
+      } else if (widthChanged) {
+        message = widthExpanded ? "↔️ WIDER ZONE! ↔️" : "⚡ NARROWER ZONE! ⚡";
+        color = widthExpanded ? "#00ff88" : "#ff4444";
+      } else if (heightChanged) {
+        message = heightExpanded ? "↕️ TALLER ZONE! ↕️" : "⚡ SHORTER ZONE! ⚡";
+        color = heightExpanded ? "#00ff88" : "#ff4444";
+      }
+
+      zone.targetWidth = newWidth;
+      zone.targetHeight = newHeight;
+      zone.targetX = (CANVAS_WIDTH - newWidth) / 2;
+      zone.targetY = (CANVAS_HEIGHT - newHeight) / 2;
+
+      if (message) {
+        floatingTextsRef.current.push({
+          position: { x: CANVAS_WIDTH / 2, y: 100 },
+          text: message,
+          color: color,
+          size: 32,
+          lifetime: 3000,
+          createdAt: Date.now(),
+          velocity: { x: 0, y: 0 },
+        });
+      }
     }
 
     zone.isTransitioning = true;
@@ -875,15 +955,17 @@ function App() {
     ctx.fillStyle = "#0a0a14";
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // Draw deadly red zone outside playable area
+    // Draw zone overlays
     const zone = playZoneRef.current;
-    ctx.fillStyle = "rgba(255, 0, 0, 0.15)";
 
-    // Top
+    // RED zones (deadly): Areas within canvas but outside play zone
+    ctx.fillStyle = "rgba(255, 0, 0, 0.2)";
+
+    // Top red zone
     if (zone.y > 0) {
       ctx.fillRect(0, 0, CANVAS_WIDTH, zone.y);
     }
-    // Bottom
+    // Bottom red zone
     if (zone.y + zone.height < CANVAS_HEIGHT) {
       ctx.fillRect(
         0,
@@ -892,22 +974,113 @@ function App() {
         CANVAS_HEIGHT - (zone.y + zone.height)
       );
     }
-    // Left
+    // Left red zone
     if (zone.x > 0) {
-      ctx.fillRect(0, zone.y, zone.x, zone.height);
+      ctx.fillRect(
+        0,
+        Math.max(0, zone.y),
+        zone.x,
+        Math.min(zone.height, CANVAS_HEIGHT - zone.y)
+      );
     }
-    // Right
+    // Right red zone
     if (zone.x + zone.width < CANVAS_WIDTH) {
       ctx.fillRect(
         zone.x + zone.width,
-        zone.y,
+        Math.max(0, zone.y),
         CANVAS_WIDTH - (zone.x + zone.width),
-        zone.height
+        Math.min(zone.height, CANVAS_HEIGHT - zone.y)
       );
     }
 
-    // Draw zone border
-    ctx.strokeStyle = zone.isTransitioning ? "#ffaa00" : "#ff4444";
+    // GREEN zones (safe bonus area): Zone extends beyond canvas
+    ctx.fillStyle = "rgba(0, 255, 136, 0.15)";
+
+    // Top green expansion (zone extends above canvas)
+    if (zone.y < 0) {
+      const expandHeight = Math.abs(zone.y);
+      ctx.fillRect(0, 0, CANVAS_WIDTH, Math.min(expandHeight, 50));
+      // Draw arrow indicators
+      ctx.fillStyle = "#00ff88";
+      ctx.font = "24px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText("↑ SAFE ZONE ↑", CANVAS_WIDTH / 2, 30);
+    }
+
+    // Bottom green expansion
+    if (zone.y + zone.height > CANVAS_HEIGHT) {
+      const expandHeight = zone.y + zone.height - CANVAS_HEIGHT;
+      ctx.fillStyle = "rgba(0, 255, 136, 0.15)";
+      ctx.fillRect(
+        0,
+        CANVAS_HEIGHT - Math.min(expandHeight, 50),
+        CANVAS_WIDTH,
+        50
+      );
+      // Draw arrow indicators
+      ctx.fillStyle = "#00ff88";
+      ctx.font = "24px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText("↓ SAFE ZONE ↓", CANVAS_WIDTH / 2, CANVAS_HEIGHT - 20);
+    }
+
+    // Left green expansion
+    if (zone.x < 0) {
+      const expandWidth = Math.abs(zone.x);
+      ctx.fillStyle = "rgba(0, 255, 136, 0.15)";
+      ctx.fillRect(0, 0, Math.min(expandWidth, 50), CANVAS_HEIGHT);
+      // Draw arrow indicators
+      ctx.fillStyle = "#00ff88";
+      ctx.font = "24px Arial";
+      ctx.save();
+      ctx.translate(30, CANVAS_HEIGHT / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText("SAFE ZONE", 0, 0);
+      ctx.restore();
+    }
+
+    // Right green expansion
+    if (zone.x + zone.width > CANVAS_WIDTH) {
+      const expandWidth = zone.x + zone.width - CANVAS_WIDTH;
+      ctx.fillStyle = "rgba(0, 255, 136, 0.15)";
+      ctx.fillRect(
+        CANVAS_WIDTH - Math.min(expandWidth, 50),
+        0,
+        50,
+        CANVAS_HEIGHT
+      );
+      // Draw arrow indicators
+      ctx.fillStyle = "#00ff88";
+      ctx.font = "24px Arial";
+      ctx.save();
+      ctx.translate(CANVAS_WIDTH - 30, CANVAS_HEIGHT / 2);
+      ctx.rotate(Math.PI / 2);
+      ctx.fillText("SAFE ZONE", 0, 0);
+      ctx.restore();
+    }
+
+    // Draw zone border (always visible where it intersects viewport)
+    const visibleZoneX = Math.max(0, zone.x);
+    const visibleZoneY = Math.max(0, zone.y);
+    const visibleZoneWidth = Math.min(zone.width, CANVAS_WIDTH - visibleZoneX);
+    const visibleZoneHeight = Math.min(
+      zone.height,
+      CANVAS_HEIGHT - visibleZoneY
+    );
+
+    // Choose color based on if zone is expanding or shrinking
+    const isExpanded = zone.width > CANVAS_WIDTH || zone.height > CANVAS_HEIGHT;
+    const isContracted =
+      zone.width < CANVAS_WIDTH || zone.height < CANVAS_HEIGHT;
+
+    if (isExpanded && !isContracted) {
+      ctx.strokeStyle = zone.isTransitioning ? "#ffaa00" : "#00ff88"; // Green for expansion
+    } else if (isContracted && !isExpanded) {
+      ctx.strokeStyle = zone.isTransitioning ? "#ffaa00" : "#ff4444"; // Red for contraction
+    } else {
+      ctx.strokeStyle = zone.isTransitioning ? "#ffaa00" : "#ffaa00"; // Orange for mixed
+    }
+
     ctx.lineWidth = 4;
     ctx.setLineDash(zone.isTransitioning ? [10, 5] : []);
 
@@ -917,7 +1090,12 @@ function App() {
       ctx.globalAlpha = 0.5 + pulse * 0.5;
     }
 
-    ctx.strokeRect(zone.x, zone.y, zone.width, zone.height);
+    ctx.strokeRect(
+      visibleZoneX,
+      visibleZoneY,
+      visibleZoneWidth,
+      visibleZoneHeight
+    );
     ctx.globalAlpha = 1;
     ctx.setLineDash([]);
 

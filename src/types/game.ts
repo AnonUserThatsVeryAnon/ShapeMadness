@@ -90,6 +90,9 @@ export interface PlayZone {
   targetY: number;
   isTransitioning: boolean;
   transitionProgress: number;
+  // Camera offset for viewing expanded zones
+  cameraX: number;
+  cameraY: number;
 }
 
 export const GameState = {

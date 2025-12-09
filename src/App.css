@@ -1,23 +1,23 @@
-/* Game container and canvas */
+/* Game container and canvas - FULLSCREEN */
 .game-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
   background: linear-gradient(135deg, #0a0a14 0%, #1a1a2e 100%);
-  position: relative;
   overflow: hidden;
+  margin: 0;
+  padding: 0;
 }
 
 .game-canvas {
-  border: 4px solid #00ff88;
-  border-radius: 12px;
-  box-shadow: 
-    0 0 30px rgba(0, 255, 136, 0.3),
-    0 0 60px rgba(0, 255, 136, 0.1),
-    inset 0 0 20px rgba(0, 0, 0, 0.5);
+  display: block;
+  width: 100%;
+  height: 100%;
   background: #0a0a14;
   image-rendering: crisp-edges;
+  cursor: crosshair;
 }
 
 /* Overlays */
