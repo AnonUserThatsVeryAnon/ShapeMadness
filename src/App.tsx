@@ -186,6 +186,36 @@ function App() {
     setGameState(GameState.PLAYING);
   };
 
+  // Debug function to skip to wave 15 with maxed upgrades
+  const activateDebugMode = () => {
+    const player = playerRef.current;
+    const stats = statsRef.current;
+
+    // Max all upgrades
+    UPGRADES.forEach((upgrade) => {
+      upgrade.currentLevel = upgrade.maxLevel;
+    });
+
+    // Apply maxed upgrades to player
+    player.damage = 25 + getUpgradeLevel("damage") * 15;
+    player.fireRate = Math.max(50, 250 - getUpgradeLevel("fire_rate") * 30);
+    player.maxHealth = 100 + getUpgradeLevel("health") * 50;
+    player.health = player.maxHealth;
+    player.speed = 4 + getUpgradeLevel("speed") * 0.5;
+
+    // Give lots of money
+    player.money = 50000;
+
+    // Jump to wave 15
+    stats.round = 15;
+
+    // Force UI update
+    forceUpdate({});
+
+    // Start the round
+    startRound();
+  };
+
   // Define game functions before useEffect
   const updateGame = (deltaTime: number, now: number) => {
     const player = playerRef.current;
@@ -352,6 +382,51 @@ function App() {
             bullet.velocity = multiply(bullet.velocity, 0.4);
           }
         });
+      }
+
+      // Chain Partners - healing via chain connection
+      if (
+        enemy.type === EnemyType.CHAIN_PARTNER &&
+        enemy.chainPartner?.active
+      ) {
+        const partner = enemy.chainPartner;
+        const distToPartner = distance(enemy.position, partner.position);
+        const chainRange = 200; // Max chain length
+
+        if (!enemy.lastHealTime) enemy.lastHealTime = now;
+
+        // Heal rate depends on chain status
+        if (distToPartner < chainRange) {
+          // Chain connected - slow heal (1 HP every 0.5s)
+          if (now - enemy.lastHealTime >= 500) {
+            enemy.health = Math.min(enemy.health + 1, enemy.maxHealth);
+            partner.health = Math.min(partner.health + 1, partner.maxHealth);
+            enemy.lastHealTime = now;
+
+            // Healing particles along chain
+            if (Math.random() < 0.3) {
+              const midPoint = {
+                x: (enemy.position.x + partner.position.x) / 2,
+                y: (enemy.position.y + partner.position.y) / 2,
+              };
+              particlesRef.current.push(
+                ...createParticles(midPoint, 2, "#03a9f4", 1, 400)
+              );
+            }
+          }
+        } else {
+          // Chain broken - fast heal when close (3 HP every 0.3s)
+          if (distToPartner < 100 && now - enemy.lastHealTime >= 300) {
+            enemy.health = Math.min(enemy.health + 3, enemy.maxHealth);
+            partner.health = Math.min(partner.health + 3, partner.maxHealth);
+            enemy.lastHealTime = now;
+
+            // Rapid healing particles
+            particlesRef.current.push(
+              ...createParticles(enemy.position, 3, "#4caf50", 2, 300)
+            );
+          }
+        }
       }
 
       // Shooter enemies fire projectiles
@@ -1253,6 +1328,43 @@ function App() {
     ctx.shadowBlur = 0;
     ctx.globalAlpha = 1;
 
+    // Draw chain connections FIRST (behind enemies)
+    enemiesRef.current.forEach((enemy) => {
+      if (!enemy.active || enemy.type !== EnemyType.CHAIN_PARTNER) return;
+      if (!enemy.chainPartner?.active) return;
+
+      const partner = enemy.chainPartner;
+      const distToPartner = distance(enemy.position, partner.position);
+      const chainRange = 200;
+
+      // Draw chain line
+      if (distToPartner < chainRange) {
+        // Connected chain - solid blue line
+        const chainStrength = 1 - distToPartner / chainRange;
+        ctx.strokeStyle = `rgba(3, 169, 244, ${0.6 * chainStrength})`;
+        ctx.lineWidth = 4 * chainStrength;
+        ctx.beginPath();
+        ctx.moveTo(enemy.position.x, enemy.position.y);
+        ctx.lineTo(partner.position.x, partner.position.y);
+        ctx.stroke();
+
+        // Glowing effect
+        ctx.strokeStyle = `rgba(3, 169, 244, ${0.3 * chainStrength})`;
+        ctx.lineWidth = 8 * chainStrength;
+        ctx.stroke();
+      } else {
+        // Broken chain - dashed red line
+        ctx.strokeStyle = "rgba(244, 67, 54, 0.4)";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([10, 10]);
+        ctx.beginPath();
+        ctx.moveTo(enemy.position.x, enemy.position.y);
+        ctx.lineTo(partner.position.x, partner.position.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    });
+
     // Draw enemies with UNIQUE VISUALS per type
     enemiesRef.current.forEach((enemy) => {
       if (!enemy.active) return;
@@ -1954,6 +2066,21 @@ function App() {
             }}
           >
             START GAME
+          </button>
+          <button
+            className="menu-button"
+            onClick={() => {
+              initializePlayer();
+              activateDebugMode();
+            }}
+            style={{
+              backgroundColor: "#ff9800",
+              fontSize: "14px",
+              padding: "10px 20px",
+              marginTop: "10px",
+            }}
+          >
+            🐛 DEBUG: Wave 15 + Max Upgrades
           </button>
           {statsRef.current.highScore > 0 && (
             <p className="high-score">

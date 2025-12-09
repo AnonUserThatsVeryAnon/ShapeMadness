@@ -87,6 +87,8 @@ export interface FloatingText {
   lifetime: number;
   createdAt: number;
   velocity: Vector2;
+  fontSize?: number;
+  alpha?: number;
 }
 
 export interface LaserBeam {

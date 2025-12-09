@@ -195,6 +195,44 @@ export function updateEnemyPosition(enemy: Enemy, player: Player, deltaTime: num
       break;
     }
     
+    case EnemyType.CHAIN_PARTNER: {
+      // Chain partners try to stay together while chasing player
+      if (enemy.chainPartner?.active) {
+        const partner = enemy.chainPartner;
+        const toPartner = {
+          x: partner.position.x - enemy.position.x,
+          y: partner.position.y - enemy.position.y,
+        };
+        const distToPartner = distance(enemy.position, partner.position);
+        const chainRange = 200;
+        
+        if (distToPartner > chainRange) {
+          // Chain broken - prioritize reuniting (70% toward partner, 30% toward player)
+          const partnerDir = normalize(toPartner);
+          const playerDir = normalize(toPlayer);
+          enemy.velocity = {
+            x: (partnerDir.x * 0.7 + playerDir.x * 0.3) * enemy.speed * speedMultiplier,
+            y: (partnerDir.y * 0.7 + playerDir.y * 0.3) * enemy.speed * speedMultiplier,
+          };
+        } else if (distToPartner < 50) {
+          // Too close - give some space while moving toward player
+          const partnerDir = normalize(toPartner);
+          const playerDir = normalize(toPlayer);
+          enemy.velocity = {
+            x: (playerDir.x - partnerDir.x * 0.3) * enemy.speed * speedMultiplier,
+            y: (playerDir.y - partnerDir.y * 0.3) * enemy.speed * speedMultiplier,
+          };
+        } else {
+          // Good distance - chase player normally
+          enemy.velocity = multiply(normalize(toPlayer), enemy.speed * speedMultiplier);
+        }
+      } else {
+        // Partner dead - chase player normally
+        enemy.velocity = multiply(normalize(toPlayer), enemy.speed * speedMultiplier);
+      }
+      break;
+    }
+    
     default:
       // Basic behavior
       enemy.velocity = multiply(normalize(toPlayer), enemy.speed * speedMultiplier);
@@ -236,42 +274,68 @@ export function spawnEnemiesForRound(
         break;
     }
 
-    // Determine enemy type based on round
-    let type: EnemyType = EnemyType.BASIC;
-    const rand = Math.random();
+    // Determine enemy type using weighted spawn pool (cleaner and more performant)
+    const spawnPool: Array<{ type: EnemyType; weight: number }> = [];
     
+    // Always include basic enemies
+    spawnPool.push({ type: EnemyType.BASIC, weight: 10 });
+    
+    // Add enemies based on round progression
+    if (round >= 2) {
+      spawnPool.push({ type: EnemyType.FAST, weight: 15 });
+    }
+    if (round >= 3) {
+      spawnPool.push({ type: EnemyType.SPLITTER, weight: 12 });
+    }
+    if (round >= 5) {
+      spawnPool.push({ type: EnemyType.TANK, weight: 18 });
+    }
+    if (round >= 10) {
+      spawnPool.push({ type: EnemyType.SHOOTER, weight: 14 });
+    }
+    if (round >= 15) {
+      spawnPool.push({ type: EnemyType.BUFFER, weight: 8 });
+    }
+    if (round >= 18) {
+      spawnPool.push({ type: EnemyType.CHAIN_PARTNER, weight: 8 });
+    }
     if (round >= 20) {
-      // Add Timebomb at round 20+
-      if (rand < 0.1) type = EnemyType.TIME_DISTORTION;
-      else if (rand < 0.2) type = EnemyType.BUFFER;
-      else if (rand < 0.35) type = EnemyType.SHOOTER;
-      else if (rand < 0.55) type = EnemyType.TANK;
-      else if (rand < 0.75) type = EnemyType.SPLITTER;
-      else if (rand < 0.9) type = EnemyType.FAST;
-    } else if (round >= 15) {
-      // Add Buffer at round 15+
-      if (rand < 0.15) type = EnemyType.BUFFER;
-      else if (rand < 0.3) type = EnemyType.SHOOTER;
-      else if (rand < 0.5) type = EnemyType.TANK;
-      else if (rand < 0.7) type = EnemyType.SPLITTER;
-      else if (rand < 0.85) type = EnemyType.FAST;
-    } else if (round >= 10) {
-      if (rand < 0.2) type = EnemyType.SHOOTER;
-      else if (rand < 0.4) type = EnemyType.TANK;
-      else if (rand < 0.6) type = EnemyType.SPLITTER;
-      else if (rand < 0.8) type = EnemyType.FAST;
-    } else if (round >= 5) {
-      if (rand < 0.25) type = EnemyType.TANK;
-      else if (rand < 0.5) type = EnemyType.SPLITTER;
-      else if (rand < 0.75) type = EnemyType.FAST;
-    } else if (round >= 3) {
-      if (rand < 0.3) type = EnemyType.FAST;
-      else if (rand < 0.5) type = EnemyType.SPLITTER;
-    } else if (round >= 2 && rand < 0.3) {
-      type = EnemyType.FAST;
+      spawnPool.push({ type: EnemyType.TIME_DISTORTION, weight: 8 });
+    }
+    
+    // Calculate total weight and select random enemy type
+    const totalWeight = spawnPool.reduce((sum, entry) => sum + entry.weight, 0);
+    let randomValue = Math.random() * totalWeight;
+    
+    let type: EnemyType = EnemyType.BASIC;
+    for (const entry of spawnPool) {
+      randomValue -= entry.weight;
+      if (randomValue <= 0) {
+        type = entry.type;
+        break;
+      }
     }
 
-    enemies.push(createEnemy(type, { x, y }));
+    const enemy = createEnemy(type, { x, y });
+    enemies.push(enemy);
+    
+    // If Chain Partner, spawn a partner nearby and link them
+    if (type === EnemyType.CHAIN_PARTNER) {
+      // Spawn partner 100-150 pixels away
+      const angle = Math.random() * Math.PI * 2;
+      const partnerDist = 100 + Math.random() * 50;
+      const partner = createEnemy(type, {
+        x: x + Math.cos(angle) * partnerDist,
+        y: y + Math.sin(angle) * partnerDist,
+      });
+      
+      // Link them together
+      enemy.chainPartner = partner;
+      partner.chainPartner = enemy;
+      
+      enemies.push(partner);
+      i++; // Skip next iteration since we spawned 2 enemies
+    }
   }
 
   return enemies;
