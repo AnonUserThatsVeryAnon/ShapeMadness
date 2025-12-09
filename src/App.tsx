@@ -67,6 +67,7 @@ function App() {
   const [showingCard, setShowingCard] = useState<EnemyType | null>(null);
   const [showCodex, setShowCodex] = useState(false);
   const codexStateRef = useRef<CodexState>(getCodexState());
+  const pendingDiscoveriesRef = useRef<EnemyType[]>([]); // Queue for end-of-round card display
 
   // Game state refs (for game loop access)
   const playerRef = useRef<Player>({
@@ -310,13 +311,15 @@ function App() {
     enemies.forEach((enemy) => {
       if (!enemy.active) return;
 
-      // Check for enemy discovery (codex system)
+      // Check for enemy discovery (codex system) - queue for end of round
       const isNewDiscovery = discoverEnemy(enemy.type);
       if (isNewDiscovery) {
         console.log(`🎉 New Enemy Discovered: ${enemy.type}!`);
         codexStateRef.current = getCodexState(); // Update completion stats
-        setShowingCard(enemy.type);
-        setIsPaused(true);
+        // Queue discovery to show at end of round
+        if (!pendingDiscoveriesRef.current.includes(enemy.type)) {
+          pendingDiscoveriesRef.current.push(enemy.type);
+        }
       }
 
       updateEnemyPosition(enemy, player, deltaTime);
@@ -759,7 +762,17 @@ function App() {
     // Check if round complete
     if (enemies.every((e) => !e.active)) {
       stats.round++;
-      setGameState(GameState.SHOP);
+
+      // Show discovery card if any enemies were discovered this round
+      if (pendingDiscoveriesRef.current.length > 0) {
+        const discoveredType = pendingDiscoveriesRef.current[0];
+        pendingDiscoveriesRef.current = pendingDiscoveriesRef.current.slice(1);
+        setShowingCard(discoveredType);
+        setIsPaused(true);
+        // Don't go to shop yet, card close will handle it
+      } else {
+        setGameState(GameState.SHOP);
+      }
     }
 
     // Check if player dead
@@ -2236,6 +2249,21 @@ function App() {
           onClose={() => {
             setShowingCard(null);
             setIsPaused(false);
+
+            // Check if there are more discoveries to show
+            if (pendingDiscoveriesRef.current.length > 0) {
+              // Show next discovery
+              const nextDiscovery = pendingDiscoveriesRef.current[0];
+              pendingDiscoveriesRef.current =
+                pendingDiscoveriesRef.current.slice(1);
+              setTimeout(() => {
+                setShowingCard(nextDiscovery);
+                setIsPaused(true);
+              }, 100);
+            } else if (gameState === GameState.PLAYING) {
+              // All discoveries shown, proceed to shop
+              setGameState(GameState.SHOP);
+            }
           }}
         />
       )}

@@ -12,6 +12,16 @@ export function EnemyCard({ enemyType, onClose }: EnemyCardProps) {
   const [isVisible, setIsVisible] = useState(false);
   const card = ENEMY_CARDS[enemyType];
 
+  // Generate confetti positions once on mount
+  const [confettiParticles] = useState(() =>
+    [...Array(20)].map(() => ({
+      left: Math.random() * 100,
+      delay: Math.random() * 0.5,
+      duration: 2 + Math.random() * 2,
+      rotation: Math.random() * 360,
+    }))
+  );
+
   useEffect(() => {
     // Trigger animation after mount
     setTimeout(() => setIsVisible(true), 50);
@@ -115,6 +125,25 @@ export function EnemyCard({ enemyType, onClose }: EnemyCardProps) {
           <span className="close-hint">(Press any key)</span>
         </button>
       </div>
+
+      {/* Celebration Confetti */}
+      {isVisible && (
+        <>
+          {confettiParticles.map((particle, i) => (
+            <div
+              key={i}
+              className="confetti"
+              style={{
+                left: `${particle.left}%`,
+                animationDelay: `${particle.delay}s`,
+                animationDuration: `${particle.duration}s`,
+                backgroundColor: i % 2 === 0 ? card.color : "#ffd700",
+                transform: `rotate(${particle.rotation}deg)`,
+              }}
+            />
+          ))}
+        </>
+      )}
     </div>
   );
 }

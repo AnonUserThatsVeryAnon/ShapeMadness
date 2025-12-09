@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { ENEMY_CARDS } from "../utils/codex";
 import { getCodexState, getDiscoveryTime } from "../utils/codexProgress";
 import { EnemyType } from "../types/game";
@@ -51,6 +51,108 @@ export function CodexMenu({ onClose }: CodexMenuProps) {
     return date.toLocaleDateString() + " " + date.toLocaleTimeString();
   };
 
+  // Achievement tracking
+  const achievements = useMemo(() => {
+    const implementedEnemies = allEnemies.filter((e) => e.card.implemented);
+    const discoveredImplemented = implementedEnemies.filter(
+      (e) => e.discovered
+    );
+
+    return [
+      {
+        id: "collector",
+        name: "Collector",
+        description: "Discover 5 enemies",
+        icon: "🏆",
+        unlocked: codexState.discoveredEnemies.size >= 5,
+        progress: `${codexState.discoveredEnemies.size}/5`,
+      },
+      {
+        id: "researcher",
+        name: "Researcher",
+        description: "Discover all implemented enemies",
+        icon: "🔬",
+        unlocked:
+          discoveredImplemented.length === implementedEnemies.length &&
+          implementedEnemies.length > 0,
+        progress: `${discoveredImplemented.length}/${implementedEnemies.length}`,
+      },
+      {
+        id: "completionist",
+        name: "Completionist",
+        description: "Discover all enemies",
+        icon: "⭐",
+        unlocked: codexState.discoveredEnemies.size === codexState.totalEnemies,
+        progress: `${codexState.discoveredEnemies.size}/${codexState.totalEnemies}`,
+      },
+    ];
+  }, [codexState, allEnemies]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+
+      if (!selectedEnemy && filteredEnemies.length > 0) {
+        // Auto-select first enemy when pressing arrow keys
+        if (
+          ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)
+        ) {
+          setSelectedEnemy(filteredEnemies[0].type);
+          e.preventDefault();
+        }
+        return;
+      }
+
+      if (!selectedEnemy) return;
+
+      const currentIndex = filteredEnemies.findIndex(
+        (e) => e.type === selectedEnemy
+      );
+      if (currentIndex === -1) return;
+
+      const gridColumns = window.innerWidth > 768 ? 4 : 2; // Approximate grid columns
+
+      switch (e.key) {
+        case "ArrowRight": {
+          const nextIndex = (currentIndex + 1) % filteredEnemies.length;
+          setSelectedEnemy(filteredEnemies[nextIndex].type);
+          e.preventDefault();
+          break;
+        }
+        case "ArrowLeft": {
+          const prevIndex =
+            (currentIndex - 1 + filteredEnemies.length) %
+            filteredEnemies.length;
+          setSelectedEnemy(filteredEnemies[prevIndex].type);
+          e.preventDefault();
+          break;
+        }
+        case "ArrowDown": {
+          const downIndex = Math.min(
+            currentIndex + gridColumns,
+            filteredEnemies.length - 1
+          );
+          setSelectedEnemy(filteredEnemies[downIndex].type);
+          e.preventDefault();
+          break;
+        }
+        case "ArrowUp": {
+          const upIndex = Math.max(currentIndex - gridColumns, 0);
+          setSelectedEnemy(filteredEnemies[upIndex].type);
+          e.preventDefault();
+          break;
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedEnemy, filteredEnemies, onClose]);
+
   return (
     <div className="codex-menu">
       {/* Header */}
@@ -87,6 +189,30 @@ export function CodexMenu({ onClose }: CodexMenuProps) {
           className="codex-progress-fill"
           style={{ width: `${codexState.completionPercentage}%` }}
         />
+      </div>
+
+      {/* Achievements */}
+      <div className="achievements-section">
+        {achievements.map((achievement) => (
+          <div
+            key={achievement.id}
+            className={`achievement ${
+              achievement.unlocked ? "unlocked" : "locked"
+            }`}
+            title={achievement.description}
+          >
+            <span className="achievement-icon">{achievement.icon}</span>
+            <div className="achievement-info">
+              <span className="achievement-name">{achievement.name}</span>
+              <span className="achievement-progress">
+                {achievement.progress}
+              </span>
+            </div>
+            {achievement.unlocked && (
+              <span className="achievement-check">✓</span>
+            )}
+          </div>
+        ))}
       </div>
 
       {/* Filters */}
