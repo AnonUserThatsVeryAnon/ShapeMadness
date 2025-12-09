@@ -50,7 +50,7 @@ const IFRAME_DURATION = 1000; // 1 second invulnerability after hit
 const MIN_ZONE_SIZE = 400; // Minimum zone dimension
 const MAX_ZONE_SIZE = Math.min(CANVAS_WIDTH, CANVAS_HEIGHT); // Maximum zone dimension
 const ZONE_TRANSITION_DURATION = 3000; // 3 seconds to transition
-const ZONE_DAMAGE = 5; // Damage per second outside zone
+const ZONE_DAMAGE = 20; // Damage per tick outside zone (40 HP per second!)
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -451,16 +451,33 @@ function App() {
         damagePlayer(ZONE_DAMAGE, now);
         lastZoneDamageRef.current = now;
 
-        // Warning text
-        if (Math.random() < 0.3) {
+        // Enhanced feedback when taking zone damage
+        // Screen shake
+        screenShake(8);
+
+        // Red danger particles
+        particlesRef.current.push(
+          ...createParticles(
+            player.position, // Position as Vector2
+            15, // More particles
+            "#ff0000", // Red color
+            3 // Speed
+          )
+        );
+
+        // Warning sound
+        audioSystem.playDamage();
+
+        // More frequent warning text (80% chance instead of 30%)
+        if (Math.random() < 0.8) {
           floatingTextsRef.current.push({
             position: { ...player.position },
-            text: "OUT OF ZONE!",
+            text: "⚠️ DANGER ZONE! ⚠️",
             color: "#ff0000",
-            size: 18,
+            size: 22,
             lifetime: 800,
             createdAt: now,
-            velocity: { x: 0, y: -2 },
+            velocity: { x: 0, y: -3 },
           });
         }
       }
@@ -664,39 +681,41 @@ function App() {
 
   const spawnLaser = (now: number) => {
     const edge = Math.floor(Math.random() * 4);
-    const angle = Math.random() * Math.PI * 2;
     let startX = 0,
       startY = 0,
       endX = 0,
       endY = 0;
 
-    // Spawn from random edge
+    // Spawn from random edge to opposite side (ensures laser crosses the map)
     switch (edge) {
-      case 0: // Top
+      case 0: // Top edge to bottom
         startX = Math.random() * CANVAS_WIDTH;
         startY = 0;
-        endX = startX + Math.cos(angle) * CANVAS_HEIGHT * 2;
-        endY = startY + Math.sin(angle) * CANVAS_HEIGHT * 2;
+        endX = Math.random() * CANVAS_WIDTH;
+        endY = CANVAS_HEIGHT;
         break;
-      case 1: // Right
+      case 1: // Right edge to left
         startX = CANVAS_WIDTH;
         startY = Math.random() * CANVAS_HEIGHT;
-        endX = startX + Math.cos(angle) * CANVAS_WIDTH * 2;
-        endY = startY + Math.sin(angle) * CANVAS_WIDTH * 2;
+        endX = 0;
+        endY = Math.random() * CANVAS_HEIGHT;
         break;
-      case 2: // Bottom
+      case 2: // Bottom edge to top
         startX = Math.random() * CANVAS_WIDTH;
         startY = CANVAS_HEIGHT;
-        endX = startX + Math.cos(angle) * CANVAS_HEIGHT * 2;
-        endY = startY + Math.sin(angle) * CANVAS_HEIGHT * 2;
+        endX = Math.random() * CANVAS_WIDTH;
+        endY = 0;
         break;
-      case 3: // Left
+      case 3: // Left edge to right
         startX = 0;
         startY = Math.random() * CANVAS_HEIGHT;
-        endX = startX + Math.cos(angle) * CANVAS_WIDTH * 2;
-        endY = startY + Math.sin(angle) * CANVAS_WIDTH * 2;
+        endX = CANVAS_WIDTH;
+        endY = Math.random() * CANVAS_HEIGHT;
         break;
     }
+
+    // Calculate angle from start to end point
+    const angle = Math.atan2(endY - startY, endX - startX);
 
     lasersRef.current.push({
       startX,
