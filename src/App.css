@@ -176,7 +176,7 @@
 .upgrades-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 1.5rem;
+  gap: 1rem;
   max-width: 1400px;
   width: 90vw;
   padding: 1rem;
@@ -222,27 +222,27 @@
 }
 
 .upgrade-icon {
-  font-size: 3rem;
-  margin-bottom: 0.5rem;
+  font-size: 1.5rem;
+  margin-bottom: 0.4rem;
 }
 
 .upgrade-card h3 {
-  font-size: 1.2rem;
+  font-size: 1rem;
   color: #00ff88;
-  margin: 0.5rem 0;
+  margin: 0.4rem 0;
 }
 
 .upgrade-desc {
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   color: #aaa;
-  margin: 0.5rem 0;
+  margin: 0.4rem 0;
   flex-grow: 1;
 }
 
 .upgrade-level {
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   color: #ffaa00;
-  margin: 0.5rem 0 0.2rem 0;
+  margin: 0.4rem 0 0.2rem 0;
   font-weight: bold;
 }
 
@@ -270,13 +270,13 @@
 }
 
 .upgrade-button {
-  padding: 0.7rem 2rem;
+  padding: 0.5rem 1.5rem;
   background: linear-gradient(135deg, #ffaa00 0%, #ff8800 100%);
   color: #0a0a14;
   border: none;
   border-radius: 8px;
   font-weight: bold;
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   cursor: pointer;
   transition: all 0.2s ease;
   margin-top: 0.5rem;

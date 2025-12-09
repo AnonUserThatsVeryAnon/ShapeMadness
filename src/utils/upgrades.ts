@@ -79,8 +79,8 @@ export const UPGRADES: Upgrade[] = [
     id: 'multi_shot',
     name: 'Multi-Shot',
     description: 'Fire additional bullets',
-    cost: 120,
-    maxLevel: 3,
+    cost: 180,
+    maxLevel: 2,
     currentLevel: 0,
     icon: '🔥',
     effect: () => {
