@@ -8,6 +8,7 @@ import type {
   GameStats,
   FloatingText,
   LaserBeam,
+  PlayZone,
 } from "./types/game";
 import { GameState, EnemyType, PowerUpType } from "./types/game";
 import { audioSystem } from "./utils/audio";
@@ -45,6 +46,12 @@ const CANVAS_WIDTH = 1200;
 const CANVAS_HEIGHT = 800;
 const IFRAME_DURATION = 1000; // 1 second invulnerability after hit
 
+// Play zone limits
+const MIN_ZONE_SIZE = 400; // Minimum zone dimension
+const MAX_ZONE_SIZE = Math.min(CANVAS_WIDTH, CANVAS_HEIGHT); // Maximum zone dimension
+const ZONE_TRANSITION_DURATION = 3000; // 3 seconds to transition
+const ZONE_DAMAGE = 5; // Damage per second outside zone
+
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
@@ -75,6 +82,21 @@ function App() {
   const floatingTextsRef = useRef<FloatingText[]>([]);
   const lasersRef = useRef<LaserBeam[]>([]);
   const lastLaserTimeRef = useRef<number>(0);
+  const lastZoneDamageRef = useRef<number>(0);
+
+  // Play zone state - starts at full size
+  const playZoneRef = useRef<PlayZone>({
+    x: 0,
+    y: 0,
+    width: CANVAS_WIDTH,
+    height: CANVAS_HEIGHT,
+    targetWidth: CANVAS_WIDTH,
+    targetHeight: CANVAS_HEIGHT,
+    targetX: 0,
+    targetY: 0,
+    isTransitioning: false,
+    transitionProgress: 0,
+  });
 
   const statsRef = useRef<GameStats>({
     score: 0,
@@ -118,11 +140,31 @@ function App() {
       highScore: loadFromLocalStorage("highScore", 0),
       lastComboTime: 0,
     };
+
+    // Reset play zone
+    playZoneRef.current = {
+      x: 0,
+      y: 0,
+      width: CANVAS_WIDTH,
+      height: CANVAS_HEIGHT,
+      targetWidth: CANVAS_WIDTH,
+      targetHeight: CANVAS_HEIGHT,
+      targetX: 0,
+      targetY: 0,
+      isTransitioning: false,
+      transitionProgress: 0,
+    };
+
     resetUpgrades();
   };
 
   // Start new round
   const startRound = () => {
+    // Check if we should change the play zone (every 10 rounds)
+    if (statsRef.current.round % 10 === 0 && statsRef.current.round > 0) {
+      triggerZoneChange();
+    }
+
     enemiesRef.current = spawnEnemiesForRound(
       statsRef.current.round,
       CANVAS_WIDTH,
@@ -367,6 +409,62 @@ function App() {
 
       return false;
     });
+
+    // Update play zone transition
+    const zone = playZoneRef.current;
+    if (zone.isTransitioning) {
+      zone.transitionProgress += deltaTime * (1000 / ZONE_TRANSITION_DURATION);
+
+      if (zone.transitionProgress >= 1) {
+        // Transition complete
+        zone.x = zone.targetX;
+        zone.y = zone.targetY;
+        zone.width = zone.targetWidth;
+        zone.height = zone.targetHeight;
+        zone.isTransitioning = false;
+        zone.transitionProgress = 1;
+      } else {
+        // Lerp the zone
+        const t = zone.transitionProgress;
+        const easeT = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; // EaseInOutQuad
+
+        zone.x = zone.x + (zone.targetX - zone.x) * easeT * deltaTime * 2;
+        zone.y = zone.y + (zone.targetY - zone.y) * easeT * deltaTime * 2;
+        zone.width =
+          zone.width + (zone.targetWidth - zone.width) * easeT * deltaTime * 2;
+        zone.height =
+          zone.height +
+          (zone.targetHeight - zone.height) * easeT * deltaTime * 2;
+      }
+    }
+
+    // Check if player is outside zone and apply damage
+    const isOutsideZone =
+      player.position.x < zone.x + player.radius ||
+      player.position.x > zone.x + zone.width - player.radius ||
+      player.position.y < zone.y + player.radius ||
+      player.position.y > zone.y + zone.height - player.radius;
+
+    if (isOutsideZone && !player.invulnerable) {
+      // Apply damage over time (every 0.5 seconds)
+      if (now - lastZoneDamageRef.current > 500) {
+        damagePlayer(ZONE_DAMAGE, now);
+        lastZoneDamageRef.current = now;
+
+        // Warning text
+        if (Math.random() < 0.3) {
+          floatingTextsRef.current.push({
+            position: { ...player.position },
+            text: "OUT OF ZONE!",
+            color: "#ff0000",
+            size: 18,
+            lifetime: 800,
+            createdAt: now,
+            velocity: { x: 0, y: -2 },
+          });
+        }
+      }
+    }
 
     // Combo system - decay over time
     if (now - stats.lastComboTime > 3000 && stats.combo > 0) {
@@ -614,6 +712,63 @@ function App() {
     });
   };
 
+  const triggerZoneChange = () => {
+    const zone = playZoneRef.current;
+    const random = Math.random();
+
+    // 50% chance to shrink, 50% to expand
+    const shouldShrink = random < 0.5;
+
+    if (shouldShrink) {
+      // Shrink by 15-25%
+      const shrinkFactor = 0.75 + Math.random() * 0.1; // 0.75-0.85
+      const newWidth = Math.max(MIN_ZONE_SIZE, zone.width * shrinkFactor);
+      const newHeight = Math.max(MIN_ZONE_SIZE, zone.height * shrinkFactor);
+
+      // Center the shrink
+      zone.targetWidth = newWidth;
+      zone.targetHeight = newHeight;
+      zone.targetX = (CANVAS_WIDTH - newWidth) / 2;
+      zone.targetY = (CANVAS_HEIGHT - newHeight) / 2;
+
+      // Notification
+      floatingTextsRef.current.push({
+        position: { x: CANVAS_WIDTH / 2, y: 100 },
+        text: "⚠️ ZONE SHRINKING! ⚠️",
+        color: "#ff4444",
+        size: 32,
+        lifetime: 3000,
+        createdAt: Date.now(),
+        velocity: { x: 0, y: 0 },
+      });
+    } else {
+      // Expand by 15-25%
+      const expandFactor = 1.15 + Math.random() * 0.1; // 1.15-1.25
+      const newWidth = Math.min(MAX_ZONE_SIZE, zone.width * expandFactor);
+      const newHeight = Math.min(MAX_ZONE_SIZE, zone.height * expandFactor);
+
+      // Center the expand
+      zone.targetWidth = newWidth;
+      zone.targetHeight = newHeight;
+      zone.targetX = (CANVAS_WIDTH - newWidth) / 2;
+      zone.targetY = (CANVAS_HEIGHT - newHeight) / 2;
+
+      // Notification
+      floatingTextsRef.current.push({
+        position: { x: CANVAS_WIDTH / 2, y: 100 },
+        text: "✨ ZONE EXPANDING! ✨",
+        color: "#00ff88",
+        size: 32,
+        lifetime: 3000,
+        createdAt: Date.now(),
+        velocity: { x: 0, y: 0 },
+      });
+    }
+
+    zone.isTransitioning = true;
+    zone.transitionProgress = 0;
+  };
+
   const pointToLineDistance = (
     point: { x: number; y: number },
     lineStart: { x: number; y: number },
@@ -700,6 +855,52 @@ function App() {
     // Clear canvas completely (fixes trail issue)
     ctx.fillStyle = "#0a0a14";
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    // Draw deadly red zone outside playable area
+    const zone = playZoneRef.current;
+    ctx.fillStyle = "rgba(255, 0, 0, 0.15)";
+
+    // Top
+    if (zone.y > 0) {
+      ctx.fillRect(0, 0, CANVAS_WIDTH, zone.y);
+    }
+    // Bottom
+    if (zone.y + zone.height < CANVAS_HEIGHT) {
+      ctx.fillRect(
+        0,
+        zone.y + zone.height,
+        CANVAS_WIDTH,
+        CANVAS_HEIGHT - (zone.y + zone.height)
+      );
+    }
+    // Left
+    if (zone.x > 0) {
+      ctx.fillRect(0, zone.y, zone.x, zone.height);
+    }
+    // Right
+    if (zone.x + zone.width < CANVAS_WIDTH) {
+      ctx.fillRect(
+        zone.x + zone.width,
+        zone.y,
+        CANVAS_WIDTH - (zone.x + zone.width),
+        zone.height
+      );
+    }
+
+    // Draw zone border
+    ctx.strokeStyle = zone.isTransitioning ? "#ffaa00" : "#ff4444";
+    ctx.lineWidth = 4;
+    ctx.setLineDash(zone.isTransitioning ? [10, 5] : []);
+
+    // Pulsing effect
+    if (!zone.isTransitioning) {
+      const pulse = Math.sin(now / 200) * 0.5 + 0.5;
+      ctx.globalAlpha = 0.5 + pulse * 0.5;
+    }
+
+    ctx.strokeRect(zone.x, zone.y, zone.width, zone.height);
+    ctx.globalAlpha = 1;
+    ctx.setLineDash([]);
 
     ctx.save();
 

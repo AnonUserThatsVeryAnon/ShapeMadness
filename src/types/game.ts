@@ -79,6 +79,19 @@ export interface LaserBeam {
   angle: number;
 }
 
+export interface PlayZone {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  targetWidth: number;
+  targetHeight: number;
+  targetX: number;
+  targetY: number;
+  isTransitioning: boolean;
+  transitionProgress: number;
+}
+
 export const GameState = {
   MENU: 'MENU',
   PLAYING: 'PLAYING',
