@@ -151,16 +151,22 @@ export function updateEnemyPosition(enemy: Enemy, player: Player, deltaTime: num
     y: player.position.y - enemy.position.y,
   };
 
+  // Apply speed buff multiplier
+  let speedMultiplier = 1;
+  if (enemy.buffType === 'speed' && enemy.buffedUntil && Date.now() < enemy.buffedUntil) {
+    speedMultiplier = 1.5;
+  }
+
   // Different behaviors based on type
   switch (enemy.type) {
     case EnemyType.FAST:
       // Fast enemies move directly toward player
-      enemy.velocity = multiply(normalize(toPlayer), enemy.speed);
+      enemy.velocity = multiply(normalize(toPlayer), enemy.speed * speedMultiplier);
       break;
     
     case EnemyType.TANK:
       // Tanks move slowly but steadily
-      enemy.velocity = multiply(normalize(toPlayer), enemy.speed);
+      enemy.velocity = multiply(normalize(toPlayer), enemy.speed * speedMultiplier);
       break;
     
     case EnemyType.SHOOTER: {
@@ -168,15 +174,15 @@ export function updateEnemyPosition(enemy: Enemy, player: Player, deltaTime: num
       const dist = distance(enemy.position, player.position);
       if (dist < 200) {
         // Move away if too close
-        enemy.velocity = multiply(normalize(toPlayer), -enemy.speed);
+        enemy.velocity = multiply(normalize(toPlayer), -enemy.speed * speedMultiplier);
       } else if (dist > 300) {
         // Move closer if too far
-        enemy.velocity = multiply(normalize(toPlayer), enemy.speed);
+        enemy.velocity = multiply(normalize(toPlayer), enemy.speed * speedMultiplier);
       } else {
         // Circle around
         enemy.velocity = {
-          x: -toPlayer.y / dist * enemy.speed,
-          y: toPlayer.x / dist * enemy.speed,
+          x: -toPlayer.y / dist * enemy.speed * speedMultiplier,
+          y: toPlayer.x / dist * enemy.speed * speedMultiplier,
         };
       }
       break;
@@ -184,7 +190,7 @@ export function updateEnemyPosition(enemy: Enemy, player: Player, deltaTime: num
     
     default:
       // Basic behavior
-      enemy.velocity = multiply(normalize(toPlayer), enemy.speed);
+      enemy.velocity = multiply(normalize(toPlayer), enemy.speed * speedMultiplier);
   }
 
   enemy.position = add(enemy.position, multiply(enemy.velocity, deltaTime * 60));
@@ -227,7 +233,14 @@ export function spawnEnemiesForRound(
     let type: EnemyType = EnemyType.BASIC;
     const rand = Math.random();
     
-    if (round >= 10) {
+    if (round >= 15) {
+      // Add Buffer at round 15+
+      if (rand < 0.15) type = EnemyType.BUFFER;
+      else if (rand < 0.3) type = EnemyType.SHOOTER;
+      else if (rand < 0.5) type = EnemyType.TANK;
+      else if (rand < 0.7) type = EnemyType.SPLITTER;
+      else if (rand < 0.85) type = EnemyType.FAST;
+    } else if (round >= 10) {
       if (rand < 0.2) type = EnemyType.SHOOTER;
       else if (rand < 0.4) type = EnemyType.TANK;
       else if (rand < 0.6) type = EnemyType.SPLITTER;

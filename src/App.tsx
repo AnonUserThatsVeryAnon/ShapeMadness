@@ -267,6 +267,64 @@ function App() {
       if (!enemy.active) return;
       updateEnemyPosition(enemy, player, deltaTime);
 
+      // Buffer enemies rotate buffs and apply to nearby enemies
+      if (enemy.type === EnemyType.BUFFER) {
+        if (!enemy.lastSpecialAbility) {
+          enemy.lastSpecialAbility = now;
+          enemy.buffType = "speed"; // Start with speed buff
+        }
+
+        // Rotate buff every 5 seconds
+        if (now - enemy.lastSpecialAbility > 5000) {
+          const buffs: Array<"speed" | "regen" | "damage-reflect"> = [
+            "speed",
+            "regen",
+            "damage-reflect",
+          ];
+          const currentIndex = buffs.indexOf(enemy.buffType || "speed");
+          enemy.buffType = buffs[(currentIndex + 1) % 3];
+          enemy.lastSpecialAbility = now;
+
+          // Visual feedback for buff change
+          particlesRef.current.push(
+            ...createParticles(enemy.position, 20, enemy.color, 3)
+          );
+        }
+
+        // Apply buff to nearby enemies (250 radius aura)
+        const buffRadius = 250;
+        enemies.forEach((other) => {
+          if (!other.active || other === enemy) return;
+          if (distance(enemy.position, other.position) < buffRadius) {
+            other.buffType = enemy.buffType;
+            other.buffedUntil = now + 500; // 0.5s buff persistence
+          }
+        });
+      }
+
+      // Apply Life Regen buff (5 HP per second)
+      if (
+        enemy.buffType === "regen" &&
+        enemy.buffedUntil &&
+        now < enemy.buffedUntil
+      ) {
+        if (!enemy.lastHealTime) enemy.lastHealTime = now;
+
+        const timeSinceLastHeal = now - enemy.lastHealTime;
+        if (timeSinceLastHeal >= 200) {
+          // Heal every 0.2s = 1 HP
+          enemy.health = Math.min(enemy.health + 1, enemy.maxHealth);
+          enemy.lastHealTime = now;
+
+          // Small green particle for healing
+          if (Math.random() < 0.3) {
+            particlesRef.current.push(
+              ...createParticles(enemy.position, 1, "#4caf50", 1, 300)
+            );
+          }
+        }
+      }
+
       // Shooter enemies fire projectiles
       if (enemy.type === EnemyType.SHOOTER) {
         if (!enemy.lastSpecialAbility) enemy.lastSpecialAbility = now;
@@ -631,6 +689,34 @@ function App() {
   const damageEnemy = (enemy: Enemy, damage: number, now: number) => {
     enemy.health -= damage;
     audioSystem.playHit();
+
+    // Back Damage buff - reflect 30% damage to player
+    if (
+      enemy.buffType === "damage-reflect" &&
+      enemy.buffedUntil &&
+      now < enemy.buffedUntil
+    ) {
+      const reflectedDamage = damage * 0.3;
+      const player = playerRef.current;
+      if (!player.invulnerable) {
+        damagePlayer(reflectedDamage, now);
+
+        // Visual feedback for reflected damage
+        particlesRef.current.push(
+          ...createParticles(enemy.position, 5, "#ff00ff", 2, 400)
+        );
+
+        floatingTextsRef.current.push({
+          position: { ...enemy.position },
+          text: `REFLECT!`,
+          color: "#ff00ff",
+          size: 14,
+          lifetime: 600,
+          createdAt: now,
+          velocity: { x: 0, y: -4 },
+        });
+      }
+    }
 
     // Show damage number on hit
     floatingTextsRef.current.push({
@@ -1183,6 +1269,82 @@ function App() {
         const pulseGlow = Math.sin(now / 100) * 0.5 + 0.5;
         ctx.shadowBlur = 15 * pulseGlow;
         ctx.shadowColor = enemy.color;
+      }
+
+      // Buffer aura effect
+      if (enemy.type === EnemyType.BUFFER) {
+        const pulse = Math.sin(now / 300) * 0.3 + 0.7;
+        const auraRadius = 250;
+
+        // Draw aura circle
+        const gradient = ctx.createRadialGradient(
+          enemy.position.x,
+          enemy.position.y,
+          enemy.radius,
+          enemy.position.x,
+          enemy.position.y,
+          auraRadius
+        );
+
+        // Color based on current buff
+        let buffColor = "#ffeb3b"; // speed = yellow
+        if (enemy.buffType === "regen") buffColor = "#4caf50"; // green
+        if (enemy.buffType === "damage-reflect") buffColor = "#ff00ff"; // magenta
+
+        gradient.addColorStop(0, `${buffColor}40`);
+        gradient.addColorStop(0.5, `${buffColor}15`);
+        gradient.addColorStop(1, `${buffColor}00`);
+
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(
+          enemy.position.x,
+          enemy.position.y,
+          auraRadius * pulse,
+          0,
+          Math.PI * 2
+        );
+        ctx.fill();
+
+        // Pulsing ring at edge of aura
+        ctx.strokeStyle = `${buffColor}80`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(
+          enemy.position.x,
+          enemy.position.y,
+          auraRadius * pulse,
+          0,
+          Math.PI * 2
+        );
+        ctx.stroke();
+      }
+
+      // Buff indicators on buffed enemies
+      if (
+        enemy.buffType &&
+        enemy.buffedUntil &&
+        now < enemy.buffedUntil &&
+        enemy.type !== EnemyType.BUFFER
+      ) {
+        let buffColor = "#ffeb3b"; // speed
+        if (enemy.buffType === "regen") buffColor = "#4caf50";
+        if (enemy.buffType === "damage-reflect") buffColor = "#ff00ff";
+
+        const buffPulse = Math.sin(now / 150) * 0.3 + 0.7;
+        ctx.strokeStyle = buffColor;
+        ctx.lineWidth = 3;
+        ctx.globalAlpha = buffPulse;
+        ctx.beginPath();
+        ctx.arc(
+          enemy.position.x,
+          enemy.position.y,
+          enemy.radius + 5,
+          0,
+          Math.PI * 2
+        );
+        ctx.stroke();
+        ctx.globalAlpha = 1;
       }
 
       // Base circle
