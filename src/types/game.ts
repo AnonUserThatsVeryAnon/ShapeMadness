@@ -31,6 +31,20 @@ export interface Enemy extends Entity {
   damage: number;
   value: number;
   color: string;
+  // Special ability properties
+  lastSpecialAbility?: number;
+  specialCooldown?: number;
+  frozen?: boolean;
+  frozenUntil?: number;
+  buffType?: 'speed' | 'regen' | 'damage-reflect';
+  buffedUntil?: number;
+  slowedUntil?: number;
+  chainPartner?: Enemy; // Reference to linked partner
+  isProjection?: boolean; // For Magician's illusions
+  parentMagician?: Enemy; // Link back to magician
+  sniperCharging?: boolean;
+  sniperTarget?: { x: number; y: number };
+  lastHealTime?: number;
 }
 
 export interface Bullet extends Entity {
@@ -110,6 +124,16 @@ export const EnemyType = {
   TANK: 'TANK',
   SPLITTER: 'SPLITTER',
   SHOOTER: 'SHOOTER',
+  PROTECTOR: 'PROTECTOR',
+  MAGICIAN: 'MAGICIAN',
+  SNIPER: 'SNIPER',
+  ICE: 'ICE',
+  BOMB: 'BOMB',
+  BUFFER: 'BUFFER',
+  TIME_DISTORTION: 'TIME_DISTORTION',
+  CHAIN_PARTNER: 'CHAIN_PARTNER',
+  EVIL_STORM: 'EVIL_STORM',
+  LUFTI: 'LUFTI',
 } as const;
 export type EnemyType = typeof EnemyType[keyof typeof EnemyType];
 

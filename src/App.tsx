@@ -1030,46 +1030,233 @@ function App() {
       ctx.stroke();
     });
 
-    // Draw player
+    // Draw player - UNIQUE DESIGN
     const player = playerRef.current;
     if (player.invulnerable && Math.floor(now / 100) % 2 === 0) {
       ctx.globalAlpha = 0.5;
     }
 
-    ctx.fillStyle = "#00ff88";
-    ctx.beginPath();
-    ctx.arc(
-      player.position.x,
-      player.position.y,
-      player.radius,
-      0,
-      Math.PI * 2
-    );
-    ctx.fill();
+    // Pulsing glow effect
+    const pulse = Math.sin(now / 200) * 0.3 + 0.7;
+    ctx.shadowBlur = 20 * pulse;
+    ctx.shadowColor = "#00ff88";
 
-    // Player direction indicator
+    // Draw as TRIANGLE (not circle!) - player is distinct
+    ctx.fillStyle = "#00ff88";
     ctx.strokeStyle = "#ffffff";
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.arc(
-      player.position.x,
-      player.position.y,
-      player.radius + 5,
-      0,
-      Math.PI * 2
-    );
+
+    // Triangle pointing up
+    const angle = -Math.PI / 2;
+    for (let i = 0; i < 3; i++) {
+      const a = angle + (i * Math.PI * 2) / 3;
+      const px = player.position.x + Math.cos(a) * player.radius;
+      const py = player.position.y + Math.sin(a) * player.radius;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
     ctx.stroke();
 
+    // Core dot
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.arc(player.position.x, player.position.y, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.shadowBlur = 0;
     ctx.globalAlpha = 1;
 
-    // Draw enemies
+    // Draw enemies with UNIQUE VISUALS per type
     enemiesRef.current.forEach((enemy) => {
       if (!enemy.active) return;
 
+      // Base circle
       ctx.fillStyle = enemy.color;
       ctx.beginPath();
       ctx.arc(enemy.position.x, enemy.position.y, enemy.radius, 0, Math.PI * 2);
       ctx.fill();
+
+      // Border for emphasis
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // UNIQUE ICON/PATTERN for each enemy type
+      ctx.fillStyle = "#ffffff";
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 2;
+      const ex = enemy.position.x;
+      const ey = enemy.position.y;
+      const er = enemy.radius * 0.5;
+
+      switch (enemy.type) {
+        case EnemyType.BASIC:
+          // Simple dot
+          ctx.beginPath();
+          ctx.arc(ex, ey, 3, 0, Math.PI * 2);
+          ctx.fill();
+          break;
+
+        case EnemyType.FAST:
+          // Lightning bolt symbol
+          ctx.beginPath();
+          ctx.moveTo(ex - er * 0.3, ey - er * 0.6);
+          ctx.lineTo(ex + er * 0.2, ey);
+          ctx.lineTo(ex - er * 0.2, ey);
+          ctx.lineTo(ex + er * 0.3, ey + er * 0.6);
+          ctx.stroke();
+          break;
+
+        case EnemyType.TANK:
+          // Shield symbol (rectangle)
+          ctx.strokeRect(ex - er * 0.5, ey - er * 0.6, er, er * 1.2);
+          break;
+
+        case EnemyType.SPLITTER:
+          // Split arrows
+          ctx.beginPath();
+          ctx.moveTo(ex, ey - er * 0.5);
+          ctx.lineTo(ex - er * 0.5, ey + er * 0.3);
+          ctx.moveTo(ex, ey - er * 0.5);
+          ctx.lineTo(ex + er * 0.5, ey + er * 0.3);
+          ctx.stroke();
+          break;
+
+        case EnemyType.SHOOTER:
+          // Crosshair
+          ctx.beginPath();
+          ctx.moveTo(ex - er * 0.6, ey);
+          ctx.lineTo(ex + er * 0.6, ey);
+          ctx.moveTo(ex, ey - er * 0.6);
+          ctx.lineTo(ex, ey + er * 0.6);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(ex, ey, er * 0.4, 0, Math.PI * 2);
+          ctx.stroke();
+          break;
+
+        case EnemyType.PROTECTOR:
+          // Cross symbol (healing)
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(ex - er * 0.5, ey);
+          ctx.lineTo(ex + er * 0.5, ey);
+          ctx.moveTo(ex, ey - er * 0.5);
+          ctx.lineTo(ex, ey + er * 0.5);
+          ctx.stroke();
+          break;
+
+        case EnemyType.MAGICIAN:
+          // Star symbol
+          ctx.beginPath();
+          for (let i = 0; i < 5; i++) {
+            const angle = (i * Math.PI * 2) / 5 - Math.PI / 2;
+            const r = i % 2 === 0 ? er * 0.6 : er * 0.3;
+            const px = ex + Math.cos(angle) * r;
+            const py = ey + Math.sin(angle) * r;
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+          ctx.stroke();
+          break;
+
+        case EnemyType.SNIPER:
+          // Scope symbol
+          ctx.beginPath();
+          ctx.arc(ex, ey, er * 0.5, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(ex - er * 0.7, ey);
+          ctx.lineTo(ex - er * 0.5, ey);
+          ctx.moveTo(ex + er * 0.5, ey);
+          ctx.lineTo(ex + er * 0.7, ey);
+          ctx.moveTo(ex, ey - er * 0.7);
+          ctx.lineTo(ex, ey - er * 0.5);
+          ctx.moveTo(ex, ey + er * 0.5);
+          ctx.lineTo(ex, ey + er * 0.7);
+          ctx.stroke();
+          break;
+
+        case EnemyType.ICE:
+          // Snowflake
+          ctx.beginPath();
+          for (let i = 0; i < 6; i++) {
+            const angle = (i * Math.PI) / 3;
+            ctx.moveTo(ex, ey);
+            ctx.lineTo(
+              ex + Math.cos(angle) * er * 0.6,
+              ey + Math.sin(angle) * er * 0.6
+            );
+          }
+          ctx.stroke();
+          break;
+
+        case EnemyType.BOMB:
+          // Bomb icon (circle with fuse)
+          ctx.beginPath();
+          ctx.arc(ex, ey + er * 0.2, er * 0.4, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(ex, ey - er * 0.2);
+          ctx.lineTo(ex - er * 0.2, ey - er * 0.5);
+          ctx.stroke();
+          break;
+
+        case EnemyType.BUFFER:
+          // Aura rings
+          ctx.beginPath();
+          ctx.arc(ex, ey, er * 0.3, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(ex, ey, er * 0.6, 0, Math.PI * 2);
+          ctx.stroke();
+          break;
+
+        case EnemyType.TIME_DISTORTION:
+          // Clock/spiral
+          ctx.beginPath();
+          ctx.arc(ex, ey, er * 0.5, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(ex, ey);
+          ctx.lineTo(ex, ey - er * 0.4);
+          ctx.lineTo(ex + er * 0.3, ey);
+          ctx.stroke();
+          break;
+
+        case EnemyType.CHAIN_PARTNER:
+          // Link symbol
+          ctx.beginPath();
+          ctx.arc(ex - er * 0.3, ey, er * 0.25, 0, Math.PI * 2);
+          ctx.arc(ex + er * 0.3, ey, er * 0.25, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(ex - er * 0.1, ey);
+          ctx.lineTo(ex + er * 0.1, ey);
+          ctx.stroke();
+          break;
+
+        case EnemyType.EVIL_STORM:
+          // Skull or swirl
+          ctx.beginPath();
+          ctx.arc(ex, ey - er * 0.2, er * 0.3, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.fillRect(ex - er * 0.2, ey + er * 0.1, er * 0.15, er * 0.3);
+          ctx.fillRect(ex + er * 0.05, ey + er * 0.1, er * 0.15, er * 0.3);
+          break;
+
+        case EnemyType.LUFTI:
+          // Wind swirls
+          ctx.beginPath();
+          ctx.arc(ex - er * 0.3, ey, er * 0.2, Math.PI, 0);
+          ctx.arc(ex + er * 0.3, ey, er * 0.2, Math.PI, 0);
+          ctx.stroke();
+          break;
+      }
 
       // Health bar
       const healthBarWidth = enemy.radius * 2;
