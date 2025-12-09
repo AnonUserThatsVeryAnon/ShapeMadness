@@ -47,6 +47,7 @@ function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
   const [isPaused, setIsPaused] = useState(false);
+  const [, forceUpdate] = useState({});
 
   // Game state refs (for game loop access)
   const playerRef = useRef<Player>({
@@ -499,8 +500,8 @@ function App() {
   };
 
   const renderGame = (ctx: CanvasRenderingContext2D, now: number) => {
-    // Clear with fade effect
-    ctx.fillStyle = "rgba(10, 10, 20, 0.3)";
+    // Clear canvas completely (fixes trail issue)
+    ctx.fillStyle = "#0a0a14";
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
     ctx.save();
@@ -519,7 +520,7 @@ function App() {
 
     // Draw power-ups
     powerUpsRef.current.forEach((powerUp) => {
-      const pulse = Math.sin(now / 200) * 3;
+      const pulse = Math.sin(now / 200) * 2;
       ctx.fillStyle = getPowerUpColor(powerUp.type);
       ctx.beginPath();
       ctx.arc(
@@ -531,9 +532,9 @@ function App() {
       );
       ctx.fill();
 
-      // Glow effect
-      ctx.strokeStyle = getPowerUpColor(powerUp.type);
-      ctx.lineWidth = 2;
+      // Subtle outline
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+      ctx.lineWidth = 1;
       ctx.stroke();
     });
 
@@ -607,7 +608,7 @@ function App() {
     // Draw bullets
     bulletsRef.current.forEach((bullet) => {
       ctx.fillStyle = "#ffeb3b";
-      ctx.shadowBlur = 10;
+      ctx.shadowBlur = 3;
       ctx.shadowColor = "#ffeb3b";
       ctx.beginPath();
       ctx.arc(
@@ -863,6 +864,7 @@ function App() {
                   onClick={() => {
                     if (purchaseUpgrade(upgrade, playerRef.current)) {
                       audioSystem.playPurchase();
+                      forceUpdate({}); // Force re-render to update UI
                     }
                   }}
                 >
