@@ -7,7 +7,7 @@ export const UPGRADES: Upgrade[] = [
     id: 'health',
     name: 'Max Health',
     description: 'Increase maximum health by 10',
-    cost: 25,
+    cost: 30,
     maxLevel: 50,
     currentLevel: 0,
     icon: '❤️',
@@ -21,7 +21,7 @@ export const UPGRADES: Upgrade[] = [
     id: 'defense',
     name: 'Defense',
     description: 'Reduce damage taken by 2%',
-    cost: 30,
+    cost: 40,
     maxLevel: 50,
     currentLevel: 0,
     icon: '🛡️',
@@ -33,21 +33,21 @@ export const UPGRADES: Upgrade[] = [
   {
     id: 'damage',
     name: 'Damage',
-    description: 'Increase bullet damage by 2',
-    cost: 20,
+    description: 'Increase bullet damage by 1.5',
+    cost: 25,
     maxLevel: 75,
     currentLevel: 0,
     icon: '💥',
     category: 'core',
     effect: (player: Player) => {
-      player.damage += 2;
+      player.damage += 1.5;
     },
   },
   {
     id: 'fire_rate',
     name: 'Fire Rate',
     description: 'Increase fire rate by 3%',
-    cost: 35,
+    cost: 45,
     maxLevel: 50,
     currentLevel: 0,
     icon: '⚡',
@@ -59,21 +59,21 @@ export const UPGRADES: Upgrade[] = [
   {
     id: 'speed',
     name: 'Movement Speed',
-    description: 'Increase movement speed by 0.15',
-    cost: 25,
+    description: 'Increase movement speed by 0.1',
+    cost: 30,
     maxLevel: 40,
     currentLevel: 0,
     icon: '🏃',
     category: 'core',
     effect: (player: Player) => {
-      player.speed += 0.15;
+      player.speed += 0.1;
     },
   },
   {
     id: 'regen',
     name: 'Health Regen',
     description: 'Regenerate 0.5 HP per second',
-    cost: 40,
+    cost: 50,
     maxLevel: 30,
     currentLevel: 0,
     icon: '💚',

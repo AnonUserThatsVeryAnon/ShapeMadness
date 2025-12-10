@@ -78,9 +78,9 @@ function App() {
     radius: 20,
     health: 100,
     maxHealth: 100,
-    speed: 2.5,
-    damage: 25,
-    fireRate: 250, // ms between shots
+    speed: 2.0,
+    damage: 20,
+    fireRate: 300, // ms between shots
     lastShot: 0,
     money: 0,
     defense: 0,
@@ -139,9 +139,9 @@ function App() {
       radius: 20,
       health: 100,
       maxHealth: 100,
-      speed: 2.5,
-      damage: 25,
-      fireRate: 250,
+      speed: 2.0,
+      damage: 20,
+      fireRate: 300,
       lastShot: 0,
       money: 0,
       defense: 0,
@@ -1997,13 +1997,18 @@ function App() {
               <p className="shop-stat">
                 ❤️ {playerRef.current.health}/{playerRef.current.maxHealth}
               </p>
-              <p className="shop-stat">💥 {playerRef.current.damage}</p>
+              <p className="shop-stat">
+                💥 {playerRef.current.damage.toFixed(1)}
+              </p>
               <p className="shop-stat">🛡️ {playerRef.current.defense}%</p>
               <p className="shop-stat">
                 🏃 {playerRef.current.speed.toFixed(1)}
               </p>
             </div>
           </div>
+          <p className="shop-tip">
+            💡 Tip: Balance offense and defense for optimal survival
+          </p>
 
           <div className="shop-tabs">
             <button
@@ -2027,6 +2032,46 @@ function App() {
               const isMaxLevel = upgrade.currentLevel >= upgrade.maxLevel;
               const canAfford = playerRef.current.money >= upgrade.cost;
 
+              // Calculate what the stat will be after upgrade
+              let statPreview = "";
+              if (!isMaxLevel) {
+                const player = playerRef.current;
+                switch (upgrade.id) {
+                  case "health":
+                    statPreview = `${player.maxHealth} → ${
+                      player.maxHealth + 10
+                    }`;
+                    break;
+                  case "defense":
+                    statPreview = `${player.defense}% → ${Math.min(
+                      95,
+                      player.defense + 2
+                    )}%`;
+                    break;
+                  case "damage":
+                    statPreview = `${player.damage} → ${player.damage + 1.5}`;
+                    break;
+                  case "fire_rate": {
+                    const currentRPS = (1000 / player.fireRate).toFixed(1);
+                    const newRPS = (
+                      1000 / Math.max(50, player.fireRate * 0.97)
+                    ).toFixed(1);
+                    statPreview = `${currentRPS} → ${newRPS} shots/sec`;
+                    break;
+                  }
+                  case "speed":
+                    statPreview = `${player.speed.toFixed(1)} → ${(
+                      player.speed + 0.1
+                    ).toFixed(1)}`;
+                    break;
+                  case "regen":
+                    statPreview = `${(upgrade.currentLevel * 0.5).toFixed(
+                      1
+                    )} → ${((upgrade.currentLevel + 1) * 0.5).toFixed(1)} HP/s`;
+                    break;
+                }
+              }
+
               return (
                 <div
                   key={upgrade.id}
@@ -2038,6 +2083,9 @@ function App() {
                   <div className="upgrade-info">
                     <h3>{upgrade.name}</h3>
                     <p className="upgrade-desc">{upgrade.description}</p>
+                    {statPreview && (
+                      <p className="upgrade-preview">{statPreview}</p>
+                    )}
                     <p className="upgrade-level">
                       Level {upgrade.currentLevel}/{upgrade.maxLevel}
                     </p>
