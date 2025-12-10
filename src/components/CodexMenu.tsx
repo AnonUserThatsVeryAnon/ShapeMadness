@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { ENEMY_CARDS } from "../utils/codex";
 import { getCodexState, getDiscoveryTime } from "../utils/codexProgress";
 import { EnemyType } from "../types/game";
+import { createEnemyCanvas } from "../utils/enemyVisuals";
 import "./CodexMenu.css";
 
 interface CodexMenuProps {
@@ -249,31 +250,51 @@ export function CodexMenu({ onClose }: CodexMenuProps) {
       <div className="codex-content">
         {/* Enemy Grid */}
         <div className="codex-grid">
-          {filteredEnemies.map(({ type, card, discovered }) => (
-            <button
-              key={type}
-              className={`codex-card ${discovered ? "discovered" : "locked"} ${
-                selectedEnemy === type ? "selected" : ""
-              } ${card.implemented ? "implemented" : "placeholder"}`}
-              onClick={() => setSelectedEnemy(type)}
-            >
-              <div
-                className="codex-card-icon"
-                style={{
-                  backgroundColor: discovered ? card.color : "#333",
-                }}
+          {filteredEnemies.map(({ type, card, discovered }) => {
+            const enemyCanvas = discovered
+              ? createEnemyCanvas(type, card.color, 60)
+              : null;
+
+            return (
+              <button
+                key={type}
+                className={`codex-card ${
+                  discovered ? "discovered" : "locked"
+                } ${selectedEnemy === type ? "selected" : ""} ${
+                  card.implemented ? "implemented" : "placeholder"
+                }`}
+                onClick={() => setSelectedEnemy(type)}
               >
-                {discovered ? card.icon : "🔒"}
-              </div>
-              <div className="codex-card-name">
-                {discovered ? card.name : "???"}
-              </div>
-              <div className="codex-card-unlock">Round {card.unlockRound}</div>
-              {!card.implemented && (
-                <div className="coming-soon-badge">Coming Soon</div>
-              )}
-            </button>
-          ))}
+                <div className="codex-card-icon-wrapper">
+                  {discovered && enemyCanvas ? (
+                    <canvas
+                      width="60"
+                      height="60"
+                      className="codex-card-canvas"
+                      ref={(el) => {
+                        if (el && enemyCanvas) {
+                          const ctx = el.getContext("2d");
+                          if (ctx) ctx.drawImage(enemyCanvas, 0, 0);
+                        }
+                      }}
+                      style={{ filter: `drop-shadow(0 0 5px ${card.color})` }}
+                    />
+                  ) : (
+                    <div className="codex-card-icon-locked">🔒</div>
+                  )}
+                </div>
+                <div className="codex-card-name">
+                  {discovered ? card.name : "???"}
+                </div>
+                <div className="codex-card-unlock">
+                  Round {card.unlockRound}
+                </div>
+                {!card.implemented && (
+                  <div className="coming-soon-badge">Coming Soon</div>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {/* Detail Panel */}
@@ -283,11 +304,26 @@ export function CodexMenu({ onClose }: CodexMenuProps) {
               <>
                 {/* Discovered Enemy Details */}
                 <div className="detail-header">
-                  <div
-                    className="detail-icon"
-                    style={{ backgroundColor: selectedCard.card.color }}
-                  >
-                    {selectedCard.card.icon}
+                  <div className="detail-icon-wrapper">
+                    <canvas
+                      width="80"
+                      height="80"
+                      className="detail-icon-canvas"
+                      ref={(el) => {
+                        if (el) {
+                          const canvas = createEnemyCanvas(
+                            selectedCard.type,
+                            selectedCard.card.color,
+                            80
+                          );
+                          const ctx = el.getContext("2d");
+                          if (ctx) ctx.drawImage(canvas, 0, 0);
+                        }
+                      }}
+                      style={{
+                        filter: `drop-shadow(0 0 8px ${selectedCard.card.color})`,
+                      }}
+                    />
                   </div>
                   <div>
                     <h2 className="detail-name">{selectedCard.card.name}</h2>

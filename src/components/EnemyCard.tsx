@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { ENEMY_CARDS } from "../utils/codex";
 import { EnemyType } from "../types/game";
+import { createEnemyCanvas } from "../utils/enemyVisuals";
 import "./EnemyCard.css";
 
 interface EnemyCardProps {
@@ -11,6 +12,7 @@ interface EnemyCardProps {
 export function EnemyCard({ enemyType, onClose }: EnemyCardProps) {
   const [isVisible, setIsVisible] = useState(false);
   const card = ENEMY_CARDS[enemyType];
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // Generate confetti positions once on mount
   const [confettiParticles] = useState(() =>
@@ -25,7 +27,16 @@ export function EnemyCard({ enemyType, onClose }: EnemyCardProps) {
   useEffect(() => {
     // Trigger animation after mount
     setTimeout(() => setIsVisible(true), 50);
-  }, []);
+
+    // Create enemy visual canvas
+    if (canvasRef.current) {
+      const enemyCanvas = createEnemyCanvas(enemyType, card.color, 100);
+      const ctx = canvasRef.current.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(enemyCanvas, 0, 0);
+      }
+    }
+  }, [enemyType, card.color]);
 
   const handleClose = () => {
     setIsVisible(false);
@@ -54,8 +65,16 @@ export function EnemyCard({ enemyType, onClose }: EnemyCardProps) {
       >
         {/* Header with icon and title */}
         <div className="card-header">
-          <div className="enemy-icon" style={{ backgroundColor: card.color }}>
-            {card.icon}
+          <div className="enemy-icon-wrapper">
+            <canvas
+              ref={canvasRef}
+              className="enemy-icon-canvas"
+              width="100"
+              height="100"
+              style={{
+                filter: `drop-shadow(0 0 8px ${card.color})`,
+              }}
+            />
           </div>
           <div className="card-title-section">
             <div className="new-badge">NEW ENEMY DISCOVERED!</div>

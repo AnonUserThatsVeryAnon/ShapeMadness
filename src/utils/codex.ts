@@ -7,8 +7,8 @@ export const ENEMY_CARDS: Record<EnemyType, EnemyCard> = {
   [EnemyType.BASIC]: {
     type: EnemyType.BASIC,
     name: 'Basic Cell',
-    description: 'Simple hostile organism. Your standard enemy.',
-    abilities: ['Chase player'],
+    description: 'A simple red sphere with a white dot. The most common hostile organism you\'ll encounter. While individually weak, they can be dangerous in large numbers.',
+    abilities: ['Chases player relentlessly', 'Standard movement speed'],
     stats: {
       health: ENEMY_CONFIGS[EnemyType.BASIC].health,
       speed: ENEMY_CONFIGS[EnemyType.BASIC].speed,
@@ -19,15 +19,15 @@ export const ENEMY_CARDS: Record<EnemyType, EnemyCard> = {
     discovered: false,
     color: ENEMY_CONFIGS[EnemyType.BASIC].color,
     icon: '⚫',
-    tips: ['Easy to kill', 'Good for maintaining combo'],
+    tips: ['Easy to eliminate individually', 'Great for maintaining combo multiplier', 'Be careful when swarmed'],
     implemented: true,
   },
 
   [EnemyType.FAST]: {
     type: EnemyType.FAST,
     name: 'Speed Cell',
-    description: 'Moves at incredible speed. Hard to outrun.',
-    abilities: ['High movement speed', 'Leaves speed trails'],
+    description: 'A cyan sphere marked with a lightning bolt. Evolved for maximum velocity, it closes gaps incredibly fast and can quickly overwhelm unprepared players.',
+    abilities: ['High movement speed (3.5)', 'Low health but hard to escape', 'Creates cyan speed trails'],
     stats: {
       health: ENEMY_CONFIGS[EnemyType.FAST].health,
       speed: ENEMY_CONFIGS[EnemyType.FAST].speed,
@@ -38,15 +38,15 @@ export const ENEMY_CARDS: Record<EnemyType, EnemyCard> = {
     discovered: false,
     color: ENEMY_CONFIGS[EnemyType.FAST].color,
     icon: '⚡',
-    tips: ['Keep distance', 'Prioritize when low HP'],
+    tips: ['Priority target when at low health', 'Kite carefully - they catch up fast', 'Use speed upgrades to maintain distance'],
     implemented: true,
   },
 
   [EnemyType.TANK]: {
     type: EnemyType.TANK,
     name: 'Tank Cell',
-    description: 'Heavily armored. High HP and damage.',
-    abilities: ['High health pool', 'Heavy contact damage'],
+    description: 'A large green sphere with a shield emblem. Heavily fortified with triple the standard health. Slow but devastating on contact.',
+    abilities: ['300 HP - highest base health', '20 damage on contact', 'Slow movement (1.0)', 'Larger hitbox'],
     stats: {
       health: ENEMY_CONFIGS[EnemyType.TANK].health,
       speed: ENEMY_CONFIGS[EnemyType.TANK].speed,
@@ -57,15 +57,15 @@ export const ENEMY_CARDS: Record<EnemyType, EnemyCard> = {
     discovered: false,
     color: ENEMY_CONFIGS[EnemyType.TANK].color,
     icon: '🛡️',
-    tips: ['Focus fire', 'Avoid contact at all costs'],
+    tips: ['Focus sustained fire - takes many hits', 'Avoid contact at ALL costs', 'Worth good money when killed', 'Upgrade damage to handle them better'],
     implemented: true,
   },
 
   [EnemyType.SHOOTER]: {
     type: EnemyType.SHOOTER,
     name: 'Shooter Cell',
-    description: 'Fires projectiles from range. Keeps distance.',
-    abilities: ['Ranged attacks', 'Maintains safe distance', 'Fires every 2s'],
+    description: 'A purple sphere with a crosshair marking. Maintains distance and fires deadly projectiles every 2 seconds. First ranged threat you\'ll face.',
+    abilities: ['Ranged projectile attacks', 'Fires every 2 seconds', 'Retreats when you approach', 'Purple energy bullets'],
     stats: {
       health: ENEMY_CONFIGS[EnemyType.SHOOTER].health,
       speed: ENEMY_CONFIGS[EnemyType.SHOOTER].speed,
@@ -76,15 +76,15 @@ export const ENEMY_CARDS: Record<EnemyType, EnemyCard> = {
     discovered: false,
     color: ENEMY_CONFIGS[EnemyType.SHOOTER].color,
     icon: '🎯',
-    tips: ['Close the gap quickly', 'Dodge projectiles'],
+    tips: ['Close the gap aggressively', 'Dodge their purple projectiles', 'They\'re helpless up close', 'High priority in groups'],
     implemented: true,
   },
 
   [EnemyType.SPLITTER]: {
     type: EnemyType.SPLITTER,
     name: 'Splitter Cell',
-    description: 'Splits into two smaller enemies on death.',
-    abilities: ['Splits on death', 'Warning glow at low HP'],
+    description: 'A pink sphere with split arrows. Upon destruction, divides into two smaller Fast Cells. Glows ominously when near death.',
+    abilities: ['Splits into 2 Fast Cells on death', 'Warning glow below 30% HP', 'Medium speed', 'Becomes twice as dangerous when killed'],
     stats: {
       health: ENEMY_CONFIGS[EnemyType.SPLITTER].health,
       speed: ENEMY_CONFIGS[EnemyType.SPLITTER].speed,
@@ -95,20 +95,20 @@ export const ENEMY_CARDS: Record<EnemyType, EnemyCard> = {
     discovered: false,
     color: ENEMY_CONFIGS[EnemyType.SPLITTER].color,
     icon: '💥',
-    tips: ['Prepare for split', 'Kill quickly or kite away'],
+    tips: ['Watch for the warning glow!', 'Prepare for the split or kite away', 'Kill resulting Fast Cells quickly', 'Can create chaotic situations'],
     implemented: true,
   },
 
   [EnemyType.BUFFER]: {
     type: EnemyType.BUFFER,
     name: 'Buffer Cell',
-    description: 'Empowers nearby enemies with rotating buffs.',
+    description: 'A pink sphere with concentric aura rings. This support unit empowers all nearby enemies with rotating buffs, making them significantly more dangerous.',
     abilities: [
-      'Aura: 250 radius',
-      'Speed Buff: 1.5x movement',
-      'Regen Buff: 5 HP/s',
-      'Reflect Buff: 30% damage back',
-      'Rotates every 5 seconds',
+      'Aura Range: 250 radius (visible glow)',
+      'Speed Buff: 1.5x movement (yellow glow)',
+      'Regen Buff: 5 HP/s healing (green glow)',
+      'Reflect Buff: 30% damage back (magenta glow)',
+      'Rotates buffs every 5 seconds',
     ],
     stats: {
       health: ENEMY_CONFIGS[EnemyType.BUFFER].health,
@@ -120,19 +120,20 @@ export const ENEMY_CARDS: Record<EnemyType, EnemyCard> = {
     discovered: false,
     color: ENEMY_CONFIGS[EnemyType.BUFFER].color,
     icon: '✨',
-    tips: ['HIGH PRIORITY TARGET!', 'Kill first to remove all buffs', 'Watch aura color for current buff'],
+    tips: ['CRITICAL TARGET - eliminate immediately!', 'Killing it removes ALL active buffs', 'Watch the aura color to know current buff', 'Can turn easy fights into disasters'],
     implemented: true,
   },
 
   [EnemyType.CHAIN_PARTNER]: {
     type: EnemyType.CHAIN_PARTNER,
     name: 'Chain Partners',
-    description: 'Duo enemies linked by a healing chain.',
+    description: 'Orange spheres with chain link symbols. Always appear in pairs, connected by a visible energy chain. Separated they heal rapidly, together they sustain slowly.',
     abilities: [
-      'Always spawn in pairs',
-      'Connected: 1 HP/0.5s heal (both)',
-      'Broken chain: 3 HP/0.3s when close',
-      'Try to reunite when separated',
+      'Always spawn in pairs (2 at once)',
+      'Connected: 1 HP/0.5s mutual healing',
+      'Separated: 3 HP/0.3s emergency healing',
+      'Actively try to reunite when apart',
+      'Chain shown as orange/green beam',
     ],
     stats: {
       health: ENEMY_CONFIGS[EnemyType.CHAIN_PARTNER].health,
@@ -144,19 +145,20 @@ export const ENEMY_CARDS: Record<EnemyType, EnemyCard> = {
     discovered: false,
     color: ENEMY_CONFIGS[EnemyType.CHAIN_PARTNER].color,
     icon: '🔗',
-    tips: ['Separate them', 'Focus one down quickly', 'Broken chain = vulnerable'],
+    tips: ['Separate them to break the chain', 'Focus fire ONE partner to death', 'They heal faster when separated!', 'Don\'t split damage between both'],
     implemented: true,
   },
 
   [EnemyType.TIME_DISTORTION]: {
     type: EnemyType.TIME_DISTORTION,
     name: 'Timebomb',
-    description: 'Creates time distortion field. Slows everything.',
+    description: 'A purple sphere with clock hands. Generates a massive purple time distortion field that severely hampers your combat effectiveness. Each one has a unique field size.',
     abilities: [
-      'Slow field: Random 200-400 radius',
-      'Player fire rate: 2x slower',
-      'Bullets: 60% speed reduction',
-      'Area denial',
+      'Purple slow field: 200-400 radius (random per enemy)',
+      'Your fire rate: 2x slower inside',
+      'Your bullets: 60% speed reduction',
+      'Denies large areas',
+      'Effect stacks with multiple Timebombs',
     ],
     stats: {
       health: ENEMY_CONFIGS[EnemyType.TIME_DISTORTION].health,
@@ -168,7 +170,7 @@ export const ENEMY_CARDS: Record<EnemyType, EnemyCard> = {
     discovered: false,
     color: ENEMY_CONFIGS[EnemyType.TIME_DISTORTION].color,
     icon: '⏰',
-    tips: ['Leave the purple zone!', 'Kill to restore DPS', 'Each one has different range'],
+    tips: ['GET OUT OF THE PURPLE ZONE!', 'Your DPS is crippled inside', 'Kill them to restore normal combat', 'Each has different range - some are huge!', 'Worth high money due to importance'],
     implemented: true,
   },
 

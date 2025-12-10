@@ -346,7 +346,23 @@
 }
 
 /* Card Icon */
-.codex-card-icon {
+.codex-card-icon-wrapper {
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.codex-card-canvas {
+  display: block;
+  width: 60px;
+  height: 60px;
+  image-rendering: crisp-edges;
+}
+
+.codex-card-icon-locked {
   width: 60px;
   height: 60px;
   border-radius: 50%;
@@ -354,13 +370,12 @@
   align-items: center;
   justify-content: center;
   font-size: 30px;
+  background: #333;
   box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
-  transition: all 0.3s ease;
 }
 
-.codex-card:hover .codex-card-icon {
+.codex-card:hover .codex-card-icon-wrapper {
   transform: scale(1.1);
-  box-shadow: 0 0 25px rgba(0, 0, 0, 0.7);
 }
 
 /* Card Name and Unlock */
@@ -427,16 +442,20 @@
   border-bottom: 2px solid rgba(255, 255, 255, 0.1);
 }
 
-.detail-icon {
+.detail-icon-wrapper {
   width: 80px;
   height: 80px;
-  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 40px;
-  box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
   flex-shrink: 0;
+}
+
+.detail-icon-canvas {
+  display: block;
+  width: 80px;
+  height: 80px;
+  image-rendering: crisp-edges;
 }
 
 .detail-name {
