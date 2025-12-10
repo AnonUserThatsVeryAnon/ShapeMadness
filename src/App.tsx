@@ -62,6 +62,7 @@ function App() {
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
   const [isPaused, setIsPaused] = useState(false);
   const [, forceUpdate] = useState({});
+  const [shopTab, setShopTab] = useState<"core" | "special">("core");
 
   // Codex state for enemy discovery system
   const [showingCard, setShowingCard] = useState<EnemyType | null>(null);
@@ -76,11 +77,12 @@ function App() {
     radius: 20,
     health: 100,
     maxHealth: 100,
-    speed: 4,
+    speed: 2.5,
     damage: 25,
     fireRate: 250, // ms between shots
     lastShot: 0,
     money: 0,
+    defense: 0,
     active: true,
     invulnerable: false,
     invulnerableUntil: 0,
@@ -136,11 +138,12 @@ function App() {
       radius: 20,
       health: 100,
       maxHealth: 100,
-      speed: 4,
+      speed: 2.5,
       damage: 25,
       fireRate: 250,
       lastShot: 0,
       money: 0,
+      defense: 0,
       active: true,
       invulnerable: false,
       invulnerableUntil: 0,
@@ -207,11 +210,15 @@ function App() {
     });
 
     // Apply maxed upgrades to player
-    player.damage = 25 + getUpgradeLevel("damage") * 15;
-    player.fireRate = Math.max(50, 250 - getUpgradeLevel("fire_rate") * 30);
-    player.maxHealth = 100 + getUpgradeLevel("health") * 50;
+    player.damage = 25 + getUpgradeLevel("damage") * 2;
+    player.fireRate = Math.max(
+      50,
+      250 * Math.pow(0.97, getUpgradeLevel("fire_rate"))
+    );
+    player.maxHealth = 100 + getUpgradeLevel("health") * 10;
     player.health = player.maxHealth;
-    player.speed = 4 + getUpgradeLevel("speed") * 0.5;
+    player.speed = 2.5 + getUpgradeLevel("speed") * 0.15;
+    player.defense = Math.min(95, getUpgradeLevel("defense") * 2);
 
     // Give lots of money
     player.money = 50000;
@@ -955,7 +962,12 @@ function App() {
 
   const damagePlayer = (damage: number, now: number) => {
     const player = playerRef.current;
-    player.health -= damage;
+
+    // Apply defense to reduce damage
+    const damageReduction = player.defense / 100;
+    const actualDamage = Math.ceil(damage * (1 - damageReduction));
+
+    player.health -= actualDamage;
     player.invulnerable = true;
     player.invulnerableUntil = now + IFRAME_DURATION;
 
@@ -966,10 +978,10 @@ function App() {
       ...createParticles(player.position, 20, "#ff0000", 5)
     );
 
-    // Damage indicator text
+    // Damage indicator text showing actual damage taken
     floatingTextsRef.current.push({
       position: { ...player.position },
-      text: `-${damage}`,
+      text: `-${actualDamage}`,
       color: "#ff0000",
       size: 24,
       lifetime: 1000,
@@ -2147,9 +2159,37 @@ function App() {
       {gameState === GameState.SHOP && (
         <div className="menu-overlay shop-overlay">
           <h1 className="shop-title">🛒 UPGRADE SHOP</h1>
-          <p className="shop-money">Money: ${playerRef.current.money}</p>
+          <div className="shop-header">
+            <div className="shop-stats">
+              <p className="shop-money">💰 ${playerRef.current.money}</p>
+              <p className="shop-stat">
+                ❤️ {playerRef.current.health}/{playerRef.current.maxHealth}
+              </p>
+              <p className="shop-stat">💥 {playerRef.current.damage}</p>
+              <p className="shop-stat">🛡️ {playerRef.current.defense}%</p>
+              <p className="shop-stat">
+                🏃 {playerRef.current.speed.toFixed(1)}
+              </p>
+            </div>
+          </div>
+
+          <div className="shop-tabs">
+            <button
+              className={`shop-tab ${shopTab === "core" ? "active" : ""}`}
+              onClick={() => setShopTab("core")}
+            >
+              📊 CORE STATS
+            </button>
+            <button
+              className={`shop-tab ${shopTab === "special" ? "active" : ""}`}
+              onClick={() => setShopTab("special")}
+            >
+              ✨ SPECIAL ABILITIES
+            </button>
+          </div>
+
           <div className="upgrades-grid">
-            {UPGRADES.map((upgrade) => {
+            {UPGRADES.filter((u) => u.category === shopTab).map((upgrade) => {
               const progressPercent =
                 (upgrade.currentLevel / upgrade.maxLevel) * 100;
               const isMaxLevel = upgrade.currentLevel >= upgrade.maxLevel;

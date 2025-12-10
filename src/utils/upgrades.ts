@@ -2,67 +2,88 @@
 import type { Upgrade, Player } from '../types/game';
 
 export const UPGRADES: Upgrade[] = [
+  // CORE STATS - High max levels, small increments, cheaper costs
   {
     id: 'health',
     name: 'Max Health',
-    description: 'Increase maximum health by 25',
-    cost: 50,
-    maxLevel: 10,
+    description: 'Increase maximum health by 10',
+    cost: 25,
+    maxLevel: 50,
     currentLevel: 0,
     icon: '❤️',
+    category: 'core',
     effect: (player: Player) => {
-      player.maxHealth += 25;
+      player.maxHealth += 10;
       player.health = player.maxHealth;
+    },
+  },
+  {
+    id: 'defense',
+    name: 'Defense',
+    description: 'Reduce damage taken by 2%',
+    cost: 30,
+    maxLevel: 50,
+    currentLevel: 0,
+    icon: '🛡️',
+    category: 'core',
+    effect: (player: Player) => {
+      player.defense = Math.min(95, player.defense + 2); // Cap at 95% reduction
     },
   },
   {
     id: 'damage',
     name: 'Damage',
-    description: 'Increase bullet damage by 5',
-    cost: 40,
-    maxLevel: 15,
+    description: 'Increase bullet damage by 2',
+    cost: 20,
+    maxLevel: 75,
     currentLevel: 0,
     icon: '💥',
+    category: 'core',
     effect: (player: Player) => {
-      player.damage += 5;
+      player.damage += 2;
     },
   },
   {
     id: 'fire_rate',
     name: 'Fire Rate',
-    description: 'Increase fire rate by 10%',
-    cost: 60,
-    maxLevel: 10,
+    description: 'Increase fire rate by 3%',
+    cost: 35,
+    maxLevel: 50,
     currentLevel: 0,
     icon: '⚡',
+    category: 'core',
     effect: (player: Player) => {
-      player.fireRate *= 0.9; // Lower is faster
+      player.fireRate = Math.max(50, player.fireRate * 0.97); // Lower is faster, cap at 50ms
     },
   },
   {
     id: 'speed',
     name: 'Movement Speed',
-    description: 'Increase movement speed by 0.5',
-    cost: 45,
-    maxLevel: 8,
+    description: 'Increase movement speed by 0.15',
+    cost: 25,
+    maxLevel: 40,
     currentLevel: 0,
     icon: '🏃',
+    category: 'core',
     effect: (player: Player) => {
-      player.speed += 0.5;
+      player.speed += 0.15;
     },
   },
   {
     id: 'regen',
     name: 'Health Regen',
-    description: 'Slowly regenerate health',
-    cost: 80,
-    maxLevel: 5,
+    description: 'Regenerate 0.5 HP per second',
+    cost: 40,
+    maxLevel: 30,
     currentLevel: 0,
     icon: '💚',
+    category: 'core',
     effect: () => {
       // Applied in game loop
     },
   },
+  
+  // SPECIAL ABILITIES - Lower max levels, more expensive, game-changing
   {
     id: 'pierce',
     name: 'Piercing Shots',
@@ -71,6 +92,7 @@ export const UPGRADES: Upgrade[] = [
     maxLevel: 1,
     currentLevel: 0,
     icon: '🎯',
+    category: 'special',
     effect: () => {
       // Applied in collision detection
     },
@@ -79,10 +101,11 @@ export const UPGRADES: Upgrade[] = [
     id: 'multi_shot',
     name: 'Multi-Shot',
     description: 'Fire additional bullets',
-    cost: 180,
-    maxLevel: 2,
+    cost: 200,
+    maxLevel: 3,
     currentLevel: 0,
     icon: '🔥',
+    category: 'special',
     effect: () => {
       // Applied in shooting logic
     },
@@ -92,9 +115,10 @@ export const UPGRADES: Upgrade[] = [
     name: 'Explosive Rounds',
     description: 'Bullets explode on impact',
     cost: 150,
-    maxLevel: 3,
+    maxLevel: 5,
     currentLevel: 0,
     icon: '💣',
+    category: 'special',
     effect: () => {
       // Applied in collision detection
     },
@@ -116,8 +140,10 @@ export function purchaseUpgrade(upgrade: Upgrade, player: Player): boolean {
   upgrade.currentLevel++;
   upgrade.effect(player);
   
-  // Increase cost for next level
-  upgrade.cost = Math.floor(upgrade.cost * 1.5);
+  // Slower cost scaling for more gradual progression
+  // Core stats scale at 1.15x, special abilities at 1.3x
+  const scaleFactor = upgrade.category === 'core' ? 1.15 : 1.3;
+  upgrade.cost = Math.floor(upgrade.cost * scaleFactor);
   
   return true;
 }

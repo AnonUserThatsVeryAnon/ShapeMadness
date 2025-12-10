@@ -19,6 +19,7 @@ export interface Player extends Entity {
   fireRate: number;
   lastShot: number;
   money: number;
+  defense: number; // Damage reduction percentage (0-100)
   invulnerable: boolean;
   invulnerableUntil: number;
   slowedUntil?: number;
@@ -166,6 +167,7 @@ export interface Upgrade {
   currentLevel: number;
   effect: (player: Player) => void;
   icon: string;
+  category: 'core' | 'special';
 }
 
 export interface GameStats {
