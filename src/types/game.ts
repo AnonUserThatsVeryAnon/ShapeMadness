@@ -11,6 +11,12 @@ export interface Entity {
   active: boolean;
 }
 
+export interface ActivePowerUpEffect {
+  type: PowerUpType;
+  expiresAt: number;
+  duration: number;
+}
+
 export interface Player extends Entity {
   health: number;
   maxHealth: number;
@@ -23,6 +29,7 @@ export interface Player extends Entity {
   invulnerable: boolean;
   invulnerableUntil: number;
   slowedUntil?: number;
+  activePowerUps: ActivePowerUpEffect[];
 }
 
 export interface Enemy extends Entity {

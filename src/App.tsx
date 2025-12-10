@@ -87,6 +87,7 @@ function App() {
     active: true,
     invulnerable: false,
     invulnerableUntil: 0,
+    activePowerUps: [],
   });
 
   const enemiesRef = useRef<Enemy[]>([]);
@@ -148,6 +149,7 @@ function App() {
       active: true,
       invulnerable: false,
       invulnerableUntil: 0,
+      activePowerUps: [],
     };
     statsRef.current = {
       score: 0,
@@ -1212,32 +1214,99 @@ function App() {
 
   const applyPowerUp = (powerUp: PowerUp) => {
     const player = playerRef.current;
+    const now = Date.now();
+    const duration = 5000;
+
+    // Check if this power-up type is already active
+    const existingPowerUp = player.activePowerUps.find(
+      (p) => p.type === powerUp.type
+    );
 
     switch (powerUp.type) {
       case PowerUpType.HEALTH:
         player.health = Math.min(player.maxHealth, player.health + 30);
+        // Health is instant, no timer needed
         break;
       case PowerUpType.SPEED:
-        player.speed += 1;
-        setTimeout(() => {
-          player.speed -= 1;
-        }, 5000);
+        if (existingPowerUp) {
+          // Extend existing timer
+          existingPowerUp.expiresAt = now + duration;
+        } else {
+          // Create new effect
+          player.speed += 1;
+          player.activePowerUps.push({
+            type: PowerUpType.SPEED,
+            expiresAt: now + duration,
+            duration: duration,
+          });
+          setTimeout(() => {
+            player.speed -= 1;
+            player.activePowerUps = player.activePowerUps.filter(
+              (p) => p.type !== PowerUpType.SPEED
+            );
+          }, duration);
+        }
         break;
       case PowerUpType.DAMAGE:
-        player.damage += 15;
-        setTimeout(() => {
-          player.damage -= 15;
-        }, 5000);
+        if (existingPowerUp) {
+          // Extend existing timer
+          existingPowerUp.expiresAt = now + duration;
+        } else {
+          // Create new effect
+          player.damage += 15;
+          player.activePowerUps.push({
+            type: PowerUpType.DAMAGE,
+            expiresAt: now + duration,
+            duration: duration,
+          });
+          setTimeout(() => {
+            player.damage -= 15;
+            player.activePowerUps = player.activePowerUps.filter(
+              (p) => p.type !== PowerUpType.DAMAGE
+            );
+          }, duration);
+        }
         break;
       case PowerUpType.FIRE_RATE:
-        player.fireRate *= 0.5;
-        setTimeout(() => {
-          player.fireRate *= 2;
-        }, 5000);
+        if (existingPowerUp) {
+          // Extend existing timer
+          existingPowerUp.expiresAt = now + duration;
+        } else {
+          // Create new effect
+          player.fireRate *= 0.5;
+          player.activePowerUps.push({
+            type: PowerUpType.FIRE_RATE,
+            expiresAt: now + duration,
+            duration: duration,
+          });
+          setTimeout(() => {
+            player.fireRate *= 2;
+            player.activePowerUps = player.activePowerUps.filter(
+              (p) => p.type !== PowerUpType.FIRE_RATE
+            );
+          }, duration);
+        }
         break;
       case PowerUpType.SHIELD:
-        player.invulnerable = true;
-        player.invulnerableUntil = Date.now() + 5000;
+        if (existingPowerUp) {
+          // Extend existing timer
+          existingPowerUp.expiresAt = now + duration;
+          player.invulnerableUntil = now + duration;
+        } else {
+          // Create new effect
+          player.invulnerable = true;
+          player.invulnerableUntil = now + duration;
+          player.activePowerUps.push({
+            type: PowerUpType.SHIELD,
+            expiresAt: now + duration,
+            duration: duration,
+          });
+          setTimeout(() => {
+            player.activePowerUps = player.activePowerUps.filter(
+              (p) => p.type !== PowerUpType.SHIELD
+            );
+          }, duration);
+        }
         break;
     }
   };
@@ -1762,10 +1831,10 @@ function App() {
     ctx.restore();
 
     // Draw UI
-    drawUI(ctx);
+    drawUI(ctx, now);
   };
 
-  const drawUI = (ctx: CanvasRenderingContext2D) => {
+  const drawUI = (ctx: CanvasRenderingContext2D, now: number) => {
     const player = playerRef.current;
     const stats = statsRef.current;
 
@@ -1829,6 +1898,9 @@ function App() {
     ctx.font = "bold 24px monospace";
     ctx.fillText(`Enemies: ${activeEnemies}`, CANVAS_WIDTH - 20, 40);
 
+    // Active Power-Ups HUD with timers
+    drawActivePowerUpsHUD(ctx, player, now);
+
     ctx.restore();
   };
 
@@ -1847,6 +1919,110 @@ function App() {
       default:
         return "#ffffff";
     }
+  };
+
+  const getPowerUpIcon = (type: PowerUpType): string => {
+    switch (type) {
+      case PowerUpType.HEALTH:
+        return "❤️";
+      case PowerUpType.SPEED:
+        return "⚡";
+      case PowerUpType.DAMAGE:
+        return "💥";
+      case PowerUpType.FIRE_RATE:
+        return "🔥";
+      case PowerUpType.SHIELD:
+        return "🛡️";
+      default:
+        return "?";
+    }
+  };
+
+  const getPowerUpName = (type: PowerUpType): string => {
+    switch (type) {
+      case PowerUpType.HEALTH:
+        return "HEALTH";
+      case PowerUpType.SPEED:
+        return "SPEED";
+      case PowerUpType.DAMAGE:
+        return "DAMAGE";
+      case PowerUpType.FIRE_RATE:
+        return "FIRE RATE";
+      case PowerUpType.SHIELD:
+        return "SHIELD";
+      default:
+        return "UNKNOWN";
+    }
+  };
+
+  const drawActivePowerUpsHUD = (
+    ctx: CanvasRenderingContext2D,
+    player: Player,
+    now: number
+  ) => {
+    if (player.activePowerUps.length === 0) return;
+
+    const hudX = CANVAS_WIDTH - 250;
+    let hudY = 80;
+
+    player.activePowerUps.forEach((powerUp) => {
+      const remaining = powerUp.expiresAt - now;
+      const remainingSeconds = Math.max(0, remaining / 1000);
+      const progress = remaining / powerUp.duration;
+
+      // Warning flash when < 2 seconds
+      const isWarning = remainingSeconds < 2;
+      const shouldFlash = isWarning && Math.floor(now / 250) % 2 === 0;
+      const alpha = shouldFlash ? 0.6 : 1;
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+
+      // Background
+      ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+      ctx.fillRect(hudX, hudY, 230, 40);
+
+      // Border
+      ctx.strokeStyle = getPowerUpColor(powerUp.type);
+      ctx.lineWidth = 2;
+      ctx.strokeRect(hudX, hudY, 230, 40);
+
+      // Icon
+      ctx.font = "24px monospace";
+      ctx.fillText(getPowerUpIcon(powerUp.type), hudX + 8, hudY + 28);
+
+      // Name
+      ctx.font = "bold 12px monospace";
+      ctx.fillStyle = "#ffffff";
+      ctx.textAlign = "left";
+      ctx.fillText(getPowerUpName(powerUp.type), hudX + 45, hudY + 16);
+
+      // Progress bar
+      const barX = hudX + 45;
+      const barY = hudY + 22;
+      const barWidth = 140;
+      const barHeight = 10;
+
+      // Background bar
+      ctx.fillStyle = "rgba(60, 60, 70, 1)";
+      ctx.fillRect(barX, barY, barWidth, barHeight);
+
+      // Progress bar fill
+      ctx.fillStyle = getPowerUpColor(powerUp.type);
+      ctx.fillRect(barX, barY, barWidth * progress, barHeight);
+
+      // Timer text
+      ctx.font = "bold 14px monospace";
+      ctx.fillStyle = isWarning ? "#ff4444" : "#ffffff";
+      ctx.textAlign = "right";
+      ctx.fillText(`${remainingSeconds.toFixed(1)}s`, hudX + 220, hudY + 30);
+
+      ctx.restore();
+
+      hudY += 50;
+    });
+
+    ctx.textAlign = "left";
   };
 
   // Game loop
