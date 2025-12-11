@@ -2209,7 +2209,17 @@ function App() {
 
       {gameState === GameState.MENU && (
         <div className="menu-overlay">
-          <h1 className="game-title">SHAPE MADNESS</h1>
+          <h1
+            className="game-title"
+            onClick={() => {
+              initializePlayer();
+              activateDebugMode();
+            }}
+            style={{ cursor: "pointer" }}
+            title="Click to start at Wave 15 with max upgrades (Debug Mode)"
+          >
+            SHAPE MADNESS
+          </h1>
           <p className="game-subtitle">Survive the endless waves!</p>
           <button
             className="menu-button"
@@ -2219,21 +2229,6 @@ function App() {
             }}
           >
             START GAME
-          </button>
-          <button
-            className="menu-button"
-            onClick={() => {
-              initializePlayer();
-              activateDebugMode();
-            }}
-            style={{
-              backgroundColor: "#ff9800",
-              fontSize: "14px",
-              padding: "10px 20px",
-              marginTop: "10px",
-            }}
-          >
-            🐛 DEBUG: Wave 15 + Max Upgrades
           </button>
           <button
             className="menu-button"
