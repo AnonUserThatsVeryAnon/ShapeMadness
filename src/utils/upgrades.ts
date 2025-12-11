@@ -72,7 +72,7 @@ export const UPGRADES: Upgrade[] = [
   {
     id: 'regen',
     name: 'Health Regen',
-    description: 'Regenerate 0.5 HP per second',
+    description: 'Regenerate 0.05 HP per second',
     cost: 50,
     maxLevel: 30,
     currentLevel: 0,

@@ -760,12 +760,12 @@ function App() {
       stats.comboMultiplier = 1;
     }
 
-    // Health regen upgrade
+    // Health regen upgrade - 0.05 HP per second per level
     const regenLevel = getUpgradeLevel("regen");
     if (regenLevel > 0 && player.health < player.maxHealth) {
       player.health = Math.min(
         player.maxHealth,
-        player.health + regenLevel * 0.05
+        player.health + regenLevel * 0.05 * deltaTime
       );
     }
 
@@ -2241,9 +2241,11 @@ function App() {
                     ).toFixed(1)}`;
                     break;
                   case "regen":
-                    statPreview = `${(upgrade.currentLevel * 0.5).toFixed(
-                      1
-                    )} → ${((upgrade.currentLevel + 1) * 0.5).toFixed(1)} HP/s`;
+                    statPreview = `${(upgrade.currentLevel * 0.05).toFixed(
+                      2
+                    )} → ${((upgrade.currentLevel + 1) * 0.05).toFixed(
+                      2
+                    )} HP/s`;
                     break;
                 }
               }
