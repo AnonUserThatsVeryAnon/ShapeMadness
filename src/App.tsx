@@ -2211,7 +2211,7 @@ function App() {
 
       {gameState === GameState.MENU && (
         <div className="menu-overlay">
-          <h1 className="game-title">🎮 MOUSE DEFENSE</h1>
+          <h1 className="game-title">SHAPE MADNESS</h1>
           <p className="game-subtitle">Survive the endless waves!</p>
           <button
             className="menu-button"
