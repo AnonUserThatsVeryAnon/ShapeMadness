@@ -141,8 +141,8 @@ export function purchaseUpgrade(upgrade: Upgrade, player: Player): boolean {
   upgrade.effect(player);
   
   // Slower cost scaling for more gradual progression
-  // Core stats scale at 1.15x, special abilities at 1.3x
-  const scaleFactor = upgrade.category === 'core' ? 1.15 : 1.3;
+  // Core stats scale at 1.15x, special abilities at 2.5x
+  const scaleFactor = upgrade.category === 'core' ? 1.15 : 2.5;
   upgrade.cost = Math.floor(upgrade.cost * scaleFactor);
   
   return true;

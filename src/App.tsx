@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import type {
   Player,
   Enemy,
@@ -64,6 +64,8 @@ function App() {
   const [isPaused, setIsPaused] = useState(false);
   const [, forceUpdate] = useState({});
   const [shopTab, setShopTab] = useState<"core" | "special">("core");
+  const [waveTimer, setWaveTimer] = useState(20); // 20 second countdown
+  const waveTimerRef = useRef<number | null>(null);
 
   // Codex state for enemy discovery system
   const [showingCard, setShowingCard] = useState<EnemyType | null>(null);
@@ -181,7 +183,7 @@ function App() {
   };
 
   // Start new round
-  const startRound = () => {
+  const startRound = useCallback(() => {
     const currentRound = statsRef.current.round;
 
     // Zone change logic:
@@ -200,6 +202,61 @@ function App() {
     enemyProjectilesRef.current = [];
     powerUpsRef.current = [];
     setGameState(GameState.PLAYING);
+  }, []);
+
+  // Wave timer countdown in shop
+  useEffect(() => {
+    if (gameState === GameState.SHOP) {
+      waveTimerRef.current = window.setInterval(() => {
+        setWaveTimer((prev) => {
+          if (prev <= 1) {
+            // Timer expired, auto-start next wave
+            if (waveTimerRef.current) {
+              clearInterval(waveTimerRef.current);
+              waveTimerRef.current = null;
+            }
+            startRound();
+            return 20;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
+    return () => {
+      if (waveTimerRef.current) {
+        clearInterval(waveTimerRef.current);
+        waveTimerRef.current = null;
+      }
+    };
+  }, [gameState, startRound]);
+
+  // Skip wave timer for bonus cash
+  const skipWaveTimer = () => {
+    if (waveTimerRef.current) {
+      clearInterval(waveTimerRef.current);
+      waveTimerRef.current = null;
+    }
+
+    // Calculate skip bonus: base $50 + $25 per round
+    const skipBonus = 50 + statsRef.current.round * 25;
+    playerRef.current.money += skipBonus;
+
+    // Show floating text for bonus
+    floatingTextsRef.current.push({
+      position: { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 },
+      text: `+$${skipBonus} SKIP BONUS!`,
+      color: "#FFD700",
+      size: 24,
+      lifetime: 2000,
+      createdAt: Date.now(),
+      velocity: { x: 0, y: -2 },
+      fontSize: 32,
+      alpha: 1,
+    });
+
+    audioSystem.playPurchase();
+    startRound();
   };
 
   // Debug function to skip to wave 15 with maxed upgrades
@@ -781,6 +838,8 @@ function App() {
         setIsPaused(true);
         // Don't go to shop yet, card close will handle it
       } else {
+        // Reset wave timer and enter shop
+        setWaveTimer(20);
         setGameState(GameState.SHOP);
       }
     }
@@ -2201,7 +2260,22 @@ function App() {
 
       {gameState === GameState.SHOP && (
         <div className="menu-overlay shop-overlay">
-          <h1 className="shop-title">🛒 UPGRADE SHOP</h1>
+          <h1 className="shop-title">🛒 ROUND {statsRef.current.round} SHOP</h1>
+
+          {/* Wave Timer with Skip Button */}
+          <div className="wave-timer-container">
+            <p className="wave-timer-label">Next Wave Starts In:</p>
+            <p className={`wave-timer-value ${waveTimer <= 5 ? "urgent" : ""}`}>
+              {waveTimer}s
+            </p>
+            <button className="skip-wave-button" onClick={skipWaveTimer}>
+              ⚡ SKIP FOR BONUS
+              <span className="skip-bonus-amount">
+                +${50 + statsRef.current.round * 25}
+              </span>
+            </button>
+          </div>
+
           <div className="shop-header">
             <div className="shop-stats">
               <p className="shop-money">💰 ${playerRef.current.money}</p>
@@ -2218,7 +2292,7 @@ function App() {
             </div>
           </div>
           <p className="shop-tip">
-            💡 Tip: Balance offense and defense for optimal survival
+            💡 Tip: Skip early for bonus cash, or take time to upgrade wisely!
           </p>
 
           <div className="shop-tabs">
@@ -2338,9 +2412,6 @@ function App() {
               );
             })}
           </div>
-          <button className="menu-button continue-button" onClick={startRound}>
-            CONTINUE TO ROUND {statsRef.current.round}
-          </button>
         </div>
       )}
 
