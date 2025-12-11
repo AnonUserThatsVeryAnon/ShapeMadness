@@ -234,29 +234,12 @@ function App() {
     };
   }, [gameState, waveTimer, isPaused, startRound]);
 
-  // Skip wave timer for bonus cash
+  // Skip wave timer
   const skipWaveTimer = () => {
     if (waveTimerRef.current) {
       clearInterval(waveTimerRef.current);
       waveTimerRef.current = null;
     }
-
-    // Calculate skip bonus: base $50 + $25 per round
-    const skipBonus = 50 + statsRef.current.round * 25;
-    playerRef.current.money += skipBonus;
-
-    // Show floating text for bonus
-    floatingTextsRef.current.push({
-      position: { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 },
-      text: `+$${skipBonus} SKIP BONUS!`,
-      color: "#FFD700",
-      size: 24,
-      lifetime: 2000,
-      createdAt: Date.now(),
-      velocity: { x: 0, y: -2 },
-      fontSize: 32,
-      alpha: 1,
-    });
 
     audioSystem.playPurchase();
     startRound();
@@ -2295,7 +2278,7 @@ function App() {
               {isPaused ? "PAUSED" : `${waveTimer}s`}
             </span>
             <button className="skip-wave-compact" onClick={skipWaveTimer}>
-              ⚡ SKIP (+${50 + statsRef.current.round * 25})
+              ⚡ SKIP
             </button>
           </div>
         </div>
