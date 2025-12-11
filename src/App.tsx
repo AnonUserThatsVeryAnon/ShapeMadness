@@ -802,26 +802,61 @@ function App() {
     });
 
     const multiShotLevel = getUpgradeLevel("multi_shot");
-    const bulletCount = 1 + multiShotLevel;
     const spreadAngle = 0.3;
 
-    for (let i = 0; i < bulletCount; i++) {
-      const angle = i - (bulletCount - 1) / 2;
-      const rotatedDir = {
+    // Always fire main bullet
+    bulletsRef.current.push({
+      position: { ...player.position },
+      velocity: multiply(direction, 10),
+      radius: 5,
+      damage: player.damage,
+      target: target,
+      lifetime: 3000,
+      createdAt: now,
+      active: true,
+    });
+
+    // Fire additional smaller bullets based on level
+    if (multiShotLevel >= 1) {
+      // Level 1: Add one side bullet (right side)
+      const rightDir = {
         x:
-          direction.x * Math.cos(angle * spreadAngle) -
-          direction.y * Math.sin(angle * spreadAngle),
+          direction.x * Math.cos(spreadAngle) -
+          direction.y * Math.sin(spreadAngle),
         y:
-          direction.x * Math.sin(angle * spreadAngle) +
-          direction.y * Math.cos(angle * spreadAngle),
+          direction.x * Math.sin(spreadAngle) +
+          direction.y * Math.cos(spreadAngle),
       };
 
       bulletsRef.current.push({
         position: { ...player.position },
-        velocity: multiply(rotatedDir, 10),
-        radius: 5,
-        damage: player.damage,
-        target: i === 0 ? target : undefined,
+        velocity: multiply(rightDir, 10),
+        radius: 3.5,
+        damage: player.damage * 0.5,
+        target: undefined,
+        lifetime: 3000,
+        createdAt: now,
+        active: true,
+      });
+    }
+
+    if (multiShotLevel >= 2) {
+      // Level 2: Add second side bullet (left side)
+      const leftDir = {
+        x:
+          direction.x * Math.cos(-spreadAngle) -
+          direction.y * Math.sin(-spreadAngle),
+        y:
+          direction.x * Math.sin(-spreadAngle) +
+          direction.y * Math.cos(-spreadAngle),
+      };
+
+      bulletsRef.current.push({
+        position: { ...player.position },
+        velocity: multiply(leftDir, 10),
+        radius: 3.5,
+        damage: player.damage * 0.5,
+        target: undefined,
         lifetime: 3000,
         createdAt: now,
         active: true,
