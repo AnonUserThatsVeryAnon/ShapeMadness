@@ -184,12 +184,14 @@ function App() {
 
   // Start new round
   const startRound = useCallback(() => {
+    // Increment round counter when starting next wave
+    statsRef.current.round++;
     const currentRound = statsRef.current.round;
 
     // Zone change logic:
     // - Rounds 1-10: Expand EVERY round to reach full screen
     // - Round 11+: Change EVERY round - dynamic red zones!
-    if (currentRound > 0) {
+    if (currentRound > 1) {
       triggerZoneChange();
     }
 
@@ -200,13 +202,13 @@ function App() {
     );
     bulletsRef.current = [];
     enemyProjectilesRef.current = [];
-    powerUpsRef.current = [];
+    // Note: powerUps are cleared when entering shop, not when starting round
     setGameState(GameState.PLAYING);
   }, []);
 
   // Wave timer countdown in shop
   useEffect(() => {
-    if (gameState === GameState.SHOP) {
+    if (gameState === GameState.SHOP && waveTimer > 0) {
       waveTimerRef.current = window.setInterval(() => {
         setWaveTimer((prev) => {
           if (prev <= 1) {
@@ -215,8 +217,9 @@ function App() {
               clearInterval(waveTimerRef.current);
               waveTimerRef.current = null;
             }
-            startRound();
-            return 20;
+            // Use setTimeout to avoid state update during render
+            setTimeout(() => startRound(), 0);
+            return 0;
           }
           return prev - 1;
         });
@@ -229,7 +232,7 @@ function App() {
         waveTimerRef.current = null;
       }
     };
-  }, [gameState, startRound]);
+  }, [gameState, waveTimer, startRound]);
 
   // Skip wave timer for bonus cash
   const skipWaveTimer = () => {
@@ -826,9 +829,10 @@ function App() {
       );
     }
 
-    // Check if round complete
-    if (enemies.every((e) => !e.active)) {
-      stats.round++;
+    // Check if round complete (only during playing state)
+    if (gameState === GameState.PLAYING && enemies.every((e) => !e.active)) {
+      // Clear powerups from the field when wave completes
+      powerUpsRef.current = [];
 
       // Show discovery card if any enemies were discovered this round
       if (pendingDiscoveriesRef.current.length > 0) {
@@ -2121,7 +2125,12 @@ function App() {
 
   // Game loop
   useEffect(() => {
-    if (gameState !== GameState.PLAYING || isPaused) return;
+    // Allow game loop during PLAYING or SHOP (for player movement in shop)
+    if (
+      (gameState !== GameState.PLAYING && gameState !== GameState.SHOP) ||
+      isPaused
+    )
+      return;
 
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -2258,23 +2267,28 @@ function App() {
         </div>
       )}
 
+      {/* Wave Timer Overlay - Top Center */}
+      {gameState === GameState.SHOP && (
+        <div className="wave-timer-overlay">
+          <div className="wave-timer-compact">
+            <span className="wave-timer-text">Next Wave:</span>
+            <span
+              className={`wave-timer-countdown ${
+                waveTimer <= 5 ? "urgent" : ""
+              }`}
+            >
+              {waveTimer}s
+            </span>
+            <button className="skip-wave-compact" onClick={skipWaveTimer}>
+              ⚡ SKIP (+${50 + statsRef.current.round * 25})
+            </button>
+          </div>
+        </div>
+      )}
+
       {gameState === GameState.SHOP && (
         <div className="menu-overlay shop-overlay">
           <h1 className="shop-title">🛒 ROUND {statsRef.current.round} SHOP</h1>
-
-          {/* Wave Timer with Skip Button */}
-          <div className="wave-timer-container">
-            <p className="wave-timer-label">Next Wave Starts In:</p>
-            <p className={`wave-timer-value ${waveTimer <= 5 ? "urgent" : ""}`}>
-              {waveTimer}s
-            </p>
-            <button className="skip-wave-button" onClick={skipWaveTimer}>
-              ⚡ SKIP FOR BONUS
-              <span className="skip-bonus-amount">
-                +${50 + statsRef.current.round * 25}
-              </span>
-            </button>
-          </div>
 
           <div className="shop-header">
             <div className="shop-stats">
