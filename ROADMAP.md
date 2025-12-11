@@ -1,451 +1,616 @@
 # 🗺️ Mouse Defense - Development Roadmap
 
-## 🎯 Sprint 1 (Week 1-2): "Make it Feel Good"
+**Last Updated**: December 11, 2025
 
-**Goal**: Polish core game feel and add audio
+## 📋 Overview
 
-### User Stories
+This roadmap consolidates all identified issues, improvements, and features based on comprehensive code review. Items are prioritized by impact and urgency.
 
-1. As a player, I want satisfying audio feedback so that my actions feel impactful
-2. As a player, I want smooth movement so that I feel in control
-3. As a player, I want clear visual feedback when I take damage
+**Current Project Status**: B+ (Very Good)
 
-### Tasks
-
-- [ ] Implement sound effects system (8h)
-  - Shooting sounds
-  - Enemy death sounds
-  - Hit/damage sounds
-  - Power-up collection
-  - UI sounds
-- [ ] Add background music system (4h)
-  - Menu music
-  - Combat music
-  - Shop music
-- [ ] Improve player movement (3h)
-  - Add smoothing
-  - Test different speeds
-- [ ] Add screen shake effects (2h)
-  - On player damage
-  - On explosions
-- [ ] Implement damage indicators (3h)
-  - Red flash on player
-  - Floating damage numbers
-- [ ] Add iframes after taking damage (2h)
-- [ ] Balance testing round 1-5 (4h)
-
-**Sprint Total: 26 hours**
+- ✅ Fully playable and polished
+- ⚠️ Needs architectural refactoring
+- ⚠️ Missing test coverage
+- ⚠️ 7 incomplete enemy types
 
 ---
 
-## 🚀 Sprint 2 (Week 3-4): "Keep Them Playing"
+## 🔴 CRITICAL PRIORITY (Do First)
 
-**Goal**: Add progression and scoring to increase engagement
+### 1. Refactor App.tsx (2,510 lines → ~500 lines)
 
-### User Stories
+**Problem**: Monolithic component, unmaintainable, violates best practices  
+**Impact**: High - Blocks future development  
+**Effort**: 2-3 days
 
-1. As a player, I want to see my score so I can compete with friends
-2. As a player, I want long-term progression so I have a reason to keep playing
-3. As a player, I want meaningful stats so I can track my improvement
+**Tasks**:
 
-### Tasks
+- [ ] Extract rendering logic to `GameCanvas.tsx` component
+- [ ] Migrate to existing `useGameLoop` hook (already implemented but unused)
+- [ ] Move game state to Zustand store (already created but unused)
+  - Keep refs for high-frequency updates (position, velocity)
+  - Use Zustand for UI state, game state, upgrades, stats
+- [ ] Split `updateGame()` into smaller functions:
+  - `updatePlayerMovement()`
+  - `handlePlayerShooting()`
+  - `updateAllEnemies()`
+  - `checkCollisions()`
+  - `updateParticles()`
+  - `handleZoneDamage()`
+  - `checkRoundCompletion()`
+- [ ] Extract collision detection to `CollisionSystem` (exists but not used)
+- [ ] Extract damage calculation to `DamageSystem` (exists but not used)
 
-- [ ] Implement score system (8h)
-  - Scoring multipliers
-  - Combo system enhancement
-  - Score breakdown screen
-- [ ] Create local leaderboard (4h)
-  - Top 10 high scores
-  - Display on game over
-- [ ] Build meta-progression system (12h)
-  - Persistent currency
-  - Unlock shop
-  - Starting upgrades
-- [ ] Add achievement system (6h)
-  - 10-15 achievements
-  - Track progress
-  - Display notifications
-- [ ] Statistics tracking (6h)
-  - Total kills per enemy
-  - Best round
-  - Total money earned
+**Files to Create/Modify**:
 
-**Sprint Total: 36 hours**
+- `src/components/GameCanvas.tsx` (new)
+- `src/hooks/useGameState.ts` (new - wraps Zustand)
+- `src/App.tsx` (reduce to orchestration only)
 
 ---
 
-## ⚡ Sprint 3 (Week 5-6): "More Ways to Play"
+### 2. Fix State Management Inconsistency
 
-**Goal**: Add weapon variety and active abilities
+**Problem**: Zustand store exists but all state uses refs (confusing hybrid)  
+**Impact**: Medium - Causes confusion, makes debugging hard  
+**Effort**: 1 day
 
-### User Stories
+**Decision Required**: Choose ONE approach:
 
-1. As a player, I want different weapons so I can find my playstyle
-2. As a player, I want active abilities so I feel more in control
-3. As a player, I want weapon variety so each run feels different
+**Option A - Keep Refs (Recommended)**:
 
-### Tasks
+- [ ] Delete `src/store/gameStore.ts`
+- [ ] Document why refs are used (performance)
+- [ ] Create proper ref management utilities
 
-- [ ] Design weapon system architecture (4h)
-- [ ] Implement 3 new weapons (12h)
-  - Shotgun (spread shot)
-  - Laser beam
-  - Missile launcher
-- [ ] Add weapon switching UI (4h)
-- [ ] Create active ability system (8h)
-  - Dash ability
-  - Shield ability
-  - Slow-time ability
-- [ ] Balance weapons and abilities (4h)
+**Option B - Use Zustand**:
 
-**Sprint Total: 32 hours**
+- [ ] Migrate UI state to Zustand (game state, paused, shop tab)
+- [ ] Keep refs only for 60 FPS updates (positions, velocities)
+- [ ] Update all components to use hooks
+
+**Recommendation**: Option A (refs are fine for game loops)
 
 ---
 
-## 👹 Sprint 4 (Week 7-8): "Epic Encounters"
+### 3. Fix Confirmed Bugs
 
-**Goal**: Add boss fights and smarter enemies
+**Impact**: Medium - Affects player experience  
+**Effort**: 2-3 hours
 
-### User Stories
+#### Bug #1: Power-Ups Persist Across Restarts
 
-1. As a player, I want challenging boss fights so I have memorable moments
-2. As a player, I want smarter enemies so combat stays interesting
-3. As a player, I want variety in enemy behavior
+```typescript
+// In initializePlayer():
+powerUpsRef.current = []; // ADD THIS LINE
+```
 
-### Tasks
+#### Bug #2: Splitter Children Spawn Inside Player
 
-- [ ] Design 3 boss encounters (6h)
-  - Boss at round 5, 10, 15
-  - Multi-phase fights
-  - Unique attack patterns
-- [ ] Implement boss AI (12h)
-- [ ] Improve enemy AI (10h)
-  - Flanking behavior
-  - Distance-keeping enemies
-  - Dodging behavior
-- [ ] Add 5 new enemy types (10h)
-- [ ] Create elite enemy system (6h)
-- [ ] Boss-specific rewards (2h)
+```typescript
+// In splitter death logic:
+const offset = 30; // Spawn distance
+const angle1 = Math.random() * Math.PI * 2;
+const angle2 = angle1 + Math.PI;
 
-**Sprint Total: 46 hours**
+const child1Pos = {
+  x: enemy.position.x + Math.cos(angle1) * offset,
+  y: enemy.position.y + Math.sin(angle1) * offset,
+};
+const child2Pos = {
+  x: enemy.position.x + Math.cos(angle2) * offset,
+  y: enemy.position.y + Math.sin(angle2) * offset,
+};
+```
 
----
+#### Bug #3: Combo Multiplier Not Displayed
 
-## 🎨 Sprint 5 (Week 9-10): "Visual Excellence"
+```typescript
+// In HUD rendering:
+ctx.fillText(
+  `Combo: ${stats.combo}x (${stats.comboMultiplier.toFixed(1)}x)`,
+  x,
+  y
+);
+```
 
-**Goal**: Polish visual effects and UI
+#### Bug #4: Audio Context Suspended
 
-### User Stories
-
-1. As a player, I want beautiful effects so the game is exciting to watch
-2. As a player, I want clear UI so I always know what's happening
-3. As a player, I want smooth animations so everything feels premium
-
-### Tasks
-
-- [ ] Redesign HUD (6h)
-  - Chunked health bars
-  - Better power-up display
-  - Minimap
-- [ ] Add death animations for enemies (8h)
-- [ ] Implement screen-space effects (4h)
-  - Motion blur on dash
-  - Color grading
-- [ ] Create tutorial overlays (8h)
-- [ ] Add more particle effects (6h)
-  - Better explosions
-  - Trails for bullets
-  - Environmental particles
-- [ ] Polish shop UI (4h)
-  - Better categorization
-  - Preview systems
-- [ ] Settings menu (6h)
-  - Volume controls
-  - Graphics settings
-
-**Sprint Total: 42 hours**
+```typescript
+// In audioSystem.init():
+document.addEventListener(
+  "click",
+  () => {
+    if (this.context?.state === "suspended") {
+      this.context.resume();
+    }
+  },
+  { once: true }
+);
+```
 
 ---
 
-## 🌍 Sprint 6 (Week 11-12): "New Worlds"
+## 🟠 HIGH PRIORITY (Week 1-2)
 
-**Goal**: Add arena variety and environmental mechanics
+### 4. Implement Object Pooling
 
-### User Stories
+**Problem**: Creating new objects every frame causes GC pressure  
+**Impact**: High - Performance on weak devices  
+**Effort**: 3-4 days
 
-1. As a player, I want different arenas so runs feel fresh
-2. As a player, I want environmental hazards to add challenge
-3. As a player, I want arena-specific mechanics
+**Tasks**:
 
-### Tasks
+- [ ] Create `BulletPool` class (reuse existing objectPool.ts)
+- [ ] Create `ParticlePool` class
+- [ ] Create `EnemyProjectilePool` class
+- [ ] Update shooting logic to use pools
+- [ ] Update particle creation to use pools
+- [ ] Benchmark performance improvement
 
-- [ ] Design 3 arena layouts (6h)
-- [ ] Implement arena system (8h)
-- [ ] Create environmental hazards (8h)
-  - Moving obstacles
-  - Damage zones
-  - Cover system
-- [ ] Add arena-specific events (6h)
-  - Meteorites
-  - Power outages
-- [ ] Arena unlock progression (4h)
+**Expected Results**:
 
-**Sprint Total: 32 hours**
+- Reduce GC pauses from ~16ms to <5ms
+- Increase frame stability on low-end devices
 
 ---
 
-## 🎮 Sprint 7 (Week 13-14): "Game Modes"
+### 5. Add Comprehensive Tests
 
-**Goal**: Add alternative game modes for variety
+**Problem**: Only 15% coverage, risky for changes  
+**Impact**: High - Prevents confident refactoring  
+**Effort**: 1 week
 
-### User Stories
+**Test Coverage Goals** (60% total):
 
-1. As a player, I want different difficulty modes to match my skill
-2. As a player, I want endless mode to test my limits
-3. As a player, I want time attack for quick sessions
+#### Upgrade System Tests (Priority 1)
 
-### Tasks
+- [ ] Test damage upgrade calculations
+- [ ] Test fire rate upgrade (with 50ms cap)
+- [ ] Test defense upgrade (with 95% cap)
+- [ ] Test cost scaling (1.15x core, 2.5x special)
+- [ ] Test multi-shot bullet creation
+- [ ] Test piercing shot collision logic
 
-- [ ] Implement difficulty system (6h)
-  - Easy, Normal, Hard, Nightmare
-  - Difficulty-based rewards
-- [ ] Create endless mode (8h)
-  - Infinite rounds
-  - Separate progression
-  - Unique leaderboard
-- [ ] Build time attack mode (6h)
-  - Timer system
-  - Speed bonuses
-- [ ] Daily challenge system (8h)
-  - Random modifiers
-  - Daily rewards
+#### Enemy System Tests (Priority 2)
 
-**Sprint Total: 28 hours**
+- [ ] Test round 1 spawns only basic enemies
+- [ ] Test enemy type unlock by round number
+- [ ] Test weighted spawn selection
+- [ ] Test splitter split logic
+- [ ] Test chain partner healing
+- [ ] Test timebomb slow field effects
+- [ ] Test buffer buff application
 
----
+#### Zone System Tests (Priority 3)
 
-## 🤝 Sprint 8 (Week 15-18): "Play Together"
+- [ ] Test zone expansion (rounds 1-10)
+- [ ] Test zone dynamic changes (round 11+)
+- [ ] Test zone damage application (40 HP/s)
+- [ ] Test zone damage respects invulnerability
+- [ ] Test minimum zone size (300x300)
 
-**Goal**: Implement cooperative multiplayer
+#### Combat Tests (Priority 4)
 
-### User Stories
+- [ ] Test combo system (3s timer, 5x max)
+- [ ] Test damage calculation with defense
+- [ ] Test bullet homing logic
+- [ ] Test collision detection accuracy
 
-1. As players, we want to play together locally
-2. As players, we want revive mechanics for teamwork
-3. As players, we want shared progression
+**Files to Create**:
 
-### Tasks
-
-- [ ] Research multiplayer architecture (4h)
-- [ ] Implement 2-player system (16h)
-- [ ] Create shared economy (4h)
-- [ ] Build revive mechanic (6h)
-- [ ] Balance for 2 players (6h)
-- [ ] Add split screen UI (4h)
-
-**Sprint Total: 40 hours**
+- `src/test/UpgradeSystem.test.ts`
+- `src/test/EnemySpawning.test.ts`
+- `src/test/ZoneSystem.test.ts`
+- `src/test/CombatSystem.test.ts`
 
 ---
 
-## 📱 Sprint 9 (Week 19-20): "Everywhere Gaming"
+### 6. Complete Enemy Implementations
 
-**Goal**: Mobile optimization and touch controls
+**Problem**: 7 enemy types have configs but no behaviors  
+**Impact**: Medium - Game feels incomplete  
+**Effort**: 2 weeks (OR 1 hour to mark as "Coming Soon")
 
-### User Stories
+**Decision Required**: Complete OR postpone?
 
-1. As a mobile player, I want touch controls that feel natural
-2. As a mobile player, I want good performance on my device
-3. As a mobile player, I want responsive UI
+**Option A - Complete All 7 Enemies** (Recommended):
 
-### Tasks
+#### Protector
 
-- [ ] Design touch control scheme (4h)
-- [ ] Implement touch input (8h)
-- [ ] Optimize for mobile performance (8h)
-  - Reduce particle counts
-  - Simplify effects
-  - Asset optimization
-- [ ] Responsive UI (6h)
-- [ ] Mobile testing (4h)
+- [ ] Shield nearby enemies (reduce damage by 50%)
+- [ ] Visible shield radius (200px)
+- [ ] Priority target (high value)
 
-**Sprint Total: 30 hours**
+#### Magician
 
----
+- [ ] Teleport every 5 seconds when close to player
+- [ ] Create 2 illusion clones (50% HP, 0 damage)
+- [ ] Illusions disappear when magician dies
 
-## 🔧 Sprint 10 (Week 21-22): "Technical Excellence"
+#### Sniper
 
-**Goal**: Clean up technical debt and optimize
+- [ ] Charge shot (2s warning line)
+- [ ] High damage (60 HP)
+- [ ] Stays far from player (>400px)
 
-### User Stories
+#### Ice
 
-1. As a developer, I want clean code for easier maintenance
-2. As a developer, I want good test coverage
-3. As a player, I want stable 60fps performance
+- [ ] Shoots freezing projectiles
+- [ ] Player hit: slowed 50% for 3 seconds
+- [ ] Blue icy visual effects
 
-### Tasks
+#### Bomb
 
-- [ ] Refactor App.tsx (8h)
-- [ ] Add unit tests (12h)
-- [ ] Implement error boundaries (4h)
-- [ ] Performance profiling (4h)
-- [ ] Web Workers for heavy computation (8h)
-- [ ] Documentation (6h)
+- [ ] Explodes on death
+- [ ] Deals 25 damage in 100px radius
+- [ ] Runs toward player when low HP
 
-**Sprint Total: 42 hours**
+#### Evil Storm
 
----
+- [ ] Boss-type enemy
+- [ ] Fires laser beams every 3 seconds
+- [ ] Spawns 2 basic enemies every 10 seconds
 
-## 🎊 Sprint 11 (Week 23-24): "Polish & Launch Prep"
+#### Lufti
 
-**Goal**: Final polish and prepare for release
+- [ ] Fast erratic movement (like Fast but more chaotic)
+- [ ] Leaves trail of damaging zones
+- [ ] Green visual theme
 
-### User Stories
+**Option B - Mark as Coming Soon**:
 
-1. As a player, I want a bug-free experience
-2. As a player, I want a complete game
-3. As a player, I want to share my achievements
-
-### Tasks
-
-- [ ] Bug fixing marathon (16h)
-- [ ] Balance final pass (8h)
-- [ ] Add save system (8h)
-- [ ] Create trailer/marketing assets (8h)
-- [ ] Write launch blog post (4h)
-- [ ] Final playtesting (8h)
-
-**Sprint Total: 52 hours**
+- [ ] Update codex entries: "Coming in future update"
+- [ ] Remove from spawn tables
+- [ ] Add "Locked" UI indicator
 
 ---
 
-## 📊 TOTAL TIMELINE
+### 7. Performance Optimizations
 
-**Total Estimated Hours: ~446 hours**
-**Timeline: ~6 months (1 developer) or 3 months (2 developers)**
+**Problem**: Can lag with many entities  
+**Impact**: Medium - User experience on weak devices  
+**Effort**: 3-4 days
+
+**Tasks**:
+
+- [ ] Implement entity culling (only update on-screen enemies)
+- [ ] Enforce MAX_FLOATING_TEXTS (200) with array slicing
+- [ ] Reduce particle count per enemy death (40 → 20)
+- [ ] Add performance monitoring (FPS counter)
+- [ ] Implement dirty rectangle rendering (optional, advanced)
+- [ ] Profile with Chrome DevTools
+- [ ] Test on low-end device (or throttle CPU)
+
+**Performance Targets**:
+
+- Maintain 60 FPS with 50 enemies + 500 particles
+- Reduce memory usage by 30%
+- Eliminate frame drops during enemy death explosions
 
 ---
 
-## 🎯 MILESTONES
+## 🟡 MEDIUM PRIORITY (Week 3-4)
 
-### Milestone 1: "Feels Great" (End of Sprint 2)
+### 8. Settings Menu Integration
 
-- Audio fully implemented
-- Core gameplay polished
-- Scoring and progression working
-- **Ready for first public playtest**
+**Problem**: UI exists but not functional  
+**Impact**: Low - Nice to have  
+**Effort**: 2 days
 
-### Milestone 2: "Content Complete" (End of Sprint 7)
+**Tasks**:
 
-- All weapons and abilities
-- Boss fights
-- Multiple game modes
-- **Ready for closed beta**
+- [ ] Wire up volume controls (master, SFX, music)
+- [ ] Implement mute toggle
+- [ ] Add particle quality settings (low/medium/high)
+- [ ] Add screen shake toggle
+- [ ] Add FPS counter toggle
+- [ ] Persist settings to localStorage
+- [ ] Add settings button to pause menu
 
-### Milestone 3: "Feature Complete" (End of Sprint 9)
+---
 
-- Multiplayer working
-- Mobile support
-- All planned features implemented
-- **Ready for open beta**
+### 9. Improve Documentation
 
-### Milestone 4: "1.0 Launch" (End of Sprint 11)
+**Problem**: Some inline docs missing  
+**Impact**: Low - Only affects maintainability  
+**Effort**: 1 day
 
+**Tasks**:
+
+- [ ] Add JSDoc to all public functions
+- [ ] Document complex algorithms (zone boundaries, enemy AI)
+- [ ] Add inline comments for upgrade formulas
+- [ ] Create CONTRIBUTING.md for future developers
+
+---
+
+### 10. Balance Adjustments
+
+**Problem**: Economy tight after round 15  
+**Impact**: Low - Gameplay tweak  
+**Effort**: 1 day
+
+**Tasks**:
+
+- [ ] Increase money drops after round 15 by 20%
+- [ ] Reduce core upgrade cost scaling (1.15x → 1.12x)
+- [ ] Buff explosive rounds damage
+- [ ] Nerf timebomb slow effect (2x → 1.5x fire rate penalty)
+- [ ] Playtesting and iteration
+
+---
+
+## 🟢 LOW PRIORITY (Future/Optional)
+
+### 11. Mobile Support
+
+**Effort**: 1 week
+
+- [ ] Add touch controls (virtual joystick)
+- [ ] Optimize for smaller screens
+- [ ] Test on mobile devices
+- [ ] Add mobile-specific UI adjustments
+
+### 12. Accessibility Features
+
+**Effort**: 3-4 days
+
+- [ ] Keyboard navigation for menus
+- [ ] Color-blind mode (change enemy colors)
+- [ ] Reduced motion option
+- [ ] High contrast mode
+
+### 13. Meta-Progression System
+
+**Effort**: 2 weeks
+
+- [ ] Persistent currency between runs
+- [ ] Unlock system (new abilities, weapons)
+- [ ] Achievement system (20-30 achievements)
+- [ ] Stat tracking (total kills, best round, etc.)
+
+### 14. Additional Weapons
+
+**Effort**: 1 week per weapon
+
+- [ ] Shotgun (spread shot)
+- [ ] Laser beam (continuous damage)
+- [ ] Missile launcher (homing, explosive)
+- [ ] Weapon switching UI
+
+### 15. Active Abilities
+
+**Effort**: 1 week
+
+- [ ] Dash ability (teleport short distance)
+- [ ] Time-slow ability (5s duration, 30s cooldown)
+- [ ] Nuke ability (clear screen, 60s cooldown)
+- [ ] Shield ability (5s invincibility, 45s cooldown)
+
+### 16. Advanced Features
+
+**Effort**: Varies
+
+- [ ] Local leaderboard (top 10 scores)
+- [ ] Daily challenges
+- [ ] Boss enemies (every 10 rounds)
+- [ ] Multiple game modes (survival, time attack, boss rush)
+- [ ] Replay system
+- [ ] Screenshot/share feature
+
+---
+
+## 📊 Progress Tracking
+
+### Phase 1: Foundation (Weeks 1-2)
+
+**Goal**: Fix critical issues, establish solid base
+
+| Task                     | Status | Est. | Priority |
+| ------------------------ | ------ | ---- | -------- |
+| Refactor App.tsx         | ⬜     | 3d   | Critical |
+| Fix state management     | ⬜     | 1d   | Critical |
+| Fix bugs (4 total)       | ⬜     | 3h   | Critical |
+| Implement object pooling | ⬜     | 4d   | High     |
+| Add tests (60% coverage) | ⬜     | 5d   | High     |
+
+**Success Criteria**:
+
+- App.tsx under 500 lines
 - All bugs fixed
-- Balanced and polished
-- Marketing ready
-- **Public launch**
+- Test coverage >60%
+- Performance improved
 
 ---
 
-## 🔄 AGILE PRACTICES
+### Phase 2: Completion (Weeks 3-4)
 
-### Daily Stand-ups
+**Goal**: Complete half-finished features
 
-- What did I do yesterday?
-- What will I do today?
-- Any blockers?
+| Task                     | Status | Est. | Priority |
+| ------------------------ | ------ | ---- | -------- |
+| Complete 7 enemies       | ⬜     | 10d  | High     |
+| Performance optimization | ⬜     | 4d   | High     |
+| Settings menu            | ⬜     | 2d   | Medium   |
+| Balance adjustments      | ⬜     | 1d   | Medium   |
+| Documentation            | ⬜     | 1d   | Medium   |
 
-### Sprint Reviews
+**Success Criteria**:
 
-- Demo completed work
-- Get feedback
-- Adjust backlog
-
-### Sprint Retrospectives
-
-- What went well?
-- What could be better?
-- Action items
-
-### Continuous Deployment
-
-- Deploy to test environment daily
-- Get feedback early and often
-- Iterate based on real usage
+- All 15 enemies working
+- 60 FPS with 50+ enemies
+- Settings functional
+- Economy balanced
 
 ---
 
-## ⚠️ RISKS & MITIGATION
+### Phase 3: Polish (Weeks 5-6)
 
-| Risk                   | Impact | Probability | Mitigation                                    |
-| ---------------------- | ------ | ----------- | --------------------------------------------- |
-| Scope creep            | High   | High        | Strict sprint planning, regular reviews       |
-| Performance issues     | High   | Medium      | Regular profiling, performance budget         |
-| Multiplayer complexity | High   | Medium      | Start simple, iterate, thorough testing       |
-| Burnout                | High   | Medium      | Reasonable hours, take breaks, celebrate wins |
-| Feature cuts           | Medium | High        | Prioritize ruthlessly, MVP mindset            |
+**Goal**: Optional improvements
 
----
+| Task             | Status | Est. | Priority |
+| ---------------- | ------ | ---- | -------- |
+| Mobile support   | ⬜     | 5d   | Low      |
+| Accessibility    | ⬜     | 4d   | Low      |
+| Meta-progression | ⬜     | 10d  | Low      |
 
-## 💰 MONETIZATION CONSIDERATIONS (Post-1.0)
+**Success Criteria**:
 
-If planning to monetize:
-
-- [ ] Cosmetic DLC (skins, effects)
-- [ ] Expansion packs (new arenas, weapons)
-- [ ] Battle pass system
-- [ ] Optional ads for power-ups (mobile)
-- [ ] Premium currency for unlocks
-- [ ] Steam achievements/trading cards
+- Works on mobile
+- Accessible features
+- Long-term replayability
 
 ---
 
-## 🎓 LEARNING RESOURCES
+## 🎯 Definition of Done
 
-- **Game Feel**: "Game Feel" by Steve Swink
-- **Balancing**: "Game Balance" by Ian Schreiber
-- **Design Patterns**: Game Programming Patterns by Robert Nystrom
-- **Multiplayer**: Gabriel Gambetta's Fast-Paced Multiplayer
-- **Audio**: www.freesound.org, www.incompetech.com (music)
+### For Each Task
 
----
+- [ ] Code implemented and tested
+- [ ] Tests written (if applicable)
+- [ ] Documentation updated
+- [ ] No new console errors
+- [ ] Performance verified (60 FPS)
+- [ ] Code reviewed (if team)
 
-## 🏁 POST-LAUNCH ROADMAP
+### For Each Phase
 
-### Update 1.1 - "New Horizons" (Month 2)
-
-- 2 new arenas
-- 5 new enemies
-- Balance patches
-
-### Update 1.2 - "Arsenal" (Month 4)
-
-- 5 new weapons
-- Weapon mod system
-- Custom loadouts
-
-### Update 1.3 - "Legends" (Month 6)
-
-- Campaign mode
-- Story elements
-- New boss encounters
-
-### Update 2.0 - "Together Forever" (Month 9)
-
-- Online multiplayer
-- Ranked mode
-- Seasonal content
+- [ ] All phase tasks complete
+- [ ] Playtesting session done
+- [ ] Bugs fixed
+- [ ] Performance benchmarked
+- [ ] Documentation current
 
 ---
 
-**Remember: Ship early, ship often, and listen to your players!**
+## 🔧 Technical Debt Tracking
+
+### Current Debt Items
+
+1. **App.tsx Size** (Critical)
+
+   - Debt: 2,510 lines in one file
+   - Impact: Blocks all future work
+   - Fix: Phase 1, Task 1
+
+2. **No Object Pooling** (High)
+
+   - Debt: GC pressure every frame
+   - Impact: Performance on weak devices
+   - Fix: Phase 1, Task 4
+
+3. **Low Test Coverage** (High)
+
+   - Debt: Only 15% coverage
+   - Impact: Risky refactoring
+   - Fix: Phase 1, Task 5
+
+4. **Incomplete Enemies** (Medium)
+
+   - Debt: 7 placeholder types
+   - Impact: Game feels unfinished
+   - Fix: Phase 2, Task 1
+
+5. **Unused Systems** (Low)
+   - Debt: Zustand store, useGameLoop, behavior system not used
+   - Impact: Confusing codebase
+   - Fix: Phase 1, Tasks 1-2
+
+---
+
+## 📈 Metrics & Goals
+
+### Code Quality Goals
+
+- **Test Coverage**: 15% → 60% (Phase 1)
+- **Largest File**: 2,510 lines → 500 lines (Phase 1)
+- **Type Coverage**: 95% (maintain)
+- **Performance**: 60 FPS stable (Phase 2)
+
+### Feature Completeness Goals
+
+- **Enemy Types**: 8/15 → 15/15 (Phase 2)
+- **Bugs**: 4 known → 0 (Phase 1)
+- **Settings**: 0% → 100% functional (Phase 2)
+- **Tests**: 3 files → 8+ files (Phase 1)
+
+### Player Experience Goals
+
+- **FPS Stability**: 90% → 99% (Phase 2)
+- **Mobile Support**: 0% → 100% (Phase 3)
+- **Accessibility**: 0% → 80% (Phase 3)
+
+---
+
+## 🚫 Out of Scope (Not Planned)
+
+- Multiplayer/co-op mode
+- Server-side leaderboards
+- In-app purchases/monetization
+- 3D graphics
+- Story mode/campaign
+- Voice acting
+- Original music composition (procedural only)
+
+---
+
+## 💡 How to Use This Roadmap
+
+### For Solo Development
+
+1. Work through Phase 1 sequentially (critical items)
+2. Pick Phase 2 items based on interest/time
+3. Phase 3 is optional polish
+
+### For Team Development
+
+1. Assign Phase 1 tasks to different developers
+2. Do daily standups to track progress
+3. Code review all changes
+4. Playtesting sessions after each phase
+
+### For Contributors
+
+1. Check "⬜" items that match your skills
+2. Create issue before starting work
+3. Follow Definition of Done
+4. Submit PR with tests
+
+---
+
+## 📞 Support & Questions
+
+**Architecture Questions**: See TECHNICAL_REVIEW.md  
+**Game Mechanics**: See MECHANICS_REFERENCE.md  
+**Current Features**: See CURRENT_STATE_DOCUMENTATION.md
+
+---
+
+## ✅ How to Mark Progress
+
+Update task status:
+
+- ⬜ Not started
+- 🟦 In progress
+- ✅ Complete
+- ❌ Blocked
+- ⏸️ Paused
+
+Example:
+
+```markdown
+- [✅] Refactor App.tsx
+- [🟦] Add tests
+- [⬜] Complete enemies
+```
+
+---
+
+**Last Review**: December 11, 2025  
+**Next Review**: After Phase 1 completion  
+**Estimated Full Completion**: 6-8 weeks (solo), 3-4 weeks (team of 3)
+
+---
+
+_This roadmap is a living document. Update it as priorities change, new issues are discovered, or tasks are completed._

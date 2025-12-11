@@ -1,73 +1,161 @@
-# React + TypeScript + Vite
+# 🎮 Mouse Defense
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A fast-paced survival shooter built with React, TypeScript, and Canvas API. Battle endless waves of enemies with unique abilities, upgrade your character, and discover new threats in the enemy codex.
 
-Currently, two official plugins are available:
+![TypeScript](https://img.shields.io/badge/TypeScript-5.9.3-blue)
+![React](https://img.shields.io/badge/React-19.2.0-61dafb)
+![Status](https://img.shields.io/badge/Status-Playable-brightgreen)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## ✨ Features
 
-## React Compiler
+- **Dynamic Zone System** - Battlefield expands then dynamically shifts every round
+- **15 Enemy Types** - Each with unique behaviors and abilities (8 complete, 7 planned)
+- **Enemy Codex** - Discover and track enemy information as you encounter them
+- **9 Upgrades** - Core stats and special abilities
+- **Combo System** - Build multipliers for massive score gains
+- **Power-Ups** - 5 temporary buffs
+- **Procedural Audio** - Web Audio API sound effects
+- **Particle Effects** - Smooth visual feedback
+- **Auto-Save** - High score persistence
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 🚀 Quick Start
 
-## Expanding the ESLint configuration
+```bash
+# Install dependencies
+npm install
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+# Start development server
+npm run dev
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+# Build for production
+npm run build
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+# Preview production build
+npm run preview
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Run tests
+npm run test
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+The game runs at `http://localhost:5173`
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## 🎮 How to Play
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Controls
+
+- **WASD** or **Arrow Keys** - Move your character
+- **Mouse** - Aim (auto-shoots at nearest enemy)
+- **ESC** - Pause game
+
+### Objective
+
+Survive endless waves of enemies! Between rounds, visit the shop to upgrade your abilities. Discover all enemy types in the codex. Beat your high score!
+
+## 📚 Documentation
+
+- **[CURRENT_STATE_DOCUMENTATION.md](CURRENT_STATE_DOCUMENTATION.md)** - Complete feature overview, architecture, and status
+- **[TECHNICAL_REVIEW.md](TECHNICAL_REVIEW.md)** - Code quality analysis, performance review, and technical details
+- **[MECHANICS_REFERENCE.md](MECHANICS_REFERENCE.md)** - Game formulas, stats, balance curves, and strategy tips
+- **[ROADMAP.md](ROADMAP.md)** - Development priorities and planned improvements
+
+## 🏗️ Project Structure
+
 ```
+src/
+├── App.tsx              # Main game (needs refactoring)
+├── components/          # UI components
+│   ├── CodexMenu.tsx
+│   ├── EnemyCard.tsx
+│   └── SettingsMenu.tsx
+├── config/
+│   └── gameConfig.ts    # Centralized settings
+├── hooks/
+│   └── useGameLoop.ts   # Fixed timestep loop
+├── store/
+│   └── gameStore.ts     # Zustand store (not yet used)
+├── systems/             # Game logic modules
+│   ├── CollisionSystem.ts
+│   ├── DamageSystem.ts
+│   ├── EnemyBehaviorSystem.ts
+│   └── SaveSystem.ts
+├── types/
+│   ├── game.ts
+│   └── codex.ts
+└── utils/
+    ├── audio.ts
+    ├── codex.ts
+    ├── enemies.ts
+    ├── particles.ts
+    ├── upgrades.ts
+    └── ...
+```
+
+## 🧪 Testing
+
+```bash
+npm run test        # Run all tests
+npm run test:ui     # Open Vitest UI
+```
+
+Current coverage: ~15% (target: 60%)
+
+## 🎯 Current Status
+
+**Overall Grade: B+ (Very Good)**
+
+✅ **Strengths**:
+
+- Fully playable and polished
+- Innovative dynamic zone system
+- Excellent TypeScript coverage
+- Smooth 60 FPS gameplay
+- Comprehensive game mechanics
+
+⚠️ **Needs Work**:
+
+- App.tsx too large (2,510 lines - refactoring in progress)
+- Low test coverage (15% - expanding)
+- 7 enemy types incomplete (planned)
+- Performance optimizations needed
+
+See [ROADMAP.md](ROADMAP.md) for detailed development plan.
+
+## 🛠️ Tech Stack
+
+- **React 19.2.0** - UI framework
+- **TypeScript 5.9.3** - Type safety
+- **Vite 7.2.4** - Build tool
+- **Zustand 5.0.9** - State management (planned integration)
+- **Vitest 4.0.15** - Testing framework
+- **Web Audio API** - Procedural sound effects
+- **Canvas API** - Game rendering
+
+## 🤝 Contributing
+
+See [ROADMAP.md](ROADMAP.md) for current priorities and planned features.
+
+Key areas for contribution:
+
+1. App.tsx refactoring (critical)
+2. Test coverage (high priority)
+3. Enemy implementations (7 remaining)
+4. Performance optimizations
+
+## 📝 License
+
+This project is open source and available under the MIT License.
+
+## 🎓 Learning Resources
+
+This codebase demonstrates:
+
+- Canvas-based game development in React
+- Fixed timestep game loops
+- Entity-component patterns
+- Procedural audio generation
+- TypeScript game development
+- Performance optimization techniques
+
+---
+
+**Built with ❤️ using React + TypeScript + Vite**
