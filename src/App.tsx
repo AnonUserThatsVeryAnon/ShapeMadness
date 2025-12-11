@@ -208,7 +208,7 @@ function App() {
 
   // Wave timer countdown in shop
   useEffect(() => {
-    if (gameState === GameState.SHOP && waveTimer > 0) {
+    if (gameState === GameState.SHOP && waveTimer > 0 && !isPaused) {
       waveTimerRef.current = window.setInterval(() => {
         setWaveTimer((prev) => {
           if (prev <= 1) {
@@ -232,7 +232,7 @@ function App() {
         waveTimerRef.current = null;
       }
     };
-  }, [gameState, waveTimer, startRound]);
+  }, [gameState, waveTimer, isPaused, startRound]);
 
   // Skip wave timer for bonus cash
   const skipWaveTimer = () => {
@@ -696,8 +696,12 @@ function App() {
       return true;
     });
 
-    // Spawn laser beams at higher rounds (randomly)
-    if (stats.round >= 5 && now - lastLaserTimeRef.current > 8000) {
+    // Spawn laser beams at higher rounds (randomly) - but not during shop phase
+    if (
+      gameState === GameState.PLAYING &&
+      stats.round >= 5 &&
+      now - lastLaserTimeRef.current > 8000
+    ) {
       const random = Math.random();
       // 15% chance every 8 seconds at round 5+, increasing with rounds
       const spawnChance = Math.min(0.3, 0.15 + (stats.round - 5) * 0.02);
@@ -1129,14 +1133,24 @@ function App() {
     // Calculate angle from start to end point
     const angle = Math.atan2(endY - startY, endX - startX);
 
+    // Increase intensity every 15 rounds
+    const currentRound = statsRef.current.round;
+    const intensityMultiplier = Math.floor(currentRound / 15);
+
+    // Base: 40 width, 1500ms warning, 500ms active
+    // Every 15 rounds: +15 width, -150ms warning, +100ms active
+    const laserWidth = 40 + intensityMultiplier * 15;
+    const warningTime = Math.max(600, 1500 - intensityMultiplier * 150);
+    const activeTime = 500 + intensityMultiplier * 100;
+
     lasersRef.current.push({
       startX,
       startY,
       endX,
       endY,
-      width: 40,
-      warningTime: 1500,
-      activeTime: 500,
+      width: laserWidth,
+      warningTime: warningTime,
+      activeTime: activeTime,
       createdAt: now,
       isWarning: true,
       angle,
@@ -2126,11 +2140,12 @@ function App() {
   // Game loop
   useEffect(() => {
     // Allow game loop during PLAYING or SHOP (for player movement in shop)
-    if (
-      (gameState !== GameState.PLAYING && gameState !== GameState.SHOP) ||
-      isPaused
-    )
+    // During SHOP, allow movement even when paused
+    if (gameState === GameState.SHOP) {
+      // Shop phase always allows game loop for movement
+    } else if (gameState !== GameState.PLAYING || isPaused) {
       return;
+    }
 
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -2274,10 +2289,10 @@ function App() {
             <span className="wave-timer-text">Next Wave:</span>
             <span
               className={`wave-timer-countdown ${
-                waveTimer <= 5 ? "urgent" : ""
+                waveTimer <= 5 && !isPaused ? "urgent" : ""
               }`}
             >
-              {waveTimer}s
+              {isPaused ? "PAUSED" : `${waveTimer}s`}
             </span>
             <button className="skip-wave-compact" onClick={skipWaveTimer}>
               ⚡ SKIP (+${50 + statsRef.current.round * 25})
