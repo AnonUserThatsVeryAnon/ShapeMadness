@@ -316,42 +316,46 @@ class AudioSystem {
     const oscillators: OscillatorNode[] = [];
     const gains: GainNode[] = [];
     
-    // Create intense boss battle music with multiple layers
+    // Create pulsing boss battle music with rhythm
     const bassFreq = 65.41; // C2
-    const melodyFreqs = [130.81, 146.83, 164.81, 196.00]; // C3, D3, E3, G3
+    const now = this.context.currentTime;
     
-    // Bass line
+    // Pulsing bass with rhythm (not constant drone)
     const bass = this.context.createOscillator();
     const bassGain = this.context.createGain();
     bass.type = 'sawtooth';
     bass.frequency.value = bassFreq;
     bass.connect(bassGain);
     bassGain.connect(this.musicGain);
-    bassGain.gain.value = 0.15;
+    
+    // Create rhythmic pulsing pattern instead of constant drone
+    bassGain.gain.setValueAtTime(0, now);
+    for (let i = 0; i < 100; i++) {
+      const beatTime = now + i * 0.5;
+      bassGain.gain.setValueAtTime(0.15, beatTime);
+      bassGain.gain.exponentialRampToValueAtTime(0.01, beatTime + 0.3);
+    }
+    
     oscillators.push(bass);
     gains.push(bassGain);
     
-    // Rhythm layer
+    // Rhythm accent on every other beat
     const rhythm = this.context.createOscillator();
     const rhythmGain = this.context.createGain();
     rhythm.type = 'square';
     rhythm.frequency.value = bassFreq * 2;
     rhythm.connect(rhythmGain);
     rhythmGain.connect(this.musicGain);
-    rhythmGain.gain.value = 0.08;
+    
+    rhythmGain.gain.setValueAtTime(0, now);
+    for (let i = 0; i < 50; i++) {
+      const beatTime = now + i * 1.0;
+      rhythmGain.gain.setValueAtTime(0.06, beatTime);
+      rhythmGain.gain.exponentialRampToValueAtTime(0.01, beatTime + 0.15);
+    }
+    
     oscillators.push(rhythm);
     gains.push(rhythmGain);
-    
-    // Tension layer (creates unease)
-    const tension = this.context.createOscillator();
-    const tensionGain = this.context.createGain();
-    tension.type = 'sine';
-    tension.frequency.value = melodyFreqs[0] * 1.5;
-    tension.connect(tensionGain);
-    tensionGain.connect(this.musicGain);
-    tensionGain.gain.value = 0.05;
-    oscillators.push(tension);
-    gains.push(tensionGain);
     
     // Start all oscillators
     oscillators.forEach(osc => osc.start());
