@@ -609,33 +609,63 @@ function App() {
 
       // OVERSEER BOSS abilities
       if (enemy.type === EnemyType.OVERSEER && enemy.isBoss) {
-        // PHASE 1: Spawn minions every 5 seconds
-        if (enemy.bossPhase === 1) {
-          if (!enemy.lastSpecialAbility) enemy.lastSpecialAbility = now;
+        // ALL PHASES: Summon minions with escalating difficulty
+        if (!enemy.lastSpecialAbility) enemy.lastSpecialAbility = now;
 
-          if (now - enemy.lastSpecialAbility > 5000) {
-            // Spawn 2 Basic enemies near the boss
-            for (let i = 0; i < 2; i++) {
-              const angle = Math.random() * Math.PI * 2;
-              const dist = 80;
-              const minion = createEnemy(EnemyType.BASIC, {
-                x: enemy.position.x + Math.cos(angle) * dist,
-                y: enemy.position.y + Math.sin(angle) * dist,
-              });
-              enemiesRef.current.push(minion);
-            }
-            enemy.lastSpecialAbility = now;
+        const summonCooldown =
+          enemy.bossPhase === 1 ? 6000 : enemy.bossPhase === 2 ? 5000 : 4000;
 
-            // Spawn effect
-            particlesRef.current.push(
-              ...createParticles(enemy.position, 20, "#5a1d7a", 6)
-            );
+        if (now - enemy.lastSpecialAbility > summonCooldown) {
+          let spawnCount = 0;
+          let spawnType: EnemyType = EnemyType.BASIC;
+
+          if (enemy.bossPhase === 1) {
+            // Phase 1: 2 Basic enemies
+            spawnCount = 2;
+            spawnType = EnemyType.BASIC;
+          } else if (enemy.bossPhase === 2) {
+            // Phase 2: 3 enemies (mix of Basic and Fast)
+            spawnCount = 3;
+            spawnType = Math.random() < 0.5 ? EnemyType.BASIC : EnemyType.FAST;
+          } else if (enemy.bossPhase === 3) {
+            // Phase 3: 4 enemies (Basic, Fast, or Tank)
+            spawnCount = 4;
+            const rand = Math.random();
+            if (rand < 0.4) spawnType = EnemyType.BASIC;
+            else if (rand < 0.8) spawnType = EnemyType.FAST;
+            else spawnType = EnemyType.TANK;
           }
+
+          // Spawn the minions
+          for (let i = 0; i < spawnCount; i++) {
+            const angle = (Math.PI * 2 * i) / spawnCount + Math.random() * 0.5;
+            const dist = 80 + Math.random() * 40;
+            const minion = createEnemy(spawnType, {
+              x: enemy.position.x + Math.cos(angle) * dist,
+              y: enemy.position.y + Math.sin(angle) * dist,
+            });
+            enemiesRef.current.push(minion);
+          }
+
+          enemy.lastSpecialAbility = now;
+
+          // Spawn effect with phase color
+          const phaseColor =
+            enemy.bossPhase === 1
+              ? "#5a1d7a"
+              : enemy.bossPhase === 2
+              ? "#ff6b1a"
+              : "#ff1a1a";
+          particlesRef.current.push(
+            ...createParticles(enemy.position, 25, phaseColor, 8)
+          );
         }
 
         // PHASE 2: Fire large projectiles every 2 seconds
         if (enemy.bossPhase === 2) {
-          if (now - (enemy.lastSpecialAbility || 0) > 2000) {
+          if (!enemy.lastShockwave) enemy.lastShockwave = now - 1000; // Initialize offset from summon
+
+          if (now - enemy.lastShockwave > 2000) {
             const toPlayer = {
               x: player.position.x - enemy.position.x,
               y: player.position.y - enemy.position.y,
@@ -653,7 +683,7 @@ function App() {
               color: "#ff6b1a",
             });
 
-            enemy.lastSpecialAbility = now;
+            enemy.lastShockwave = now;
 
             particlesRef.current.push(
               ...createParticles(enemy.position, 15, "#ff6b1a", 4)
@@ -661,7 +691,7 @@ function App() {
           }
         }
 
-        // PHASE 3: Shockwave pulses every 4 seconds
+        // PHASE 3: Shockwave pulses every 3 seconds
         if (enemy.bossPhase === 3) {
           if (!enemy.lastShockwave) enemy.lastShockwave = now;
 
@@ -674,7 +704,7 @@ function App() {
                 ...createParticles(enemy.position, 30, "#ff1a1a", 8)
               );
             }
-            enemy.lastShockwave = now;
+            enemy.frozenUntil = now;
           }
         }
       }

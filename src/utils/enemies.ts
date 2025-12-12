@@ -125,7 +125,7 @@ export const ENEMY_CONFIGS = {
     radius: 19,
   },
   [EnemyType.OVERSEER]: {
-    health: 3000,
+    health: 5000,
     speed: 0.8,
     damage: 30,
     value: 500,
@@ -299,16 +299,10 @@ export function spawnEnemiesForRound(
 ): Enemy[] {
   const enemies: Enemy[] = [];
   
-  // BOSS ROUND - Round 15 spawns The Overseer
-  if (round === 15) {
-    console.log('SPAWNING BOSS - Round 15 detected');
-    const boss = createEnemy(EnemyType.OVERSEER, {
-      x: canvasWidth / 2,
-      y: -100, // Spawn from top center
-    });
-    console.log('Boss created:', boss.type, boss.isBoss, boss.health);
-    enemies.push(boss);
-    return enemies; // Only the boss spawns on round 15
+  // BOSS ROUND - Round 15 spawns regular enemies THEN The Overseer
+  const isBossRound = round === 15;
+  if (isBossRound) {
+    console.log('BOSS ROUND - Round 15 detected, spawning enemies + boss');
   }
   
   const baseCount = 5 + round * 2;
@@ -400,6 +394,16 @@ export function spawnEnemiesForRound(
       enemies.push(partner);
       i++; // Skip next iteration since we spawned 2 enemies
     }
+  }
+
+  // Add boss to the end on round 15
+  if (isBossRound) {
+    const boss = createEnemy(EnemyType.OVERSEER, {
+      x: canvasWidth / 2,
+      y: -100, // Spawn from top center
+    });
+    console.log('Boss added to enemy list:', boss.type, boss.isBoss, boss.health);
+    enemies.push(boss);
   }
 
   return enemies;

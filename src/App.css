@@ -247,6 +247,8 @@
   color: #fff;
   margin: 0;
   font-weight: 600;
+  min-width: 70px;
+  text-align: center;
 }
 
 .shop-tip {

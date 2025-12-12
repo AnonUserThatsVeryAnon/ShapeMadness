@@ -310,15 +310,17 @@ export const ENEMY_CARDS: Record<EnemyType, EnemyCard> = {
   [EnemyType.OVERSEER]: {
     type: EnemyType.OVERSEER,
     name: 'The Overseer',
-    description: 'BOSS - A massive, ancient entity that commands all hostile organisms. The first true test of your abilities. Features three distinct combat phases, each more dangerous than the last.',
+    description: 'BOSS - A massive, ancient entity that commands all hostile organisms. The first true test of your abilities. Features three distinct combat phases, each more dangerous than the last. Spawns alongside regular enemies.',
     abilities: [
-      '⚠️ BOSS ENEMY - 3000 HP',
-      'Phase 1 (100-66%): Spawns 2 Basic enemies every 5 seconds',
-      'Phase 2 (66-33%): Fires large projectiles (40 damage) every 2 seconds',
-      'Phase 3 (33-0%): Enrages with increased speed and shockwave pulses (15 damage, 200 radius) every 4 seconds',
+      '⚠️ BOSS ENEMY - 5000 HP',
+      'SUMMONS MINIONS ALL PHASES:',
+      'Phase 1 (100-66%): Spawns 2 Basic enemies every 6s',
+      'Phase 2 (66-33%): Spawns 3 Basic/Fast enemies every 5s + Fires projectiles (40 damage) every 2s',
+      'Phase 3 (33-0%): Spawns 4 Basic/Fast/Tank enemies every 4s + Shockwave pulses (15 damage, 200 radius) every 3s + Increased speed',
       'Massive 40 radius hitbox',
       '30 contact damage',
-      'Phase transitions trigger screen shake'
+      'Phase transitions trigger screen shake',
+      'Spawns with round 15 enemies for extra challenge'
     ],
     stats: {
       health: ENEMY_CONFIGS[EnemyType.OVERSEER].health,
