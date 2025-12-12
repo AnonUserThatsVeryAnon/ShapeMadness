@@ -33,6 +33,7 @@ interface GameStore {
   showingCard: EnemyType | null;
   showCodex: boolean;
   shopTab: 'core' | 'special';
+  waveTimer: number;
   
   // Actions
   setGameState: (state: GameState) => void;
@@ -58,6 +59,12 @@ interface GameStore {
   setShowingCard: (enemyType: EnemyType | null) => void;
   setShowCodex: (show: boolean) => void;
   setShopTab: (tab: 'core' | 'special') => void;
+  setWaveTimer: (timer: number) => void;
+  incrementRound: () => void;
+  addMoney: (amount: number) => void;
+  addScore: (points: number) => void;
+  incrementKills: () => void;
+  updateCombo: (combo: number, multiplier: number, time: number) => void;
   reset: () => void;
 }
 
@@ -125,6 +132,7 @@ export const useGameStore = create<GameStore>((set) => ({
   showingCard: null,
   showCodex: false,
   shopTab: 'core',
+  waveTimer: 20,
   
   // Actions
   setGameState: (gameState) => set({ gameState }),
@@ -176,6 +184,22 @@ export const useGameStore = create<GameStore>((set) => ({
   setShowingCard: (showingCard) => set({ showingCard }),
   setShowCodex: (showCodex) => set({ showCodex }),
   setShopTab: (shopTab) => set({ shopTab }),
+  setWaveTimer: (waveTimer) => set({ waveTimer }),
+  
+  incrementRound: () =>
+    set((state) => ({ stats: { ...state.stats, round: state.stats.round + 1 } })),
+  
+  addMoney: (amount) =>
+    set((state) => ({ player: { ...state.player, money: state.player.money + amount } })),
+  
+  addScore: (points) =>
+    set((state) => ({ stats: { ...state.stats, score: state.stats.score + points } })),
+  
+  incrementKills: () =>
+    set((state) => ({ stats: { ...state.stats, kills: state.stats.kills + 1 } })),
+  
+  updateCombo: (combo, comboMultiplier, lastComboTime) =>
+    set((state) => ({ stats: { ...state.stats, combo, comboMultiplier, lastComboTime } })),
   
   reset: () =>
     set({
@@ -194,5 +218,6 @@ export const useGameStore = create<GameStore>((set) => ({
       showingCard: null,
       showCodex: false,
       shopTab: 'core',
+      waveTimer: 20,
     }),
 }));

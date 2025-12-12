@@ -1,0 +1,279 @@
+import type {
+  Player,
+  Enemy,
+  Bullet,
+  Particle,
+  FloatingText,
+  GameStats,
+} from "../types/game";
+import { PowerUpType } from "../types/game";
+import { checkCollision, distance } from "../utils/helpers";
+import { audioSystem } from "../utils/audio";
+import { createParticles } from "../utils/particles";
+import { screenShake } from "../utils/helpers";
+
+/**
+ * CombatSystem - Handles shooting, damage calculation, and combat interactions
+ */
+export class CombatSystem {
+  /**
+   * Handle player shooting at nearest enemy
+   */
+  shootAtNearestEnemy(
+    player: Player,
+    enemies: Enemy[],
+    now: number,
+    createBullet: (bullet: Bullet) => void
+  ) {
+    // Check fire rate
+    if (now - player.lastShot < this.getEffectiveFireRate(player)) {
+      return;
+    }
+
+    // Find nearest enemy
+    const activeEnemies = enemies.filter((e) => e.active);
+    if (activeEnemies.length === 0) return;
+
+    let nearestEnemy: Enemy | null = null;
+    let minDist = Infinity;
+
+    for (const enemy of activeEnemies) {
+      const dist = distance(player.position, enemy.position);
+      if (dist < minDist) {
+        minDist = dist;
+        nearestEnemy = enemy;
+      }
+    }
+
+    if (!nearestEnemy) return;
+
+    // Create bullet
+    const angle = Math.atan2(
+      nearestEnemy.position.y - player.position.y,
+      nearestEnemy.position.x - player.position.x
+    );
+
+    const bulletSpeed = 8;
+    const effectiveDamage = this.getEffectiveDamage(player);
+
+    const bullet: Bullet = {
+      position: { ...player.position },
+      velocity: {
+        x: Math.cos(angle) * bulletSpeed,
+        y: Math.sin(angle) * bulletSpeed,
+      },
+      radius: 5,
+      damage: effectiveDamage,
+      target: nearestEnemy,
+      lifetime: 3000,
+      createdAt: now,
+      active: true,
+    };
+
+    createBullet(bullet);
+    player.lastShot = now;
+    audioSystem.playShoot();
+  }
+
+  /**
+   * Get effective fire rate considering power-ups and upgrades
+   */
+  private getEffectiveFireRate(player: Player): number {
+    let fireRate = player.fireRate;
+
+    // Fire rate power-up
+    const hasFireRatePowerUp = player.activePowerUps.some(
+      (p) => p.type === PowerUpType.FIRE_RATE
+    );
+    if (hasFireRatePowerUp) {
+      fireRate *= 0.5; // 2x faster
+    }
+
+    return Math.max(fireRate, 50); // Cap at 50ms
+  }
+
+  /**
+   * Get effective damage considering power-ups
+   */
+  private getEffectiveDamage(player: Player): number {
+    let damage = player.damage;
+
+    const hasDamagePowerUp = player.activePowerUps.some(
+      (p) => p.type === PowerUpType.DAMAGE
+    );
+    if (hasDamagePowerUp) {
+      damage *= 2; // 2x damage
+    }
+
+    return damage;
+  }
+
+  /**
+   * Update bullet positions and handle homing
+   */
+  updateBullets(bullets: Bullet[], _deltaTime: number, now: number) {
+    bullets.forEach((bullet) => {
+      // Simple homing toward initial target
+      if (bullet.target && bullet.target.active) {
+        const dx = bullet.target.position.x - bullet.position.x;
+        const dy = bullet.target.position.y - bullet.position.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist > 0) {
+          const homingStrength = 0.1;
+          bullet.velocity.x += (dx / dist) * homingStrength;
+          bullet.velocity.y += (dy / dist) * homingStrength;
+
+          // Normalize to maintain speed
+          const speed = Math.sqrt(
+            bullet.velocity.x * bullet.velocity.x +
+              bullet.velocity.y * bullet.velocity.y
+          );
+          const targetSpeed = 8;
+          bullet.velocity.x = (bullet.velocity.x / speed) * targetSpeed;
+          bullet.velocity.y = (bullet.velocity.y / speed) * targetSpeed;
+        }
+      }
+
+      // Update position
+      bullet.position.x += bullet.velocity.x;
+      bullet.position.y += bullet.velocity.y;
+
+      // Check lifetime
+      if (now - bullet.createdAt >= bullet.lifetime) {
+        bullet.active = false;
+      }
+    });
+  }
+
+  /**
+   * Check bullet-enemy collisions and apply damage
+   */
+  handleBulletEnemyCollisions(
+    bullets: Bullet[],
+    enemies: Enemy[],
+    particles: Particle[],
+    floatingTexts: FloatingText[],
+    now: number,
+    onEnemyKilled: (enemy: Enemy) => void
+  ) {
+    bullets.forEach((bullet) => {
+      if (!bullet.active) return;
+
+      enemies.forEach((enemy) => {
+        if (!enemy.active) return;
+
+        if (checkCollision(bullet, enemy)) {
+          // Apply damage
+          const actualDamage = Math.min(bullet.damage, enemy.health);
+          enemy.health -= bullet.damage;
+
+          // Hit effects
+          particles.push(
+            ...createParticles(bullet.position, 5, enemy.color, 3)
+          );
+          floatingTexts.push({
+            position: { ...enemy.position },
+            text: `-${Math.ceil(actualDamage)}`,
+            color: "#ffffff",
+            size: 16,
+            lifetime: 800,
+            createdAt: now,
+            velocity: { x: 0, y: -2 },
+          });
+
+          bullet.active = false;
+          audioSystem.playHit();
+
+          // Check if enemy died
+          if (enemy.health <= 0) {
+            enemy.active = false;
+            onEnemyKilled(enemy);
+          }
+        }
+      });
+    });
+  }
+
+  /**
+   * Apply damage to player
+   */
+  damagePlayer(
+    player: Player,
+    damage: number,
+    now: number,
+    particles: Particle[],
+    floatingTexts: FloatingText[]
+  ): { shake: { x: number; y: number; intensity: number } } {
+    // Check invulnerability
+    if (player.invulnerable) {
+      return { shake: { x: 0, y: 0, intensity: 0 } };
+    }
+
+    // Check shield power-up
+    const hasShield = player.activePowerUps.some(
+      (p) => p.type === PowerUpType.SHIELD
+    );
+    if (hasShield) {
+      return { shake: { x: 0, y: 0, intensity: 0 } };
+    }
+
+    // Apply defense
+    const damageReduction = player.defense / 100;
+    const actualDamage = Math.ceil(damage * (1 - damageReduction));
+
+    player.health -= actualDamage;
+    player.invulnerable = true;
+    player.invulnerableUntil = now + 1000;
+
+    // Effects
+    audioSystem.playDamage();
+    const shake = screenShake(15);
+    particles.push(...createParticles(player.position, 20, "#ff0000", 5));
+    floatingTexts.push({
+      position: { ...player.position },
+      text: `-${actualDamage}`,
+      color: "#ff0000",
+      size: 24,
+      lifetime: 1000,
+      createdAt: now,
+      velocity: { x: 0, y: -3 },
+    });
+
+    return { shake: { ...shake, intensity: 15 } };
+  }
+
+  /**
+   * Update combo system
+   */
+  updateCombo(stats: GameStats, now: number) {
+    // Combo decays after 3 seconds
+    if (now - stats.lastComboTime > 3000 && stats.combo > 0) {
+      stats.combo = 0;
+      stats.comboMultiplier = 1;
+    }
+  }
+
+  /**
+   * Increment combo on kill
+   */
+  incrementCombo(stats: GameStats, now: number) {
+    stats.combo += 1;
+    stats.comboMultiplier = Math.min(5, 1 + stats.combo * 0.1);
+    stats.lastComboTime = now;
+  }
+
+  /**
+   * Calculate money earned from kill
+   */
+  calculateMoneyEarned(baseValue: number, comboMultiplier: number): number {
+    return Math.floor(baseValue * comboMultiplier);
+  }
+
+  /**
+   * Calculate score earned from kill
+   */
+  calculateScoreEarned(baseValue: number, comboMultiplier: number): number {
+    return Math.floor(baseValue * 10 * comboMultiplier);
+  }
+}

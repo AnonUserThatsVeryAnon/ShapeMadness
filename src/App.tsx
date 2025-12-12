@@ -52,6 +52,7 @@ import "./App.css";
 const CANVAS_WIDTH = window.innerWidth;
 const CANVAS_HEIGHT = window.innerHeight;
 const IFRAME_DURATION = 1000; // 1 second invulnerability after hit
+const MAX_FLOATING_TEXTS = 200; // Prevent memory leak from accumulated floating text
 
 // Play zone limits
 const INITIAL_ZONE_SIZE = 400; // Start small, expand to full screen by round 10
@@ -153,6 +154,8 @@ function App() {
       invulnerableUntil: 0,
       activePowerUps: [],
     };
+    // Clear power-ups to prevent persistence across restarts
+    powerUpsRef.current = [];
     statsRef.current = {
       score: 0,
       kills: 0,
@@ -679,6 +682,13 @@ function App() {
       return true;
     });
 
+    // Enforce maximum floating texts limit to prevent memory leak
+    if (floatingTextsRef.current.length > MAX_FLOATING_TEXTS) {
+      floatingTextsRef.current = floatingTextsRef.current.slice(
+        -MAX_FLOATING_TEXTS
+      );
+    }
+
     // Spawn laser beams at higher rounds (randomly) - but not during shop phase
     if (
       gameState === GameState.PLAYING &&
@@ -983,12 +993,12 @@ function App() {
 
       // Enhanced death particles
       particlesRef.current.push(
-        ...createParticles(enemy.position, 30, enemy.color, 8)
+        ...createParticles(enemy.position, 15, enemy.color, 8)
       );
 
       // Add white flash particles for impact
       particlesRef.current.push(
-        ...createParticles(enemy.position, 10, "#ffffff", 6, 300)
+        ...createParticles(enemy.position, 5, "#ffffff", 6, 300)
       );
 
       // Floating text for kill
@@ -1024,9 +1034,10 @@ function App() {
         const angle2 = angle1 + Math.PI;
 
         [angle1, angle2].forEach((angle) => {
+          // Spawn children at a safe distance to prevent instant damage
           const offset = {
-            x: Math.cos(angle) * 30,
-            y: Math.sin(angle) * 30,
+            x: Math.cos(angle) * 50,
+            y: Math.sin(angle) * 50,
           };
           const split = {
             ...enemy,

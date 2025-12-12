@@ -25,6 +25,13 @@ class AudioSystem {
       this.masterGain.gain.value = 0.7;
       this.sfxGain.gain.value = 1.0;
       this.musicGain.gain.value = 0.5;
+
+      // Resume AudioContext on user interaction (required by some browsers)
+      document.addEventListener('click', () => {
+        if (this.context?.state === 'suspended') {
+          this.context.resume();
+        }
+      }, { once: true });
     } catch (e) {
       console.warn('Web Audio API not supported', e);
     }
