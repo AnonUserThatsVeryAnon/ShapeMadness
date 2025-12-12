@@ -795,9 +795,9 @@ function App() {
       const age = now - text.createdAt;
       if (age >= text.lifetime) return false;
 
-      text.position.x += text.velocity.x;
-      text.position.y += text.velocity.y;
-      text.velocity.y -= 0.1; // Slight upward acceleration
+      text.position.x += text.velocity.x * deltaTime * 60;
+      text.position.y += text.velocity.y * deltaTime * 60;
+      text.velocity.y -= 0.1 * deltaTime * 60; // Slight upward acceleration
 
       return true;
     });

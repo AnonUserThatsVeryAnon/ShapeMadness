@@ -296,7 +296,7 @@ export class CombatSystem {
   /**
    * Update bullet positions and handle homing
    */
-  updateBullets(bullets: Bullet[], _deltaTime: number, now: number) {
+  updateBullets(bullets: Bullet[], deltaTime: number, now: number) {
     bullets.forEach((bullet) => {
       // Simple homing toward initial target
       if (bullet.target && bullet.target.active) {
@@ -320,9 +320,9 @@ export class CombatSystem {
         }
       }
 
-      // Update position
-      bullet.position.x += bullet.velocity.x;
-      bullet.position.y += bullet.velocity.y;
+      // Update position (frame-rate independent)
+      bullet.position.x += bullet.velocity.x * deltaTime * 60;
+      bullet.position.y += bullet.velocity.y * deltaTime * 60;
 
       // Check lifetime
       if (now - bullet.createdAt >= bullet.lifetime) {

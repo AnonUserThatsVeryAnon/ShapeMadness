@@ -42,9 +42,10 @@ export class PlayerSystem {
     player.velocity.x += acceleration.x * effectiveSpeed * 0.5;
     player.velocity.y += acceleration.y * effectiveSpeed * 0.5;
 
-    // Apply friction
-    player.velocity.x *= 0.85;
-    player.velocity.y *= 0.85;
+    // Apply friction (frame-rate independent exponential decay)
+    const frictionFactor = Math.pow(0.85, deltaTime * 60);
+    player.velocity.x *= frictionFactor;
+    player.velocity.y *= frictionFactor;
 
     // Cap max speed
     const maxSpeed = effectiveSpeed * 2;
