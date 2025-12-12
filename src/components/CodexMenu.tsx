@@ -9,7 +9,7 @@ interface CodexMenuProps {
   onClose: () => void;
 }
 
-type FilterType = "all" | "discovered" | "locked" | "implemented";
+type FilterType = "all" | "discovered" | "locked" | "implemented" | "boss";
 
 export function CodexMenu({ onClose }: CodexMenuProps) {
   const [selectedEnemy, setSelectedEnemy] = useState<EnemyType | null>(null);
@@ -37,6 +37,8 @@ export function CodexMenu({ onClose }: CodexMenuProps) {
         return allEnemies.filter((e) => !e.discovered);
       case "implemented":
         return allEnemies.filter((e) => e.card.implemented);
+      case "boss":
+        return allEnemies.filter((e) => e.type === EnemyType.OVERSEER);
       default:
         return allEnemies;
     }
@@ -243,6 +245,14 @@ export function CodexMenu({ onClose }: CodexMenuProps) {
           onClick={() => setFilter("implemented")}
         >
           Implemented ({allEnemies.filter((e) => e.card.implemented).length})
+        </button>
+        <button
+          className={`filter-button boss-filter ${
+            filter === "boss" ? "active" : ""
+          }`}
+          onClick={() => setFilter("boss")}
+        >
+          ⚠️ BOSSES (1)
         </button>
       </div>
 

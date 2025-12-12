@@ -55,6 +55,11 @@ export interface Enemy extends Entity {
   sniperTarget?: { x: number; y: number };
   lastHealTime?: number;
   slowFieldRadius?: number; // For Timebomb - randomized per enemy
+  // Boss properties
+  isBoss?: boolean;
+  bossPhase?: number; // Current phase (1, 2, or 3)
+  lastPhaseChange?: number; // Timestamp of last phase change
+  lastShockwave?: number; // For Overseer phase 3
 }
 
 export interface Bullet extends Entity {
@@ -153,6 +158,7 @@ export const EnemyType = {
   CHAIN_PARTNER: 'CHAIN_PARTNER',
   EVIL_STORM: 'EVIL_STORM',
   LUFTI: 'LUFTI',
+  OVERSEER: 'OVERSEER', // BOSS
 } as const;
 export type EnemyType = typeof EnemyType[keyof typeof EnemyType];
 

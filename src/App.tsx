@@ -28,6 +28,7 @@ import {
   spawnEnemiesForRound,
   updateEnemyPosition,
   ENEMY_CONFIGS,
+  createEnemy,
 } from "./utils/enemies";
 // drawEnemyPattern now handled by GameRenderer
 import { createParticles, updateParticles } from "./utils/particles";
@@ -205,10 +206,54 @@ function App() {
     statsRef.current.round++;
     const currentRound = statsRef.current.round;
 
+    // Boss warning for round 15
+    if (currentRound === 15) {
+      floatingTextsRef.current.push({
+        position: { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 - 100 },
+        text: "⚠️ BOSS INCOMING ⚠️",
+        color: "#ff1a1a",
+        size: 60,
+        lifetime: 3000,
+        createdAt: Date.now(),
+        velocity: { x: 0, y: -0.5 },
+        alpha: 1,
+      });
+      floatingTextsRef.current.push({
+        position: { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 - 30 },
+        text: "THE OVERSEER",
+        color: "#5a1d7a",
+        size: 40,
+        lifetime: 3000,
+        createdAt: Date.now(),
+        velocity: { x: 0, y: -0.3 },
+        alpha: 1,
+      });
+    }
+
     // Zone change logic:
     // - Rounds 1-10: Expand EVERY round to reach full screen
     // - Round 11+: Change EVERY round - dynamic red zones!
-    if (currentRound > 1) {
+    // - Round 15 (Boss): Full screen arena
+    if (currentRound === 15) {
+      // Boss fight gets full screen
+      const zone = playZoneRef.current;
+      zone.targetWidth = CANVAS_WIDTH;
+      zone.targetHeight = CANVAS_HEIGHT;
+      zone.targetX = 0;
+      zone.targetY = 0;
+      zone.isTransitioning = true;
+      zone.transitionProgress = 0;
+
+      floatingTextsRef.current.push({
+        position: { x: CANVAS_WIDTH / 2, y: 100 },
+        text: "⚔️ ARENA PREPARED ⚔️",
+        color: "#ffd700",
+        size: 32,
+        lifetime: 2500,
+        createdAt: Date.now(),
+        velocity: { x: 0, y: -0.3 },
+      });
+    } else if (currentRound > 1) {
       triggerZoneChange();
     }
 
@@ -217,6 +262,17 @@ function App() {
       CANVAS_WIDTH,
       CANVAS_HEIGHT
     );
+
+    // Debug: Log boss spawn
+    if (currentRound === 15) {
+      console.log(
+        "Round 15 - Boss spawned:",
+        enemiesRef.current.length,
+        "enemies"
+      );
+      console.log("Boss details:", enemiesRef.current[0]);
+    }
+
     bulletsRef.current = [];
     enemyProjectilesRef.current = [];
     // Note: powerUps are cleared when entering shop, not when starting round
@@ -262,38 +318,86 @@ function App() {
     startRound();
   };
 
-  // Debug function to skip to wave 15 with maxed upgrades
+  // Debug function to skip to wave 15 boss fight with good upgrades
   const activateDebugMode = () => {
     const player = playerRef.current;
     const stats = statsRef.current;
 
-    // Max all upgrades
-    UPGRADES.forEach((upgrade) => {
-      upgrade.currentLevel = upgrade.maxLevel;
-    });
+    // Reset game state first
+    resetUpgrades();
 
-    // Apply maxed upgrades to player
-    player.damage = 25 + getUpgradeLevel("damage") * 2;
-    player.fireRate = Math.max(
-      50,
-      250 * Math.pow(0.97, getUpgradeLevel("fire_rate"))
-    );
-    player.maxHealth = 100 + getUpgradeLevel("health") * 10;
-    player.health = player.maxHealth;
-    player.speed = 2.5 + getUpgradeLevel("speed") * 0.15;
-    player.defense = Math.min(95, getUpgradeLevel("defense") * 2);
+    // Give moderate upgrades (not maxed, but competitive)
+    const damageUpgrade = UPGRADES.find((u) => u.id === "damage");
+    const fireRateUpgrade = UPGRADES.find((u) => u.id === "fire_rate");
+    const healthUpgrade = UPGRADES.find((u) => u.id === "health");
+    const speedUpgrade = UPGRADES.find((u) => u.id === "speed");
+    const defenseUpgrade = UPGRADES.find((u) => u.id === "defense");
 
-    // Give lots of money
-    player.money = 50000;
+    // Apply 20 levels of key upgrades for boss fight readiness
+    if (damageUpgrade) {
+      for (let i = 0; i < 20; i++) {
+        damageUpgrade.currentLevel++;
+        damageUpgrade.effect(player);
+      }
+    }
+    if (fireRateUpgrade) {
+      for (let i = 0; i < 15; i++) {
+        fireRateUpgrade.currentLevel++;
+        fireRateUpgrade.effect(player);
+      }
+    }
+    if (healthUpgrade) {
+      for (let i = 0; i < 10; i++) {
+        healthUpgrade.currentLevel++;
+        healthUpgrade.effect(player);
+      }
+    }
+    if (speedUpgrade) {
+      for (let i = 0; i < 8; i++) {
+        speedUpgrade.currentLevel++;
+        speedUpgrade.effect(player);
+      }
+    }
+    if (defenseUpgrade) {
+      for (let i = 0; i < 5; i++) {
+        defenseUpgrade.currentLevel++;
+        defenseUpgrade.effect(player);
+      }
+    }
 
-    // Jump to wave 15
-    stats.round = 15;
+    // Give money for shop
+    player.money = 5000;
+
+    // Set to round 14 so startRound() increments to 15
+    stats.round = 14;
+    stats.score = 0;
+    stats.kills = 0;
+    stats.combo = 0;
+    stats.comboMultiplier = 1;
+
+    // Clear game state
+    enemiesRef.current = [];
+    bulletsRef.current = [];
+    enemyProjectilesRef.current = [];
+    powerUpsRef.current = [];
+    particlesRef.current = [];
+    floatingTextsRef.current = [];
+    lasersRef.current = [];
+
+    // Reset player position
+    player.position = { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 };
+    player.velocity = { x: 0, y: 0 };
+    player.invulnerable = false;
+    player.activePowerUps = [];
 
     // Force UI update
     forceUpdate({});
 
-    // Start the round
-    startRound();
+    // Enter shop before boss fight
+    setGameState(GameState.SHOP);
+    setWaveTimer(30);
+
+    audioSystem.playPurchase();
   };
 
   // Define game functions before useEffect
@@ -499,6 +603,78 @@ function App() {
           particlesRef.current.push(
             ...createParticles(enemy.position, 8, enemy.color, 2)
           );
+        }
+      }
+
+      // OVERSEER BOSS abilities
+      if (enemy.type === EnemyType.OVERSEER && enemy.isBoss) {
+        // PHASE 1: Spawn minions every 5 seconds
+        if (enemy.bossPhase === 1) {
+          if (!enemy.lastSpecialAbility) enemy.lastSpecialAbility = now;
+
+          if (now - enemy.lastSpecialAbility > 5000) {
+            // Spawn 2 Basic enemies near the boss
+            for (let i = 0; i < 2; i++) {
+              const angle = Math.random() * Math.PI * 2;
+              const dist = 80;
+              const minion = createEnemy(EnemyType.BASIC, {
+                x: enemy.position.x + Math.cos(angle) * dist,
+                y: enemy.position.y + Math.sin(angle) * dist,
+              });
+              enemiesRef.current.push(minion);
+            }
+            enemy.lastSpecialAbility = now;
+
+            // Spawn effect
+            particlesRef.current.push(
+              ...createParticles(enemy.position, 20, "#5a1d7a", 6)
+            );
+          }
+        }
+
+        // PHASE 2: Fire large projectiles every 2 seconds
+        if (enemy.bossPhase === 2) {
+          if (now - (enemy.lastSpecialAbility || 0) > 2000) {
+            const toPlayer = {
+              x: player.position.x - enemy.position.x,
+              y: player.position.y - enemy.position.y,
+            };
+            const direction = normalize(toPlayer);
+
+            enemyProjectilesRef.current.push({
+              position: { ...enemy.position },
+              velocity: multiply(direction, 7),
+              radius: 12,
+              damage: 40,
+              lifetime: 4000,
+              createdAt: now,
+              active: true,
+              color: "#ff6b1a",
+            });
+
+            enemy.lastSpecialAbility = now;
+
+            particlesRef.current.push(
+              ...createParticles(enemy.position, 15, "#ff6b1a", 4)
+            );
+          }
+        }
+
+        // PHASE 3: Shockwave pulses every 4 seconds
+        if (enemy.bossPhase === 3) {
+          if (!enemy.lastShockwave) enemy.lastShockwave = now;
+
+          if (now - enemy.lastShockwave > 4000) {
+            const dist = distance(player.position, enemy.position);
+            if (dist < 200) {
+              damagePlayer(15, now);
+              // Shockwave visual
+              particlesRef.current.push(
+                ...createParticles(enemy.position, 30, "#ff1a1a", 8)
+              );
+            }
+            enemy.lastShockwave = now;
+          }
         }
       }
 
@@ -739,8 +915,51 @@ function App() {
   };
 
   const damageEnemy = (enemy: Enemy, damage: number, now: number) => {
+    const previousHealth = enemy.health;
     enemy.health -= damage;
     audioSystem.playHit();
+
+    // Boss phase transition effects
+    if (enemy.isBoss && enemy.type === EnemyType.OVERSEER) {
+      const healthPercent = enemy.health / enemy.maxHealth;
+      const prevHealthPercent = previousHealth / enemy.maxHealth;
+
+      // Phase 2 transition (66%)
+      if (prevHealthPercent > 0.66 && healthPercent <= 0.66) {
+        shakeRef.current.intensity = 20;
+        floatingTextsRef.current.push({
+          position: { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 },
+          text: "⚠️ PHASE 2: THE SNIPER ⚠️",
+          color: "#ff6b1a",
+          size: 50,
+          lifetime: 2500,
+          createdAt: now,
+          velocity: { x: 0, y: -1 },
+          alpha: 1,
+        });
+        particlesRef.current.push(
+          ...createParticles(enemy.position, 50, "#ff6b1a", 10)
+        );
+      }
+
+      // Phase 3 transition (33%)
+      if (prevHealthPercent > 0.33 && healthPercent <= 0.33) {
+        shakeRef.current.intensity = 30;
+        floatingTextsRef.current.push({
+          position: { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 },
+          text: "⚠️ PHASE 3: THE BERSERKER ⚠️",
+          color: "#ff1a1a",
+          size: 50,
+          lifetime: 2500,
+          createdAt: now,
+          velocity: { x: 0, y: -1 },
+          alpha: 1,
+        });
+        particlesRef.current.push(
+          ...createParticles(enemy.position, 80, "#ff1a1a", 12)
+        );
+      }
+    }
 
     // Back Damage buff - reflect 30% damage to player
     if (
@@ -785,6 +1004,41 @@ function App() {
       enemy.active = false;
       const stats = statsRef.current;
       const player = playerRef.current;
+
+      // BOSS DEFEATED - Special victory effects
+      if (enemy.isBoss && enemy.type === EnemyType.OVERSEER) {
+        shakeRef.current.intensity = 40;
+
+        floatingTextsRef.current.push({
+          position: { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 - 80 },
+          text: "🏆 BOSS DEFEATED! 🏆",
+          color: "#ffd700",
+          size: 70,
+          lifetime: 4000,
+          createdAt: now,
+          velocity: { x: 0, y: -0.8 },
+          alpha: 1,
+        });
+
+        floatingTextsRef.current.push({
+          position: { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 },
+          text: "+$500",
+          color: "#00ff88",
+          size: 50,
+          lifetime: 3500,
+          createdAt: now,
+          velocity: { x: 0, y: -0.5 },
+          alpha: 1,
+        });
+
+        // Massive particle explosion
+        particlesRef.current.push(
+          ...createParticles(enemy.position, 100, "#ffd700", 15)
+        );
+        particlesRef.current.push(
+          ...createParticles(enemy.position, 50, "#ffffff", 12)
+        );
+      }
 
       // Combo system
       stats.combo++;

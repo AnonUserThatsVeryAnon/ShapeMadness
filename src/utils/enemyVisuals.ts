@@ -3,7 +3,7 @@ import { EnemyType } from '../types/game';
 
 export interface EnemyVisualInfo {
   icon: string;
-  pattern: 'dot' | 'lightning' | 'shield' | 'split' | 'crosshair' | 'cross' | 'star' | 'scope' | 'snowflake' | 'bomb' | 'rings' | 'clock' | 'chain' | 'skull' | 'wind';
+  pattern: 'dot' | 'lightning' | 'shield' | 'split' | 'crosshair' | 'cross' | 'star' | 'scope' | 'snowflake' | 'bomb' | 'rings' | 'clock' | 'chain' | 'skull' | 'wind' | 'eye';
   description: string;
 }
 
@@ -82,6 +82,11 @@ export const ENEMY_VISUALS: Record<EnemyType, EnemyVisualInfo> = {
     icon: '🌪️',
     pattern: 'wind',
     description: 'Mystical circle with wind swirls',
+  },
+  [EnemyType.OVERSEER]: {
+    icon: '👁️',
+    pattern: 'eye',
+    description: 'Massive purple sphere with glowing eye',
   },
 };
 
@@ -264,6 +269,29 @@ export function drawEnemyPattern(
       ctx.arc(x - r * 0.3, y, r * 0.2, Math.PI, 0);
       ctx.arc(x + r * 0.3, y, r * 0.2, Math.PI, 0);
       ctx.stroke();
+      break;
+
+    case 'eye':
+      // Boss eye
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.ellipse(x, y, r * 0.5, r * 0.3, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 2 * scale;
+      ctx.stroke();
+      
+      // Pupil
+      ctx.fillStyle = '#000000';
+      ctx.beginPath();
+      ctx.arc(x, y, r * 0.2, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Eye glint
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(x - r * 0.08, y - r * 0.08, r * 0.08, 0, Math.PI * 2);
+      ctx.fill();
       break;
   }
 }

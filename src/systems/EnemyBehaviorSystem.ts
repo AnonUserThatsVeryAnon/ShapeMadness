@@ -179,6 +179,59 @@ class FastBehavior implements EnemyBehavior {
 }
 
 /**
+ * Overseer Boss - Three phase boss fight
+ */
+class OverseerBehavior implements EnemyBehavior {
+  update(enemy: Enemy, player: Player, deltaTime: number, now: number): void {
+    if (!enemy.isBoss) return;
+
+    const healthPercent = enemy.health / enemy.maxHealth;
+    
+    // Phase transitions
+    if (healthPercent <= 0.66 && enemy.bossPhase === 1) {
+      enemy.bossPhase = 2;
+      enemy.lastPhaseChange = now;
+      enemy.color = '#ff6b1a'; // Orange for phase 2
+      enemy.specialCooldown = 2000; // Faster projectile shooting
+    } else if (healthPercent <= 0.33 && enemy.bossPhase === 2) {
+      enemy.bossPhase = 3;
+      enemy.lastPhaseChange = now;
+      enemy.color = '#ff1a1a'; // Red for phase 3
+      enemy.speed = 1.2; // Increased speed in phase 3
+      enemy.lastShockwave = now;
+    }
+
+    const toPlayer = {
+      x: player.position.x - enemy.position.x,
+      y: player.position.y - enemy.position.y,
+    };
+    const direction = normalize(toPlayer);
+
+    // Phase-specific behavior
+    if (enemy.bossPhase === 1) {
+      // Phase 1: Slow chase
+      enemy.velocity = multiply(direction, enemy.speed);
+    } else if (enemy.bossPhase === 2) {
+      // Phase 2: Strafe pattern
+      const dist = distance(enemy.position, player.position);
+      if (dist < 300) {
+        // Strafe
+        const perpendicular = { x: -direction.y, y: direction.x };
+        enemy.velocity = multiply(perpendicular, enemy.speed * 0.8);
+      } else {
+        // Move closer
+        enemy.velocity = multiply(direction, enemy.speed);
+      }
+    } else if (enemy.bossPhase === 3) {
+      // Phase 3: Aggressive chase
+      enemy.velocity = multiply(direction, enemy.speed);
+    }
+
+    enemy.position = add(enemy.position, multiply(enemy.velocity, deltaTime * 60));
+  }
+}
+
+/**
  * Behavior registry
  */
 export const ENEMY_BEHAVIORS: Record<EnemyType, EnemyBehavior> = {
@@ -197,6 +250,7 @@ export const ENEMY_BEHAVIORS: Record<EnemyType, EnemyBehavior> = {
   [EnemyType.CHAIN_PARTNER]: new ChaseBehavior(),
   [EnemyType.EVIL_STORM]: new ChaseBehavior(),
   [EnemyType.LUFTI]: new FastBehavior(), // Reuse fast behavior
+  [EnemyType.OVERSEER]: new OverseerBehavior(), // BOSS
 };
 
 /**

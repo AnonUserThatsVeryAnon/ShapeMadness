@@ -292,7 +292,7 @@ export const ENEMY_CARDS: Record<EnemyType, EnemyCard> = {
   [EnemyType.LUFTI]: {
     type: EnemyType.LUFTI,
     name: 'Lufti',
-    description: 'Mystery enemy.',
+    description: 'A mystical entity shrouded in green energy. Fast and unpredictable.',
     abilities: ['Coming soon...'],
     stats: {
       health: ENEMY_CONFIGS[EnemyType.LUFTI].health,
@@ -306,6 +306,41 @@ export const ENEMY_CARDS: Record<EnemyType, EnemyCard> = {
     icon: '❓',
     tips: ['Not yet implemented'],
     implemented: false,
+  },
+  [EnemyType.OVERSEER]: {
+    type: EnemyType.OVERSEER,
+    name: 'The Overseer',
+    description: 'BOSS - A massive, ancient entity that commands all hostile organisms. The first true test of your abilities. Features three distinct combat phases, each more dangerous than the last.',
+    abilities: [
+      '⚠️ BOSS ENEMY - 3000 HP',
+      'Phase 1 (100-66%): Spawns 2 Basic enemies every 5 seconds',
+      'Phase 2 (66-33%): Fires large projectiles (40 damage) every 2 seconds',
+      'Phase 3 (33-0%): Enrages with increased speed and shockwave pulses (15 damage, 200 radius) every 4 seconds',
+      'Massive 40 radius hitbox',
+      '30 contact damage',
+      'Phase transitions trigger screen shake'
+    ],
+    stats: {
+      health: ENEMY_CONFIGS[EnemyType.OVERSEER].health,
+      speed: ENEMY_CONFIGS[EnemyType.OVERSEER].speed,
+      damage: ENEMY_CONFIGS[EnemyType.OVERSEER].damage,
+      value: ENEMY_CONFIGS[EnemyType.OVERSEER].value,
+    },
+    unlockRound: 15,
+    discovered: false,
+    color: ENEMY_CONFIGS[EnemyType.OVERSEER].color,
+    icon: '👁️',
+    tips: [
+      '⚠️ This is a BOSS fight!',
+      'Stock up on upgrades before round 15',
+      'Phase 1: Focus on killing spawned minions quickly',
+      'Phase 2: Master dodging projectiles while maintaining DPS',
+      'Phase 3: Keep distance from shockwave radius',
+      'Upgrade damage and fire rate for faster phases',
+      'Defeating grants 500 money - huge reward!',
+      'Stay mobile and patient'
+    ],
+    implemented: true,
   },
 };
 

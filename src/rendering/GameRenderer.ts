@@ -84,6 +84,12 @@ export class GameRenderer {
     // Draw UI overlay (no shake)
     this.drawHUD(player, stats, enemies);
     this.drawActivePowerUpsHUD(player, now);
+    
+    // Draw boss health bar if boss is present
+    const boss = enemies.find((e) => e.isBoss && e.active);
+    if (boss) {
+      this.drawBossHealthBar(boss);
+    }
   }
 
   private clearCanvas() {
@@ -301,6 +307,31 @@ export class GameRenderer {
 
   private drawEnemyEffects(enemy: Enemy, now: number) {
     const ctx = this.ctx;
+
+    // Boss aura and effects
+    if (enemy.isBoss && enemy.type === EnemyType.OVERSEER) {
+      const pulse = Math.sin(now / 200) * 0.3 + 0.7;
+      
+      // Outer aura
+      ctx.shadowBlur = 30 * pulse;
+      ctx.shadowColor = enemy.color;
+      ctx.fillStyle = `${enemy.color}22`;
+      ctx.beginPath();
+      ctx.arc(
+        enemy.position.x,
+        enemy.position.y,
+        enemy.radius * 1.5 * pulse,
+        0,
+        Math.PI * 2
+      );
+      ctx.fill();
+      
+      // Phase 3 intense glow
+      if (enemy.bossPhase === 3) {
+        ctx.shadowBlur = 50 * pulse;
+        ctx.shadowColor = '#ff1a1a';
+      }
+    }
 
     // Fast enemy speed trail
     if (enemy.type === EnemyType.FAST) {
@@ -741,6 +772,94 @@ export class GameRenderer {
     this.ctx.font = "bold 24px monospace";
     this.ctx.fillText(`Enemies: ${activeEnemies}`, this.canvasWidth - 20, 40);
 
+    this.ctx.restore();
+  }
+
+  /**
+   * Draw boss health bar at top of screen
+   */
+  drawBossHealthBar(boss: Enemy) {
+    if (!boss || !boss.isBoss || !boss.active) return;
+
+    this.ctx.save();
+    
+    const barWidth = 600;
+    const barHeight = 40;
+    const barX = (this.canvasWidth - barWidth) / 2;
+    const barY = 20;
+    
+    const healthPercent = boss.health / boss.maxHealth;
+    
+    // Get phase color
+    let phaseColor = '#5a1d7a'; // Phase 1 - Purple
+    let phaseName = 'THE SUMMONER';
+    if (boss.bossPhase === 2) {
+      phaseColor = '#ff6b1a'; // Phase 2 - Orange
+      phaseName = 'THE SNIPER';
+    } else if (boss.bossPhase === 3) {
+      phaseColor = '#ff1a1a'; // Phase 3 - Red
+      phaseName = 'THE BERSERKER';
+    }
+    
+    // Background
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    this.ctx.fillRect(barX - 5, barY - 5, barWidth + 10, barHeight + 30);
+    
+    // Boss name
+    this.ctx.fillStyle = '#ffffff';
+    this.ctx.font = 'bold 16px monospace';
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText('⚠️ THE OVERSEER ⚠️', this.canvasWidth / 2, barY + 12);
+    
+    // Phase indicator
+    this.ctx.fillStyle = phaseColor;
+    this.ctx.font = 'bold 12px monospace';
+    this.ctx.fillText(`PHASE ${boss.bossPhase}: ${phaseName}`, this.canvasWidth / 2, barY + 28);
+    
+    // Health bar background
+    this.ctx.fillStyle = '#333333';
+    this.ctx.fillRect(barX, barY + 35, barWidth, barHeight - 10);
+    
+    // Health bar fill with phase color
+    this.ctx.fillStyle = phaseColor;
+    this.ctx.fillRect(barX, barY + 35, barWidth * healthPercent, barHeight - 10);
+    
+    // Phase markers (66% and 33%)
+    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    this.ctx.lineWidth = 2;
+    this.ctx.beginPath();
+    this.ctx.moveTo(barX + barWidth * 0.66, barY + 35);
+    this.ctx.lineTo(barX + barWidth * 0.66, barY + barHeight + 25);
+    this.ctx.stroke();
+    
+    this.ctx.beginPath();
+    this.ctx.moveTo(barX + barWidth * 0.33, barY + 35);
+    this.ctx.lineTo(barX + barWidth * 0.33, barY + barHeight + 25);
+    this.ctx.stroke();
+    
+    // Border
+    this.ctx.strokeStyle = phaseColor;
+    this.ctx.lineWidth = 3;
+    this.ctx.strokeRect(barX, barY + 35, barWidth, barHeight - 10);
+    
+    // Health text
+    this.ctx.fillStyle = '#ffffff';
+    this.ctx.font = 'bold 14px monospace';
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText(
+      `${Math.ceil(boss.health)} / ${boss.maxHealth} HP`,
+      this.canvasWidth / 2,
+      barY + 47
+    );
+    
+    // Pulsing glow effect based on phase
+    if (boss.bossPhase === 3) {
+      const pulse = Math.sin(Date.now() / 100) * 0.3 + 0.7;
+      this.ctx.shadowBlur = 20 * pulse;
+      this.ctx.shadowColor = phaseColor;
+      this.ctx.strokeRect(barX, barY + 35, barWidth, barHeight - 10);
+    }
+    
     this.ctx.restore();
   }
 

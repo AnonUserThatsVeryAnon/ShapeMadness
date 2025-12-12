@@ -124,6 +124,14 @@ export const ENEMY_CONFIGS = {
     color: '#8bc34a',
     radius: 19,
   },
+  [EnemyType.OVERSEER]: {
+    health: 3000,
+    speed: 0.8,
+    damage: 30,
+    value: 500,
+    color: '#5a1d7a',
+    radius: 40,
+  },
 };
 
 export function createEnemy(type: EnemyType, position: Vector2): Enemy {
@@ -145,6 +153,16 @@ export function createEnemy(type: EnemyType, position: Vector2): Enemy {
   // Timebomb gets randomized slow field radius (200-400px)
   if (type === EnemyType.TIME_DISTORTION) {
     enemy.slowFieldRadius = 200 + Math.random() * 200; // Random between 200-400
+  }
+
+  // Initialize boss properties
+  if (type === EnemyType.OVERSEER) {
+    enemy.isBoss = true;
+    enemy.bossPhase = 1;
+    enemy.lastPhaseChange = Date.now();
+    enemy.lastShockwave = 0;
+    enemy.lastSpecialAbility = 0;
+    enemy.specialCooldown = 5000; // 5 seconds between spawns in phase 1
   }
 
   return enemy;
@@ -233,6 +251,39 @@ export function updateEnemyPosition(enemy: Enemy, player: Player, deltaTime: num
       break;
     }
     
+    case EnemyType.OVERSEER: {
+      // BOSS: Three-phase behavior
+      if (!enemy.isBoss) break;
+      
+      const dist = distance(enemy.position, player.position);
+      
+      // Phase transitions handled in damage system
+      // Phase-specific movement
+      if (enemy.bossPhase === 1) {
+        // Phase 1: Slow chase
+        enemy.velocity = multiply(normalize(toPlayer), enemy.speed);
+      } else if (enemy.bossPhase === 2) {
+        // Phase 2: Strafe pattern
+        if (dist < 300) {
+          // Strafe perpendicular
+          const perpendicular = { x: -toPlayer.y, y: toPlayer.x };
+          const perpDist = Math.sqrt(perpendicular.x * perpendicular.x + perpendicular.y * perpendicular.y);
+          enemy.velocity = {
+            x: (perpendicular.x / perpDist) * enemy.speed * 0.8,
+            y: (perpendicular.y / perpDist) * enemy.speed * 0.8,
+          };
+        } else {
+          // Move closer
+          enemy.velocity = multiply(normalize(toPlayer), enemy.speed);
+        }
+      } else if (enemy.bossPhase === 3) {
+        // Phase 3: Aggressive chase with boosted speed
+        const boostedSpeed = enemy.speed * 1.5;
+        enemy.velocity = multiply(normalize(toPlayer), boostedSpeed);
+      }
+      break;
+    }
+    
     default:
       // Basic behavior
       enemy.velocity = multiply(normalize(toPlayer), enemy.speed * speedMultiplier);
@@ -247,6 +298,19 @@ export function spawnEnemiesForRound(
   canvasHeight: number
 ): Enemy[] {
   const enemies: Enemy[] = [];
+  
+  // BOSS ROUND - Round 15 spawns The Overseer
+  if (round === 15) {
+    console.log('SPAWNING BOSS - Round 15 detected');
+    const boss = createEnemy(EnemyType.OVERSEER, {
+      x: canvasWidth / 2,
+      y: -100, // Spawn from top center
+    });
+    console.log('Boss created:', boss.type, boss.isBoss, boss.health);
+    enemies.push(boss);
+    return enemies; // Only the boss spawns on round 15
+  }
+  
   const baseCount = 5 + round * 2;
   const spawnMargin = 50;
 
