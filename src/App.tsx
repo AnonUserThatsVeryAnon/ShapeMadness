@@ -1039,7 +1039,10 @@ function App() {
 
       // Score and money
       const baseValue = enemy.value;
-      const earnedMoney = Math.floor(baseValue * stats.comboMultiplier);
+      const roundBonus = stats.round >= 15 ? 1.3 : 1.0;
+      const earnedMoney = Math.floor(
+        baseValue * stats.comboMultiplier * roundBonus
+      );
       const earnedScore = Math.floor(baseValue * 10 * stats.comboMultiplier);
 
       player.money += earnedMoney;
@@ -1081,7 +1084,7 @@ function App() {
       });
 
       // Spawn power-up chance
-      if (Math.random() < 0.08) {
+      if (Math.random() < 0.15) {
         powerUpSystemRef.current.spawnPowerUp(
           enemy.position,
           now,
