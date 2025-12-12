@@ -20,27 +20,27 @@ export const UPGRADES: Upgrade[] = [
   {
     id: 'defense',
     name: 'Defense',
-    description: 'Reduce damage taken by 2%',
+    description: 'Reduce damage taken by 0.1%',
     cost: 40,
-    maxLevel: 50,
+    maxLevel: 200,
     currentLevel: 0,
     icon: '🛡️',
     category: 'core',
     effect: (player: Player) => {
-      player.defense = Math.min(95, player.defense + 2); // Cap at 95% reduction
+      player.defense = Math.min(20, player.defense + 0.1); // Cap at 20% reduction
     },
   },
   {
     id: 'damage',
     name: 'Damage',
-    description: 'Increase bullet damage by 1.5',
+    description: 'Increase bullet damage by 0.2',
     cost: 25,
     maxLevel: 75,
     currentLevel: 0,
     icon: '💥',
     category: 'core',
     effect: (player: Player) => {
-      player.damage += 1.5;
+      player.damage += 0.2;
     },
   },
   {

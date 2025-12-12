@@ -88,7 +88,7 @@ function App() {
     radius: 20,
     health: 100,
     maxHealth: 100,
-    speed: 2.0,
+    speed: 1.0,
     damage: 20,
     fireRate: 300, // ms between shots
     lastShot: 0,
@@ -157,7 +157,7 @@ function App() {
       radius: 20,
       health: 100,
       maxHealth: 100,
-      speed: 2.0,
+      speed: 1.0,
       damage: 20,
       fireRate: 300,
       lastShot: 0,
@@ -789,7 +789,7 @@ function App() {
       // Combo system
       stats.combo++;
       stats.lastComboTime = now;
-      stats.comboMultiplier = Math.min(5, 1 + stats.combo * 0.1);
+      stats.comboMultiplier = Math.min(3, 1 + stats.combo * 0.1);
 
       // Score and money
       const baseValue = enemy.value;
@@ -1250,7 +1250,9 @@ function App() {
               <p className="shop-stat">
                 💥 {playerRef.current.damage.toFixed(1)}
               </p>
-              <p className="shop-stat">🛡️ {playerRef.current.defense}%</p>
+              <p className="shop-stat">
+                🛡️ {playerRef.current.defense.toFixed(1)}%
+              </p>
               <p className="shop-stat">
                 🏃 {playerRef.current.speed.toFixed(1)}
               </p>
@@ -1293,13 +1295,15 @@ function App() {
                     }`;
                     break;
                   case "defense":
-                    statPreview = `${player.defense}% → ${Math.min(
-                      95,
-                      player.defense + 2
-                    )}%`;
+                    statPreview = `${player.defense.toFixed(1)}% → ${Math.min(
+                      20,
+                      player.defense + 0.1
+                    ).toFixed(1)}%`;
                     break;
                   case "damage":
-                    statPreview = `${player.damage} → ${player.damage + 1.5}`;
+                    statPreview = `${player.damage.toFixed(1)} → ${(
+                      player.damage + 0.2
+                    ).toFixed(1)}`;
                     break;
                   case "fire_rate": {
                     const currentRPS = (1000 / player.fireRate).toFixed(1);

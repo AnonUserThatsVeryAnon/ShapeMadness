@@ -389,7 +389,7 @@ export class CombatSystem {
    */
   incrementCombo(stats: GameStats, now: number) {
     stats.combo += 1;
-    stats.comboMultiplier = Math.min(5, 1 + stats.combo * 0.1);
+    stats.comboMultiplier = Math.min(3, 1 + stats.combo * 0.1);
     stats.lastComboTime = now;
   }
 

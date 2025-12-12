@@ -8,7 +8,7 @@ export const ENEMY_CONFIGS = {
     health: 100,
     speed: 2,
     damage: 10,
-    value: 10,
+    value: 1,
     color: '#ff6b6b',
     radius: 15,
   },
