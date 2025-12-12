@@ -190,6 +190,53 @@
   50% { transform: scale(1.15); }
 }
 
+/* Aim Mode Indicator - Compact Bottom Right */
+.aim-mode-indicator {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 10px 20px;
+  background: rgba(10, 10, 20, 0.95);
+  border: 2px solid rgba(78, 205, 196, 0.6);
+  border-radius: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+  z-index: 100;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  animation: slideUpIn 0.4s ease-out;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.3s ease;
+}
+
+.aim-mode-indicator:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 25px rgba(78, 205, 196, 0.4);
+}
+
+.aim-mode-indicator.manual {
+  border-color: rgba(255, 107, 107, 0.6);
+}
+
+.aim-mode-indicator.manual:hover {
+  box-shadow: 0 6px 25px rgba(255, 107, 107, 0.4);
+}
+
+@keyframes slideUpIn {
+  from {
+    transform: translateY(100px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
 /* Compact Skip Button */
 .skip-wave-compact {
   font-size: 0.85rem;

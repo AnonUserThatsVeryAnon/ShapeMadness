@@ -43,6 +43,7 @@ import type { CodexState } from "./types/codex";
 // Modular Systems
 import { PlayerSystem } from "./systems/PlayerSystem";
 import { CombatSystem } from "./systems/CombatSystem";
+import { AimingSystem, AimMode } from "./systems/AimingSystem";
 import { ZoneSystem } from "./systems/ZoneSystem";
 import { PowerUpSystem } from "./systems/PowerUpSystem";
 import { GameRenderer } from "./rendering/GameRenderer";
@@ -74,6 +75,7 @@ function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
   const [isPaused, setIsPaused] = useState(false);
+  const [aimMode, setAimMode] = useState<AimMode>(AimMode.AUTO);
   const [, forceUpdate] = useState({});
   const [shopTab, setShopTab] = useState<"core" | "special">("core");
   const [waveTimer, setWaveTimer] = useState(20); // 20 second countdown
@@ -149,6 +151,7 @@ function App() {
   // Modular game systems
   const playerSystemRef = useRef<PlayerSystem>(new PlayerSystem());
   const combatSystemRef = useRef<CombatSystem>(new CombatSystem());
+  const aimingSystemRef = useRef<AimingSystem>(new AimingSystem());
   const zoneSystemRef = useRef<ZoneSystem>(new ZoneSystem());
   const powerUpSystemRef = useRef<PowerUpSystem>(new PowerUpSystem());
   const rendererRef = useRef<GameRenderer | null>(null);
@@ -209,6 +212,9 @@ function App() {
     statsRef.current.round++;
     const currentRound = statsRef.current.round;
     console.log("Starting round:", currentRound);
+
+    // Sync aim mode with system (persist across rounds)
+    aimingSystemRef.current.setAimMode(aimMode);
 
     // Boss warning for round 15
     if (currentRound === 15) {
@@ -281,7 +287,7 @@ function App() {
     enemyProjectilesRef.current = [];
     // Note: powerUps are cleared when entering shop, not when starting round
     setGameState(GameState.PLAYING);
-  }, []);
+  }, [aimMode]);
 
   // Wave timer countdown in shop
   useEffect(() => {
@@ -423,15 +429,27 @@ function App() {
     playerSystemRef.current.updatePowerUps(player, now);
     playerSystemRef.current.updateMovement(player, keysRef.current);
 
-    // Auto-shoot at nearest enemy
-    if (enemies.length > 0) {
-      combatSystemRef.current.shootAtNearestEnemy(
+    // Shoot based on aim mode (auto or manual) - only during active gameplay
+    if (
+      gameState === GameState.PLAYING &&
+      (enemies.length > 0 ||
+        aimingSystemRef.current.getAimMode() === AimMode.MANUAL)
+    ) {
+      const aimDirection = aimingSystemRef.current.getAimDirection(
         player,
-        enemies,
-        now,
-        (bullet) => bulletsRef.current.push(bullet),
-        getUpgradeLevel
+        mouseRef.current,
+        enemies
       );
+
+      if (aimDirection) {
+        combatSystemRef.current.shootInDirection(
+          player,
+          aimDirection,
+          now,
+          (bullet) => bulletsRef.current.push(bullet),
+          getUpgradeLevel
+        );
+      }
     }
 
     // Update enemies
@@ -1372,10 +1390,32 @@ function App() {
   // Event handlers
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      keysRef.current.add(e.key.toLowerCase());
+      const key = e.key.toLowerCase();
+
+      // Debug: Log all key presses
+      console.log("Key pressed:", { key: e.key, code: e.code, gameState });
 
       if (e.key === "Escape") {
         setIsPaused((prev) => !prev);
+      }
+
+      // Toggle aim mode with 'Q' key (support both key and KeyCode for international keyboards)
+      // Allow toggle during PLAYING or SHOP (so you can change it before round starts)
+      if (
+        (key === "q" || e.code === "KeyQ") &&
+        (gameState === GameState.PLAYING || gameState === GameState.SHOP)
+      ) {
+        e.preventDefault();
+        console.log("Q detected, toggling aim mode...");
+        const newMode = aimingSystemRef.current.toggleAimMode();
+        setAimMode(newMode);
+        console.log("Aim mode toggled to:", newMode);
+        return;
+      }
+
+      // Add to movement keys (exclude special keys)
+      if (key !== "q" && e.code !== "KeyQ" && key !== "escape") {
+        keysRef.current.add(key);
       }
     };
 
@@ -1403,7 +1443,7 @@ function App() {
       window.removeEventListener("keyup", handleKeyUp);
       window.removeEventListener("mousemove", handleMouseMove);
     };
-  }, []);
+  }, [gameState]);
 
   return (
     <div className="game-container">
@@ -1458,12 +1498,31 @@ function App() {
               <strong>WASD</strong> - Move
             </p>
             <p>
+              <strong>Q</strong> - Toggle Auto/Manual Aim
+            </p>
+            <p>
               <strong>Auto-Shoot</strong> - Target nearest enemy
             </p>
             <p>
               <strong>ESC</strong> - Pause
             </p>
           </div>
+        </div>
+      )}
+
+      {/* Aim Mode Indicator - Bottom Right */}
+      {gameState === GameState.PLAYING && (
+        <div
+          className={`aim-mode-indicator ${
+            aimMode === AimMode.MANUAL ? "manual" : ""
+          }`}
+          onClick={() => {
+            const newMode = aimingSystemRef.current.toggleAimMode();
+            setAimMode(newMode);
+          }}
+          title="Click or press Q to toggle aim mode"
+        >
+          {aimMode === AimMode.MANUAL ? "🎯 Manual" : "🤖 Auto"}
         </div>
       )}
 

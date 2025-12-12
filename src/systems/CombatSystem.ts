@@ -5,6 +5,7 @@ import type {
   Particle,
   FloatingText,
   GameStats,
+  Vector2,
 } from "../types/game";
 import { PowerUpType } from "../types/game";
 import { checkCollision, distance } from "../utils/helpers";
@@ -16,6 +17,107 @@ import { screenShake } from "../utils/helpers";
  * CombatSystem - Handles shooting, damage calculation, and combat interactions
  */
 export class CombatSystem {
+  /**
+   * Shoot in a specific direction (for manual aiming or any directional shooting)
+   */
+  shootInDirection(
+    player: Player,
+    direction: Vector2,
+    now: number,
+    createBullet: (bullet: Bullet) => void,
+    getUpgradeLevel: (upgradeId: string) => number
+  ) {
+    // Check fire rate
+    if (now - player.lastShot < this.getEffectiveFireRate(player)) {
+      return;
+    }
+
+    const bulletSpeed = 10;
+    const effectiveDamage = this.getEffectiveDamage(player);
+    const multiShotLevel = getUpgradeLevel("multi_shot");
+    const spreadAngle = 0.3;
+
+    // Main bullet
+    const mainBullet: Bullet = {
+      position: { ...player.position },
+      velocity: {
+        x: direction.x * bulletSpeed,
+        y: direction.y * bulletSpeed,
+      },
+      radius: 5,
+      damage: effectiveDamage,
+      lifetime: 3000,
+      createdAt: now,
+      active: true,
+    };
+    createBullet(mainBullet);
+
+    // Multi-shot bullets
+    if (multiShotLevel >= 1) {
+      const rightAngle = Math.atan2(direction.y, direction.x) + spreadAngle;
+      createBullet({
+        position: { ...player.position },
+        velocity: {
+          x: Math.cos(rightAngle) * bulletSpeed,
+          y: Math.sin(rightAngle) * bulletSpeed,
+        },
+        radius: 3.5,
+        damage: effectiveDamage * 0.5,
+        lifetime: 3000,
+        createdAt: now,
+        active: true,
+      });
+    }
+
+    if (multiShotLevel >= 2) {
+      const leftAngle = Math.atan2(direction.y, direction.x) - spreadAngle;
+      createBullet({
+        position: { ...player.position },
+        velocity: {
+          x: Math.cos(leftAngle) * bulletSpeed,
+          y: Math.sin(leftAngle) * bulletSpeed,
+        },
+        radius: 3.5,
+        damage: effectiveDamage * 0.5,
+        lifetime: 3000,
+        createdAt: now,
+        active: true,
+      });
+    }
+
+    if (multiShotLevel >= 3) {
+      const wideRightAngle = Math.atan2(direction.y, direction.x) + spreadAngle * 2;
+      createBullet({
+        position: { ...player.position },
+        velocity: {
+          x: Math.cos(wideRightAngle) * bulletSpeed,
+          y: Math.sin(wideRightAngle) * bulletSpeed,
+        },
+        radius: 3.5,
+        damage: effectiveDamage * 0.5,
+        lifetime: 3000,
+        createdAt: now,
+        active: true,
+      });
+
+      const wideLeftAngle = Math.atan2(direction.y, direction.x) - spreadAngle * 2;
+      createBullet({
+        position: { ...player.position },
+        velocity: {
+          x: Math.cos(wideLeftAngle) * bulletSpeed,
+          y: Math.sin(wideLeftAngle) * bulletSpeed,
+        },
+        radius: 3.5,
+        damage: effectiveDamage * 0.5,
+        lifetime: 3000,
+        createdAt: now,
+        active: true,
+      });
+    }
+
+    player.lastShot = now;
+    audioSystem.playShoot();
+  }
   /**
    * Handle player shooting at nearest enemy with multi-shot support
    */
