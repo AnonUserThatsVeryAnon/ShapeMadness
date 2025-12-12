@@ -191,23 +191,23 @@ export class GameRenderer {
 
   private getPowerUpColor(type: string): string {
     const colors: Record<string, string> = {
-      health: "#4caf50",
+      health: "#ff4444",
       speed: "#2196f3",
-      damage: "#f44336",
-      shield: "#9c27b0",
+      damage: "#ffeb3b",
+      shield: "#4caf50",
       multishot: "#ff9800",
-      fire_rate: "#ffeb3b",
+      fire_rate: "#ff9800",
     };
     return colors[type] || "#ffffff";
   }
 
   private getPowerUpIcon(type: string): string {
     const icons: Record<string, string> = {
-      health: "+",
-      speed: "»",
-      damage: "*",
-      shield: "◆",
-      fire_rate: "↑",
+      health: "❤",
+      speed: "⚡",
+      damage: "💥",
+      shield: "🛡",
+      fire_rate: "🔥",
     };
     return icons[type] || "?";  
   }
