@@ -191,23 +191,22 @@ export class GameRenderer {
 
   private getPowerUpColor(type: string): string {
     const colors: Record<string, string> = {
-      health: "#ff4444",
-      speed: "#2196f3",
-      damage: "#ffeb3b",
-      shield: "#4caf50",
-      multishot: "#ff9800",
-      fire_rate: "#ff9800",
+      HEALTH: "#ff4444",
+      SPEED: "#2196f3",
+      DAMAGE: "#ff5252",
+      SHIELD: "#4caf50",
+      FIRE_RATE: "#ff9800",
     };
     return colors[type] || "#ffffff";
   }
 
   private getPowerUpIcon(type: string): string {
     const icons: Record<string, string> = {
-      health: "❤",
-      speed: "⚡",
-      damage: "💥",
-      shield: "🛡",
-      fire_rate: "🔥",
+      HEALTH: "❤",
+      SPEED: "⚡",
+      DAMAGE: "💥",
+      SHIELD: "🛡",
+      FIRE_RATE: "🔥",
     };
     return icons[type] || "?";  
   }
@@ -753,43 +752,69 @@ export class GameRenderer {
     if (activePowerUps.length === 0) return;
 
     this.ctx.save();
-    const startX = this.canvasWidth - 220;
+    const startX = this.canvasWidth - 280;
     let yOffset = 80;
 
     activePowerUps.forEach((powerUp) => {
       const remaining = Math.max(0, powerUp.expiresAt - now);
       const seconds = (remaining / 1000).toFixed(1);
+      const progress = remaining / powerUp.duration;
+      
+      const boxWidth = 260;
+      const boxHeight = 40;
+      const color = this.getPowerUpColor(powerUp.type);
 
-      // Background
-      this.ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
-      this.ctx.fillRect(startX, yOffset, 200, 30);
+      // Black background
+      this.ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
+      this.ctx.fillRect(startX, yOffset, boxWidth, boxHeight);
+
+      // Colored border
+      this.ctx.strokeStyle = color;
+      this.ctx.lineWidth = 3;
+      this.ctx.strokeRect(startX, yOffset, boxWidth, boxHeight);
 
       // Icon with colored circle background
-      this.ctx.fillStyle = this.getPowerUpColor(powerUp.type);
+      this.ctx.fillStyle = color;
       this.ctx.beginPath();
-      this.ctx.arc(startX + 15, yOffset + 15, 10, 0, Math.PI * 2);
+      this.ctx.arc(startX + 20, yOffset + 20, 12, 0, Math.PI * 2);
       this.ctx.fill();
 
       // Draw icon symbol
       const icon = this.getPowerUpIcon(powerUp.type);
-      this.ctx.font = "bold 16px monospace";
+      this.ctx.font = "bold 18px monospace";
       this.ctx.textAlign = "center";
       this.ctx.textBaseline = "middle";
       this.ctx.fillStyle = "#ffffff";
-      this.ctx.fillText(icon, startX + 15, yOffset + 15);
+      this.ctx.fillText(icon, startX + 20, yOffset + 20);
 
-      // Text
+      // Power-up name
+      this.ctx.fillStyle = "#ffffff";
+      this.ctx.font = "bold 12px monospace";
+      this.ctx.textAlign = "left";
+      this.ctx.textBaseline = "top";
+      const name = powerUp.type.replace(/_/g, " ");
+      this.ctx.fillText(name, startX + 40, yOffset + 5);
+
+      // Progress bar background (dark gray)
+      const barX = startX + 40;
+      const barY = yOffset + 22;
+      const barWidth = 160;
+      const barHeight = 12;
+      this.ctx.fillStyle = "#333333";
+      this.ctx.fillRect(barX, barY, barWidth, barHeight);
+
+      // Progress bar fill (colored)
+      this.ctx.fillStyle = color;
+      this.ctx.fillRect(barX, barY, barWidth * progress, barHeight);
+
+      // Timer text on the right
       this.ctx.fillStyle = "#ffffff";
       this.ctx.font = "bold 14px monospace";
-      this.ctx.textAlign = "left";
-      this.ctx.textBaseline = "alphabetic";
-      this.ctx.fillText(
-        `${powerUp.type.toUpperCase()}: ${seconds}s`,
-        startX + 35,
-        yOffset + 20
-      );
+      this.ctx.textAlign = "right";
+      this.ctx.textBaseline = "middle";
+      this.ctx.fillText(`${seconds}s`, startX + boxWidth - 10, yOffset + 20);
 
-      yOffset += 35;
+      yOffset += 50;
     });
 
     this.ctx.restore();
