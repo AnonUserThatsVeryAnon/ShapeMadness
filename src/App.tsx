@@ -427,7 +427,7 @@ function App() {
     // Update invulnerability, power-ups, and movement
     playerSystemRef.current.updateInvulnerability(player, now);
     playerSystemRef.current.updatePowerUps(player, now);
-    playerSystemRef.current.updateMovement(player, keysRef.current);
+    playerSystemRef.current.updateMovement(player, keysRef.current, deltaTime);
 
     // Shoot based on aim mode (auto or manual) - only during active gameplay
     if (
@@ -689,11 +689,19 @@ function App() {
       const piercing = getUpgradeLevel("pierce") > 0;
       const explosiveLevel = getUpgradeLevel("explosive");
 
+      // Track how many enemies this bullet has hit (for pierce damage reduction)
+      if (!(bullet as any).hitCount) (bullet as any).hitCount = 0;
+
       enemies.forEach((enemy) => {
         if (!enemy.active) return;
         if (checkCollision(bullet, enemy)) {
+          // Reduce damage on pierce hits (first hit 100%, subsequent 75%)
+          const hitCount = (bullet as any).hitCount || 0;
+          const damageMultiplier = hitCount === 0 ? 1.0 : 0.75;
+          (bullet as any).hitCount = hitCount + 1;
+
           // Use damageEnemy for full logic (combo, money, reflection)
-          damageEnemy(enemy, bullet.damage, now);
+          damageEnemy(enemy, bullet.damage * damageMultiplier, now);
 
           particlesRef.current.push(
             ...createParticles(bullet.position, 8, "#ffeb3b", 3, 500)
@@ -701,11 +709,11 @@ function App() {
 
           // Explosive damage
           if (explosiveLevel > 0) {
-            const explosionRadius = 50 + explosiveLevel * 20;
+            const explosionRadius = 50 + explosiveLevel * 15;
             enemies.forEach((e) => {
               if (!e.active || e === enemy) return;
               if (distance(bullet.position, e.position) < explosionRadius) {
-                damageEnemy(e, bullet.damage * 0.5, now);
+                damageEnemy(e, bullet.damage * 0.3, now);
               }
             });
             particlesRef.current.push(

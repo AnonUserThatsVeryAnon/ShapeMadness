@@ -12,7 +12,7 @@ export class PlayerSystem {
   /**
    * Update player position based on input
    */
-  updateMovement(player: Player, keys: Set<string>) {
+  updateMovement(player: Player, keys: Set<string>, deltaTime: number = 1/60) {
     const acceleration = { x: 0, y: 0 };
 
     // WASD + Arrow keys
@@ -35,7 +35,7 @@ export class PlayerSystem {
     const speedPowerUp = player.activePowerUps.find(
       (p) => p.type === PowerUpType.SPEED
     );
-    if (speedPowerUp) speedMultiplier = 1.5;
+    if (speedPowerUp) speedMultiplier = 1.3;
 
     // Apply acceleration
     const effectiveSpeed = player.speed * speedMultiplier;
@@ -57,9 +57,9 @@ export class PlayerSystem {
       player.velocity.y = (player.velocity.y / currentSpeed) * maxSpeed;
     }
 
-    // Update position
-    player.position.x += player.velocity.x;
-    player.position.y += player.velocity.y;
+    // Update position (frame-rate independent)
+    player.position.x += player.velocity.x * deltaTime * 60;
+    player.position.y += player.velocity.y * deltaTime * 60;
 
     // Keep in bounds
     player.position.x = clamp(
