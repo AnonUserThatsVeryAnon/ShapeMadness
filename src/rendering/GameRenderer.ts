@@ -83,6 +83,7 @@ export class GameRenderer {
 
     // Draw UI overlay (no shake)
     this.drawHUD(player, stats, enemies);
+    this.drawActivePowerUpsHUD(player, now);
   }
 
   private clearCanvas() {
@@ -170,6 +171,21 @@ export class GameRenderer {
       this.ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
       this.ctx.lineWidth = 1;
       this.ctx.stroke();
+
+      // Draw icon with outline for visibility
+      this.ctx.font = "bold 20px monospace";
+      this.ctx.textAlign = "center";
+      this.ctx.textBaseline = "middle";
+      const icon = this.getPowerUpIcon(powerUp.type);
+      
+      // Black outline
+      this.ctx.strokeStyle = "#000000";
+      this.ctx.lineWidth = 3;
+      this.ctx.strokeText(icon, powerUp.position.x, powerUp.position.y);
+      
+      // White fill
+      this.ctx.fillStyle = "#ffffff";
+      this.ctx.fillText(icon, powerUp.position.x, powerUp.position.y);
     });
   }
 
@@ -180,8 +196,20 @@ export class GameRenderer {
       damage: "#f44336",
       shield: "#9c27b0",
       multishot: "#ff9800",
+      fire_rate: "#ffeb3b",
     };
     return colors[type] || "#ffffff";
+  }
+
+  private getPowerUpIcon(type: string): string {
+    const icons: Record<string, string> = {
+      health: "+",
+      speed: "»",
+      damage: "*",
+      shield: "◆",
+      fire_rate: "↑",
+    };
+    return icons[type] || "?";  
   }
 
   private drawPlayer(player: Player, now: number) {
@@ -736,14 +764,25 @@ export class GameRenderer {
       this.ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
       this.ctx.fillRect(startX, yOffset, 200, 30);
 
-      // Icon color
+      // Icon with colored circle background
       this.ctx.fillStyle = this.getPowerUpColor(powerUp.type);
-      this.ctx.fillRect(startX + 5, yOffset + 5, 20, 20);
+      this.ctx.beginPath();
+      this.ctx.arc(startX + 15, yOffset + 15, 10, 0, Math.PI * 2);
+      this.ctx.fill();
+
+      // Draw icon symbol
+      const icon = this.getPowerUpIcon(powerUp.type);
+      this.ctx.font = "bold 16px monospace";
+      this.ctx.textAlign = "center";
+      this.ctx.textBaseline = "middle";
+      this.ctx.fillStyle = "#ffffff";
+      this.ctx.fillText(icon, startX + 15, yOffset + 15);
 
       // Text
       this.ctx.fillStyle = "#ffffff";
       this.ctx.font = "bold 14px monospace";
       this.ctx.textAlign = "left";
+      this.ctx.textBaseline = "alphabetic";
       this.ctx.fillText(
         `${powerUp.type.toUpperCase()}: ${seconds}s`,
         startX + 35,

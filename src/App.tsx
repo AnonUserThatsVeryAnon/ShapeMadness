@@ -11,7 +11,7 @@ import type {
   LaserBeam,
   PlayZone,
 } from "./types/game";
-import { GameState, EnemyType, PowerUpType } from "./types/game";
+import { GameState, EnemyType } from "./types/game";
 import { audioSystem } from "./utils/audio";
 import {
   distance,
@@ -44,6 +44,7 @@ import type { CodexState } from "./types/codex";
 import { PlayerSystem } from "./systems/PlayerSystem";
 import { CombatSystem } from "./systems/CombatSystem";
 import { ZoneSystem } from "./systems/ZoneSystem";
+import { PowerUpSystem } from "./systems/PowerUpSystem";
 import { GameRenderer } from "./rendering/GameRenderer";
 
 // UI Components
@@ -145,6 +146,7 @@ function App() {
   const playerSystemRef = useRef<PlayerSystem>(new PlayerSystem());
   const combatSystemRef = useRef<CombatSystem>(new CombatSystem());
   const zoneSystemRef = useRef<ZoneSystem>(new ZoneSystem());
+  const powerUpSystemRef = useRef<PowerUpSystem>(new PowerUpSystem());
   const rendererRef = useRef<GameRenderer | null>(null);
 
   // Initialize player
@@ -308,8 +310,9 @@ function App() {
       if (shakeRef.current.intensity < 0.5) shakeRef.current.intensity = 0;
     }
 
-    // Update invulnerability and movement
+    // Update invulnerability, power-ups, and movement
     playerSystemRef.current.updateInvulnerability(player, now);
+    playerSystemRef.current.updatePowerUps(player, now);
     playerSystemRef.current.updateMovement(player, keysRef.current);
 
     // Auto-shoot at nearest enemy
@@ -601,21 +604,13 @@ function App() {
     });
 
     // Update power-ups
-    powerUpsRef.current = powerUps.filter((powerUp) => {
-      const age = now - powerUp.createdAt;
-      if (age > powerUp.duration) return false;
-
-      if (checkCollision(player, powerUp)) {
-        applyPowerUp(powerUp);
-        audioSystem.playPowerUp();
-        particlesRef.current.push(
-          ...createParticles(powerUp.position, 15, "#00ff00", 3)
-        );
-        return false;
-      }
-
-      return true;
-    });
+    powerUpsRef.current = powerUpSystemRef.current.updatePowerUps(
+      powerUps,
+      player,
+      now,
+      particlesRef.current,
+      (powerUp) => playerSystemRef.current.applyPowerUp(player, powerUp, now)
+    );
 
     // Update particles
     particlesRef.current = updateParticles(particlesRef.current, deltaTime);
@@ -717,7 +712,7 @@ function App() {
     // Check if round complete (only during playing state)
     if (gameState === GameState.PLAYING && enemies.every((e) => !e.active)) {
       // Clear powerups from the field when wave completes
-      powerUpsRef.current = [];
+      powerUpSystemRef.current.clearAll(powerUpsRef.current);
 
       // Show discovery card if any enemies were discovered this round
       if (pendingDiscoveriesRef.current.length > 0) {
@@ -840,8 +835,12 @@ function App() {
       });
 
       // Spawn power-up chance
-      if (Math.random() < 0.15) {
-        spawnPowerUp(enemy.position, now);
+      if (Math.random() < 0.08) {
+        powerUpSystemRef.current.spawnPowerUp(
+          enemy.position,
+          now,
+          powerUpsRef.current
+        );
       }
 
       // Splitter enemy splits
@@ -1046,120 +1045,7 @@ function App() {
     return Math.sqrt(dx * dx + dy * dy);
   };
 
-  const spawnPowerUp = (position: { x: number; y: number }, now: number) => {
-    const types = Object.values(PowerUpType);
-    const randomIndex = Math.floor(Math.random() * types.length);
-    const type = types[randomIndex] as PowerUpType;
-
-    powerUpsRef.current.push({
-      position: { ...position },
-      velocity: { x: 0, y: 0 },
-      radius: 12,
-      type,
-      duration: 10000,
-      createdAt: now,
-      active: true,
-    });
-  };
-
-  const applyPowerUp = (powerUp: PowerUp) => {
-    const player = playerRef.current;
-    const now = Date.now();
-    const duration = 5000;
-
-    // Check if this power-up type is already active
-    const existingPowerUp = player.activePowerUps.find(
-      (p) => p.type === powerUp.type
-    );
-
-    switch (powerUp.type) {
-      case PowerUpType.HEALTH:
-        player.health = Math.min(player.maxHealth, player.health + 30);
-        // Health is instant, no timer needed
-        break;
-      case PowerUpType.SPEED:
-        if (existingPowerUp) {
-          // Extend existing timer
-          existingPowerUp.expiresAt = now + duration;
-        } else {
-          // Create new effect
-          player.speed += 1;
-          player.activePowerUps.push({
-            type: PowerUpType.SPEED,
-            expiresAt: now + duration,
-            duration: duration,
-          });
-          setTimeout(() => {
-            player.speed -= 1;
-            player.activePowerUps = player.activePowerUps.filter(
-              (p) => p.type !== PowerUpType.SPEED
-            );
-          }, duration);
-        }
-        break;
-      case PowerUpType.DAMAGE:
-        if (existingPowerUp) {
-          // Extend existing timer
-          existingPowerUp.expiresAt = now + duration;
-        } else {
-          // Create new effect
-          player.damage += 15;
-          player.activePowerUps.push({
-            type: PowerUpType.DAMAGE,
-            expiresAt: now + duration,
-            duration: duration,
-          });
-          setTimeout(() => {
-            player.damage -= 15;
-            player.activePowerUps = player.activePowerUps.filter(
-              (p) => p.type !== PowerUpType.DAMAGE
-            );
-          }, duration);
-        }
-        break;
-      case PowerUpType.FIRE_RATE:
-        if (existingPowerUp) {
-          // Extend existing timer
-          existingPowerUp.expiresAt = now + duration;
-        } else {
-          // Create new effect
-          player.fireRate *= 0.5;
-          player.activePowerUps.push({
-            type: PowerUpType.FIRE_RATE,
-            expiresAt: now + duration,
-            duration: duration,
-          });
-          setTimeout(() => {
-            player.fireRate *= 2;
-            player.activePowerUps = player.activePowerUps.filter(
-              (p) => p.type !== PowerUpType.FIRE_RATE
-            );
-          }, duration);
-        }
-        break;
-      case PowerUpType.SHIELD:
-        if (existingPowerUp) {
-          // Extend existing timer
-          existingPowerUp.expiresAt = now + duration;
-          player.invulnerableUntil = now + duration;
-        } else {
-          // Create new effect
-          player.invulnerable = true;
-          player.invulnerableUntil = now + duration;
-          player.activePowerUps.push({
-            type: PowerUpType.SHIELD,
-            expiresAt: now + duration,
-            duration: duration,
-          });
-          setTimeout(() => {
-            player.activePowerUps = player.activePowerUps.filter(
-              (p) => p.type !== PowerUpType.SHIELD
-            );
-          }, duration);
-        }
-        break;
-    }
-  };
+  // Power-up spawning and management now handled by PowerUpSystem
 
   // renderGame has been replaced by GameRenderer system
   // renderGame has been replaced by GameRenderer system (removed ~713 lines)
