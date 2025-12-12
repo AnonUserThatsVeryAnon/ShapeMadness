@@ -205,6 +205,7 @@ function App() {
     // Increment round counter when starting next wave
     statsRef.current.round++;
     const currentRound = statsRef.current.round;
+    console.log("Starting round:", currentRound);
 
     // Boss warning for round 15
     if (currentRound === 15) {
@@ -925,7 +926,16 @@ function App() {
       const prevHealthPercent = previousHealth / enemy.maxHealth;
 
       // Phase 2 transition (66%)
-      if (prevHealthPercent > 0.66 && healthPercent <= 0.66) {
+      if (
+        prevHealthPercent > 0.66 &&
+        healthPercent <= 0.66 &&
+        enemy.bossPhase === 1
+      ) {
+        enemy.bossPhase = 2;
+        enemy.lastPhaseChange = now;
+        enemy.color = "#ff6b1a"; // Orange
+        enemy.specialCooldown = 2000; // Faster projectile shooting
+
         shakeRef.current.intensity = 20;
         floatingTextsRef.current.push({
           position: { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 },
@@ -943,7 +953,17 @@ function App() {
       }
 
       // Phase 3 transition (33%)
-      if (prevHealthPercent > 0.33 && healthPercent <= 0.33) {
+      if (
+        prevHealthPercent > 0.33 &&
+        healthPercent <= 0.33 &&
+        enemy.bossPhase === 2
+      ) {
+        enemy.bossPhase = 3;
+        enemy.lastPhaseChange = now;
+        enemy.color = "#ff1a1a"; // Red
+        enemy.speed = 1.2; // Increased speed
+        enemy.lastShockwave = now;
+
         shakeRef.current.intensity = 30;
         floatingTextsRef.current.push({
           position: { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 },
