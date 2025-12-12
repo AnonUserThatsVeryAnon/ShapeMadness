@@ -1,5 +1,3 @@
-import { GameState } from "../types/game";
-
 interface GameMenuProps {
   highScore: number;
   onStartGame: () => void;
