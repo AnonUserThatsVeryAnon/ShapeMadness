@@ -28,7 +28,6 @@ import {
   spawnEnemiesForRound,
   updateEnemyPosition,
   ENEMY_CONFIGS,
-  createEnemy,
 } from "./utils/enemies";
 // drawEnemyPattern now handled by GameRenderer
 import { createParticles, updateParticles } from "./utils/particles";
@@ -47,6 +46,10 @@ import { CombatSystem } from "./systems/CombatSystem";
 import { ZoneSystem } from "./systems/ZoneSystem";
 import { PowerUpSystem } from "./systems/PowerUpSystem";
 import { GameRenderer } from "./rendering/GameRenderer";
+import {
+  updateBossAbilities,
+  checkBossCollisions,
+} from "./systems/spawning/BossAbilitySystem";
 
 // UI Components
 import { EnemyCard } from "./components/EnemyCard";
@@ -607,164 +610,44 @@ function App() {
         }
       }
 
-      // OVERSEER BOSS abilities
-      if (enemy.type === EnemyType.OVERSEER && enemy.isBoss) {
-        // ALL PHASES: Summon minions with escalating difficulty
-        if (!enemy.lastSpecialAbility) enemy.lastSpecialAbility = now;
-
-        const summonCooldown =
-          enemy.bossPhase === 1 ? 6000 : enemy.bossPhase === 2 ? 4000 : 3000;
-
-        if (now - enemy.lastSpecialAbility > summonCooldown) {
-          let spawnCount = 0;
-          let spawnType: EnemyType = EnemyType.BASIC;
-
-          if (enemy.bossPhase === 1) {
-            // Phase 1: 2 Basic enemies
-            spawnCount = 2;
-            spawnType = EnemyType.BASIC;
-          } else if (enemy.bossPhase === 2) {
-            // Phase 2: 3 Shooters + 1 Tank
-            // Spawn 3 Shooters
-            for (let i = 0; i < 3; i++) {
-              const angle = (Math.PI * 2 * i) / 3 + Math.random() * 0.3;
-              const dist = 90 + Math.random() * 30;
-              const shooter = createEnemy(EnemyType.SHOOTER, {
-                x: enemy.position.x + Math.cos(angle) * dist,
-                y: enemy.position.y + Math.sin(angle) * dist,
-              });
-              enemiesRef.current.push(shooter);
-            }
-            // Spawn 1 Tank
-            const tankAngle = Math.random() * Math.PI * 2;
-            const tank = createEnemy(EnemyType.TANK, {
-              x: enemy.position.x + Math.cos(tankAngle) * 100,
-              y: enemy.position.y + Math.sin(tankAngle) * 100,
-            });
-            enemiesRef.current.push(tank);
-
-            enemy.lastSpecialAbility = now;
-            const phaseColor = "#ff6b1a";
-            particlesRef.current.push(
-              ...createParticles(enemy.position, 25, phaseColor, 8)
-            );
-            spawnCount = 0; // Don't spawn via normal loop
-          } else if (enemy.bossPhase === 3) {
-            // Phase 3: 6 enemies (Fast, Tank, or Splitter for chaos)
-            spawnCount = 6;
-            const rand = Math.random();
-            if (rand < 0.3) spawnType = EnemyType.FAST;
-            else if (rand < 0.7) spawnType = EnemyType.TANK;
-            else spawnType = EnemyType.SPLITTER;
-          }
-
-          // Spawn the minions (Phase 1 and 3)
-          if (spawnCount > 0) {
-            for (let i = 0; i < spawnCount; i++) {
-              const angle =
-                (Math.PI * 2 * i) / spawnCount + Math.random() * 0.5;
-              const dist = 80 + Math.random() * 40;
-              const minion = createEnemy(spawnType, {
-                x: enemy.position.x + Math.cos(angle) * dist,
-                y: enemy.position.y + Math.sin(angle) * dist,
-              });
-              enemiesRef.current.push(minion);
-            }
-
-            enemy.lastSpecialAbility = now;
-
-            // Spawn effect with phase color
-            const phaseColor = enemy.bossPhase === 1 ? "#5a1d7a" : "#ff1a1a";
-            particlesRef.current.push(
-              ...createParticles(enemy.position, 25, phaseColor, 8)
-            );
-          }
-        }
-
-        // PHASE 2: 3 Rotating lasers that sweep the arena
-        if (enemy.bossPhase === 2) {
-          if (!enemy.lastShockwave) enemy.lastShockwave = 0;
-
-          // Create 3 laser beams rotating around the boss
-          const rotationSpeed = 0.0015; // Radians per ms
-          const currentRotation =
-            (now - enemy.lastPhaseChange!) * rotationSpeed;
-
-          // Clear old lasers and add new ones for this frame
-          lasersRef.current = [];
-
-          for (let i = 0; i < 3; i++) {
-            const laserAngle = currentRotation + (i * Math.PI * 2) / 3;
-            const laserLength = 400;
-            const laserWidth = 8;
-
-            // Add laser to render list
-            lasersRef.current.push({
-              startX: enemy.position.x,
-              startY: enemy.position.y,
-              endX: enemy.position.x + Math.cos(laserAngle) * laserLength,
-              endY: enemy.position.y + Math.sin(laserAngle) * laserLength,
-              width: laserWidth,
-              warningTime: 0, // No warning, always active
-              activeTime: 100, // Always active during phase 2
-              createdAt: now,
-              isWarning: false,
-              angle: laserAngle,
-            });
-
-            // Check if laser hits player (simple line-circle collision)
-            const toPlayer = {
-              x: player.position.x - enemy.position.x,
-              y: player.position.y - enemy.position.y,
-            };
-            const laserDir = {
-              x: Math.cos(laserAngle),
-              y: Math.sin(laserAngle),
-            };
-
-            // Project player position onto laser direction
-            const projection =
-              toPlayer.x * laserDir.x + toPlayer.y * laserDir.y;
-
-            if (projection > 0 && projection < laserLength) {
-              const closestPoint = {
-                x: enemy.position.x + laserDir.x * projection,
-                y: enemy.position.y + laserDir.y * projection,
-              };
-
-              const distToLaser = distance(player.position, closestPoint);
-
-              if (distToLaser < player.radius + laserWidth) {
-                // Only damage once per second
-                if (now - (enemy.lastShockwave || 0) > 1000) {
-                  damagePlayer(10, now);
-                  enemy.lastShockwave = now;
-                }
-              }
-            }
-          }
-        }
-
-        // PHASE 3: Shockwave pulses every 3 seconds
-        if (enemy.bossPhase === 3) {
-          // Clear lasers when entering phase 3
-          if (lasersRef.current.length > 0) {
+      // BOSS ABILITIES - Managed by BossAbilitySystem
+      if (enemy.isBoss) {
+        // Create game context for boss abilities
+        const bossContext = {
+          canvasWidth: CANVAS_WIDTH,
+          canvasHeight: CANVAS_HEIGHT,
+          currentEnemies: enemiesRef.current,
+          addEnemies: (newEnemies: Enemy[]) => {
+            enemiesRef.current.push(...newEnemies);
+          },
+          addParticles: (newParticles: Particle[]) => {
+            particlesRef.current.push(...newParticles);
+          },
+          damagePlayer: (damage: number, time: number) => {
+            damagePlayer(damage, time);
+          },
+          addLasers: (newLasers: LaserBeam[]) => {
+            lasersRef.current = newLasers;
+          },
+          clearLasers: () => {
             lasersRef.current = [];
-          }
+          },
+        };
 
-          if (!enemy.lastShockwave) enemy.lastShockwave = now;
+        // Update boss abilities and handle phase transitions
+        updateBossAbilities(enemy, bossContext, now);
 
-          if (now - enemy.lastShockwave > 4000) {
-            const dist = distance(player.position, enemy.position);
-            if (dist < 200) {
-              damagePlayer(15, now);
-              // Shockwave visual
-              particlesRef.current.push(
-                ...createParticles(enemy.position, 30, "#ff1a1a", 8)
-              );
-            }
-            enemy.frozenUntil = now;
-          }
+        // Check for boss-specific collision damage (lasers, shockwaves)
+        const bossHit = checkBossCollisions(
+          enemy,
+          player.position,
+          player.radius,
+          bossContext,
+          now
+        );
+
+        if (bossHit) {
+          damagePlayer(10, now); // Laser damage
         }
       }
 

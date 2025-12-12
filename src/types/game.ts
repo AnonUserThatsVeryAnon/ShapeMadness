@@ -60,6 +60,8 @@ export interface Enemy extends Entity {
   bossPhase?: number; // Current phase (1, 2, or 3)
   lastPhaseChange?: number; // Timestamp of last phase change
   lastShockwave?: number; // For Overseer phase 3
+  abilityTimers?: Record<string, number>; // Tracks when abilities were last used
+  bossConfig?: import('../systems/spawning/BossConfig').BossConfig; // Reference to boss configuration
 }
 
 export interface Bullet extends Entity {

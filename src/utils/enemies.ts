@@ -292,23 +292,29 @@ export function updateEnemyPosition(enemy: Enemy, player: Player, deltaTime: num
   enemy.position = add(enemy.position, multiply(enemy.velocity, deltaTime * 60));
 }
 
+import { getPatternForRound, selectEnemyType } from '../systems/spawning/WavePatterns';
+import { isBoss, initializeBoss } from '../systems/spawning/BossAbilitySystem';
+
 export function spawnEnemiesForRound(
   round: number,
   canvasWidth: number,
   canvasHeight: number
 ): Enemy[] {
   const enemies: Enemy[] = [];
+  const spawnMargin = 50;
   
-  // BOSS ROUND - Round 15 spawns regular enemies THEN The Overseer
-  const isBossRound = round === 15;
-  if (isBossRound) {
+  // Get wave pattern for this round
+  const pattern = getPatternForRound(round);
+  const spawnCount = pattern.countFormula(round);
+  
+  // Check if this is a boss round
+  const bossRound = isBoss(EnemyType.OVERSEER) && round === 15;
+  
+  if (bossRound) {
     console.log('BOSS ROUND - Round 15 detected, spawning enemies + boss');
   }
-  
-  const baseCount = 5 + round * 2;
-  const spawnMargin = 50;
 
-  for (let i = 0; i < baseCount; i++) {
+  for (let i = 0; i < spawnCount; i++) {
     // Spawn at random edge of screen
     const edge = Math.floor(Math.random() * 4);
     let x = 0, y = 0;
@@ -332,48 +338,8 @@ export function spawnEnemiesForRound(
         break;
     }
 
-    // Determine enemy type using weighted spawn pool (cleaner and more performant)
-    const spawnPool: Array<{ type: EnemyType; weight: number }> = [];
-    
-    // Always include basic enemies
-    spawnPool.push({ type: EnemyType.BASIC, weight: 10 });
-    
-    // Add enemies based on round progression
-    if (round >= 2) {
-      spawnPool.push({ type: EnemyType.FAST, weight: 15 });
-    }
-    if (round >= 3) {
-      spawnPool.push({ type: EnemyType.SPLITTER, weight: 12 });
-    }
-    if (round >= 5) {
-      spawnPool.push({ type: EnemyType.TANK, weight: 18 });
-    }
-    if (round >= 10) {
-      spawnPool.push({ type: EnemyType.SHOOTER, weight: 14 });
-    }
-    if (round >= 15) {
-      spawnPool.push({ type: EnemyType.BUFFER, weight: 8 });
-    }
-    if (round >= 18) {
-      spawnPool.push({ type: EnemyType.CHAIN_PARTNER, weight: 8 });
-    }
-    if (round >= 20) {
-      spawnPool.push({ type: EnemyType.TIME_DISTORTION, weight: 8 });
-    }
-    
-    // Calculate total weight and select random enemy type
-    const totalWeight = spawnPool.reduce((sum, entry) => sum + entry.weight, 0);
-    let randomValue = Math.random() * totalWeight;
-    
-    let type: EnemyType = EnemyType.BASIC;
-    for (const entry of spawnPool) {
-      randomValue -= entry.weight;
-      if (randomValue <= 0) {
-        type = entry.type;
-        break;
-      }
-    }
-
+    // Select enemy type from pattern
+    const type = selectEnemyType(pattern);
     const enemy = createEnemy(type, { x, y });
     enemies.push(enemy);
     
@@ -396,12 +362,13 @@ export function spawnEnemiesForRound(
     }
   }
 
-  // Add boss to the end on round 15
-  if (isBossRound) {
+  // Add boss on boss rounds
+  if (bossRound) {
     const boss = createEnemy(EnemyType.OVERSEER, {
       x: canvasWidth / 2,
       y: -100, // Spawn from top center
     });
+    initializeBoss(boss); // Initialize boss with configuration
     console.log('Boss added to enemy list:', boss.type, boss.isBoss, boss.health);
     enemies.push(boss);
   }
