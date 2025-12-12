@@ -82,6 +82,7 @@ export interface PowerUp extends Entity {
   type: PowerUpType;
   duration: number;
   createdAt: number;
+  spawnedRound: number; // Track which round it spawned in
 }
 
 export interface Particle {

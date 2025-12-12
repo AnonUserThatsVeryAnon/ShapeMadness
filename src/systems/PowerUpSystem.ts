@@ -14,11 +14,13 @@ export class PowerUpSystem {
   /**
    * Spawn a power-up at the given position
    * Health has a 10% spawn chance, other power-ups share the remaining 90%
+   * If a powerup of the same type exists, refill it instead of spawning new
    */
   spawnPowerUp(
     position: { x: number; y: number },
     now: number,
-    powerUps: PowerUp[]
+    powerUps: PowerUp[],
+    currentRound: number
   ): void {
     const types = Object.values(PowerUpType);
 
@@ -30,6 +32,15 @@ export class PowerUpSystem {
           Math.floor(Math.random() * (types.length - 1))
         ] as PowerUpType);
 
+    // Check if this powerup type already exists - if so, refresh it
+    const existing = powerUps.find(p => p.type === type && p.active);
+    if (existing) {
+      existing.createdAt = now;
+      existing.spawnedRound = currentRound;
+      existing.position = { ...position };
+      return;
+    }
+
     powerUps.push({
       position: { ...position },
       velocity: { x: 0, y: 0 },
@@ -37,6 +48,7 @@ export class PowerUpSystem {
       type,
       duration: this.defaultDuration,
       createdAt: now,
+      spawnedRound: currentRound,
       active: true,
     });
   }
@@ -48,15 +60,14 @@ export class PowerUpSystem {
   updatePowerUps(
     powerUps: PowerUp[],
     player: Player,
-    now: number,
+    _now: number,
     particles: Particle[],
-    onCollect: (powerUp: PowerUp) => void
+    onCollect: (powerUp: PowerUp) => void,
+    currentRound: number
   ): PowerUp[] {
     return powerUps.filter((powerUp) => {
-      const age = now - powerUp.createdAt;
-      
-      // Remove expired power-ups
-      if (age > powerUp.duration) {
+      // Remove power-ups after 2 rounds (not time-based)
+      if (currentRound - powerUp.spawnedRound >= 2) {
         return false;
       }
 

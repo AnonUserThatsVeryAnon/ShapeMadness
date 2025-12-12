@@ -784,7 +784,8 @@ function App() {
       player,
       now,
       particlesRef.current,
-      (powerUp) => playerSystemRef.current.applyPowerUp(player, powerUp, now)
+      (powerUp) => playerSystemRef.current.applyPowerUp(player, powerUp, now),
+      stats.round
     );
 
     // Update particles
@@ -1109,12 +1110,13 @@ function App() {
         velocity: { x: 0, y: -1.5 },
       });
 
-      // Spawn power-up chance
-      if (Math.random() < 0.15) {
+      // Spawn power-up chance (reduced spawn rate)
+      if (Math.random() < 0.08) {
         powerUpSystemRef.current.spawnPowerUp(
           enemy.position,
           now,
-          powerUpsRef.current
+          powerUpsRef.current,
+          stats.round
         );
       }
 
