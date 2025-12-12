@@ -695,9 +695,9 @@ function App() {
       enemies.forEach((enemy) => {
         if (!enemy.active) return;
         if (checkCollision(bullet, enemy)) {
-          // Reduce damage on pierce hits (first hit 100%, subsequent 75%)
+          // Reduce damage on pierce hits (first hit 100%, subsequent 50%)
           const hitCount = (bullet as any).hitCount || 0;
-          const damageMultiplier = hitCount === 0 ? 1.0 : 0.75;
+          const damageMultiplier = hitCount === 0 ? 1.0 : 0.5;
           (bullet as any).hitCount = hitCount + 1;
 
           // Use damageEnemy for full logic (combo, money, reflection)
@@ -709,11 +709,11 @@ function App() {
 
           // Explosive damage
           if (explosiveLevel > 0) {
-            const explosionRadius = 50 + explosiveLevel * 15;
+            const explosionRadius = 50 + explosiveLevel * 10;
             enemies.forEach((e) => {
               if (!e.active || e === enemy) return;
               if (distance(bullet.position, e.position) < explosionRadius) {
-                damageEnemy(e, bullet.damage * 0.3, now);
+                damageEnemy(e, bullet.damage * 0.2, now);
               }
             });
             particlesRef.current.push(
