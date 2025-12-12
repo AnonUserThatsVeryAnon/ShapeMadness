@@ -9,33 +9,17 @@ const CANVAS_HEIGHT = window.innerHeight;
  * PlayerSystem - Handles player movement, input, and state updates
  */
 export class PlayerSystem {
-  private keys: Set<string> = new Set();
-
-  constructor() {
-    this.setupInputListeners();
-  }
-
-  private setupInputListeners() {
-    window.addEventListener("keydown", (e) => {
-      this.keys.add(e.key.toLowerCase());
-    });
-
-    window.addEventListener("keyup", (e) => {
-      this.keys.delete(e.key.toLowerCase());
-    });
-  }
-
   /**
    * Update player position based on input
    */
-  updateMovement(player: Player) {
+  updateMovement(player: Player, keys: Set<string>) {
     const acceleration = { x: 0, y: 0 };
 
     // WASD + Arrow keys
-    if (this.keys.has("w") || this.keys.has("arrowup")) acceleration.y -= 1;
-    if (this.keys.has("s") || this.keys.has("arrowdown")) acceleration.y += 1;
-    if (this.keys.has("a") || this.keys.has("arrowleft")) acceleration.x -= 1;
-    if (this.keys.has("d") || this.keys.has("arrowright")) acceleration.x += 1;
+    if (keys.has("w") || keys.has("arrowup")) acceleration.y -= 1;
+    if (keys.has("s") || keys.has("arrowdown")) acceleration.y += 1;
+    if (keys.has("a") || keys.has("arrowleft")) acceleration.x -= 1;
+    if (keys.has("d") || keys.has("arrowright")) acceleration.x += 1;
 
     // Normalize diagonal movement
     const length = Math.sqrt(
@@ -172,10 +156,5 @@ export class PlayerSystem {
     player.activePowerUps = [];
   }
 
-  /**
-   * Cleanup listeners
-   */
-  destroy() {
-    this.keys.clear();
-  }
+
 }

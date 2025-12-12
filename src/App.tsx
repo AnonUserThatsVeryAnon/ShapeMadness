@@ -44,8 +44,19 @@ import {
 } from "./utils/upgrades";
 import { discoverEnemy, getCodexState } from "./utils/codexProgress";
 import type { CodexState } from "./types/codex";
+
+// Modular Systems
+import { PlayerSystem } from "./systems/PlayerSystem";
+import { CombatSystem } from "./systems/CombatSystem";
+import { ZoneSystem } from "./systems/ZoneSystem";
+import { GameRenderer } from "./rendering/GameRenderer";
+
+// UI Components
 import { EnemyCard } from "./components/EnemyCard";
 import { CodexMenu } from "./components/CodexMenu";
+import { GameMenu } from "./components/GameMenu";
+import { PauseMenu } from "./components/PauseMenu";
+import { GameOver } from "./components/GameOver";
 import "./App.css";
 
 // Dynamic canvas size - uses full window
@@ -134,6 +145,12 @@ function App() {
   const shakeRef = useRef({ x: 0, y: 0, intensity: 0 });
   const animationFrameRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
+
+  // Modular game systems
+  const playerSystemRef = useRef<PlayerSystem>(new PlayerSystem());
+  const combatSystemRef = useRef<CombatSystem>(new CombatSystem());
+  const zoneSystemRef = useRef<ZoneSystem>(new ZoneSystem());
+  const rendererRef = useRef<GameRenderer | null>(null);
 
   // Initialize player
   const initializePlayer = () => {
@@ -296,71 +313,19 @@ function App() {
       if (shakeRef.current.intensity < 0.5) shakeRef.current.intensity = 0;
     }
 
-    // Update invulnerability
-    if (player.invulnerable && now > player.invulnerableUntil) {
-      player.invulnerable = false;
-    }
-
-    // Player movement with smooth acceleration
-    const moveDir = { x: 0, y: 0 };
-    if (keysRef.current.has("w") || keysRef.current.has("arrowup"))
-      moveDir.y -= 1;
-    if (keysRef.current.has("s") || keysRef.current.has("arrowdown"))
-      moveDir.y += 1;
-    if (keysRef.current.has("a") || keysRef.current.has("arrowleft"))
-      moveDir.x -= 1;
-    if (keysRef.current.has("d") || keysRef.current.has("arrowright"))
-      moveDir.x += 1;
-
-    if (moveDir.x !== 0 || moveDir.y !== 0) {
-      const normalized = normalize(moveDir);
-      player.velocity.x += normalized.x * player.speed * 0.3;
-      player.velocity.y += normalized.y * player.speed * 0.3;
-    }
-
-    // Apply friction
-    player.velocity.x *= 0.85;
-    player.velocity.y *= 0.85;
-
-    // Limit velocity
-    const maxSpeed = player.speed * 2;
-    const speed = Math.sqrt(player.velocity.x ** 2 + player.velocity.y ** 2);
-    if (speed > maxSpeed) {
-      player.velocity.x = (player.velocity.x / speed) * maxSpeed;
-      player.velocity.y = (player.velocity.y / speed) * maxSpeed;
-    }
-
-    // Update position with boundary checking
-    player.position.x = clamp(
-      player.position.x + player.velocity.x,
-      player.radius,
-      CANVAS_WIDTH - player.radius
-    );
-    player.position.y = clamp(
-      player.position.y + player.velocity.y,
-      player.radius,
-      CANVAS_HEIGHT - player.radius
-    );
+    // Update invulnerability and movement
+    playerSystemRef.current.updateInvulnerability(player, now);
+    playerSystemRef.current.updateMovement(player, keysRef.current);
 
     // Auto-shoot at nearest enemy
-    // Apply time slow debuff (2x fire rate delay when slowed)
-    const fireRateMultiplier =
-      player.slowedUntil && now < player.slowedUntil ? 2 : 1;
-    const effectiveFireRate = player.fireRate * fireRateMultiplier;
-
-    if (enemies.length > 0 && now - player.lastShot > effectiveFireRate) {
-      const nearestEnemy = enemies.reduce((nearest, enemy) => {
-        if (!enemy.active) return nearest;
-        const dist = distance(player.position, enemy.position);
-        if (!nearest || dist < distance(player.position, nearest.position)) {
-          return enemy;
-        }
-        return nearest;
-      }, null as Enemy | null);
-
-      if (nearestEnemy) {
-        shootBullet(player, nearestEnemy, now);
-      }
+    if (enemies.length > 0) {
+      combatSystemRef.current.shootAtNearestEnemy(
+        player,
+        enemies,
+        now,
+        (bullet) => bulletsRef.current.push(bullet),
+        getUpgradeLevel
+      );
     }
 
     // Update enemies
@@ -549,50 +514,27 @@ function App() {
       }
     });
 
-    // Update bullets
-    bulletsRef.current = bullets.filter((bullet) => {
-      if (!bullet.active) return false;
+    // Update bullets - use CombatSystem
+    combatSystemRef.current.updateBullets(bullets, deltaTime, now);
 
-      // Move toward target or straight
-      if (bullet.target && bullet.target.active) {
-        const toTarget = {
-          x: bullet.target.position.x - bullet.position.x,
-          y: bullet.target.position.y - bullet.position.y,
-        };
-        bullet.velocity = multiply(normalize(toTarget), 10);
-      }
+    // Handle bullet-enemy collisions
+    bullets.forEach((bullet) => {
+      if (!bullet.active) return;
 
-      bullet.position = add(
-        bullet.position,
-        multiply(bullet.velocity, deltaTime * 60)
-      );
-
-      // Check if out of bounds or lifetime exceeded
-      const age = now - bullet.createdAt;
-      if (
-        age > bullet.lifetime ||
-        bullet.position.x < 0 ||
-        bullet.position.x > CANVAS_WIDTH ||
-        bullet.position.y < 0 ||
-        bullet.position.y > CANVAS_HEIGHT
-      ) {
-        return false;
-      }
-
-      // Check collision with enemies
       const piercing = getUpgradeLevel("pierce") > 0;
-      let hit = false;
+      const explosiveLevel = getUpgradeLevel("explosive");
 
       enemies.forEach((enemy) => {
         if (!enemy.active) return;
         if (checkCollision(bullet, enemy)) {
+          // Use damageEnemy for full logic (combo, money, reflection)
           damageEnemy(enemy, bullet.damage, now);
+
           particlesRef.current.push(
             ...createParticles(bullet.position, 8, "#ffeb3b", 3, 500)
           );
 
           // Explosive damage
-          const explosiveLevel = getUpgradeLevel("explosive");
           if (explosiveLevel > 0) {
             const explosionRadius = 50 + explosiveLevel * 20;
             enemies.forEach((e) => {
@@ -606,14 +548,27 @@ function App() {
             );
           }
 
-          hit = true;
           if (!piercing) {
             bullet.active = false;
           }
         }
       });
+    });
 
-      return bullet.active && !hit;
+    // Filter out inactive bullets and those out of bounds
+    bulletsRef.current = bullets.filter((bullet) => {
+      if (!bullet.active) return false;
+      const age = now - bullet.createdAt;
+      if (
+        age > bullet.lifetime ||
+        bullet.position.x < 0 ||
+        bullet.position.x > CANVAS_WIDTH ||
+        bullet.position.y < 0 ||
+        bullet.position.y > CANVAS_HEIGHT
+      ) {
+        return false;
+      }
+      return true;
     });
 
     // Update enemy projectiles
@@ -738,78 +693,16 @@ function App() {
       return false;
     });
 
-    // Update play zone transition
+    // Update play zone transition and damage
     const zone = playZoneRef.current;
-    if (zone.isTransitioning) {
-      zone.transitionProgress += deltaTime * (1000 / ZONE_TRANSITION_DURATION);
-
-      if (zone.transitionProgress >= 1) {
-        // Transition complete
-        zone.x = zone.targetX;
-        zone.y = zone.targetY;
-        zone.width = zone.targetWidth;
-        zone.height = zone.targetHeight;
-        zone.isTransitioning = false;
-        zone.transitionProgress = 1;
-      } else {
-        // Lerp the zone
-        const t = zone.transitionProgress;
-        const easeT = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; // EaseInOutQuad
-
-        zone.x = zone.x + (zone.targetX - zone.x) * easeT * deltaTime * 2;
-        zone.y = zone.y + (zone.targetY - zone.y) * easeT * deltaTime * 2;
-        zone.width =
-          zone.width + (zone.targetWidth - zone.width) * easeT * deltaTime * 2;
-        zone.height =
-          zone.height +
-          (zone.targetHeight - zone.height) * easeT * deltaTime * 2;
-      }
-    }
-
-    // Check if player is outside play zone (in the red danger zone)
-    const isOutsideZone =
-      player.position.x < zone.x + player.radius ||
-      player.position.x > zone.x + zone.width - player.radius ||
-      player.position.y < zone.y + player.radius ||
-      player.position.y > zone.y + zone.height - player.radius;
-
-    if (isOutsideZone && !player.invulnerable) {
-      // Apply damage over time (every 0.5 seconds)
-      if (now - lastZoneDamageRef.current > 500) {
-        damagePlayer(ZONE_DAMAGE, now);
-        lastZoneDamageRef.current = now;
-
-        // Enhanced feedback when taking zone damage
-        // Screen shake
-        screenShake(8);
-
-        // Red danger particles
-        particlesRef.current.push(
-          ...createParticles(
-            player.position, // Position as Vector2
-            15, // More particles
-            "#ff0000", // Red color
-            3 // Speed
-          )
-        );
-
-        // Warning sound
-        audioSystem.playDamage();
-
-        // More frequent warning text (80% chance instead of 30%)
-        if (Math.random() < 0.8) {
-          floatingTextsRef.current.push({
-            position: { ...player.position },
-            text: "⚠️ DANGER ZONE! ⚠️",
-            color: "#ff0000",
-            size: 22,
-            lifetime: 800,
-            createdAt: now,
-            velocity: { x: 0, y: -3 },
-          });
-        }
-      }
-    }
+    zoneSystemRef.current.updateZoneTransition(zone, deltaTime);
+    zoneSystemRef.current.applyZoneDamage(
+      player,
+      zone,
+      now,
+      particlesRef.current,
+      floatingTextsRef.current
+    );
 
     // Combo system - decay over time
     if (now - stats.lastComboTime > 3000 && stats.combo > 0) {
@@ -1154,103 +1047,34 @@ function App() {
   const triggerZoneChange = () => {
     const zone = playZoneRef.current;
     const stats = statsRef.current;
+    const now = Date.now();
 
-    // First 10 rounds: Always expand towards full screen
     if (stats.round <= 10) {
-      const expandFactor = 1.15 + Math.random() * 0.1; // 1.15-1.25x growth per round
-      let newWidth = zone.width * expandFactor;
-      let newHeight = zone.height * expandFactor;
-
-      // Cap at full canvas size for first rounds
-      newWidth = Math.min(newWidth, CANVAS_WIDTH);
-      newHeight = Math.min(newHeight, CANVAS_HEIGHT);
-
-      zone.targetWidth = newWidth;
-      zone.targetHeight = newHeight;
-      zone.targetX = (CANVAS_WIDTH - newWidth) / 2;
-      zone.targetY = (CANVAS_HEIGHT - newHeight) / 2;
-
+      // First 10 rounds: Expand zone
+      zoneSystemRef.current.expandZone(zone, stats.round);
       floatingTextsRef.current.push({
         position: { x: CANVAS_WIDTH / 2, y: 100 },
         text: `✨ ZONE EXPANDING! (Round ${stats.round}/10) ✨`,
         color: "#00ff88",
         size: 32,
         lifetime: 3000,
-        createdAt: Date.now(),
+        createdAt: now,
         velocity: { x: 0, y: 0 },
       });
     } else {
-      // After round 10: Each side of the red zone changes independently!
-      // This creates dynamic, asymmetric danger zones that shift every round
+      // Round 11+: Dynamic zone changes
+      const oldArea = zone.width * zone.height;
+      zoneSystemRef.current.triggerDynamicZoneChange(zone);
+      const newArea = zone.targetWidth * zone.targetHeight;
+      const areaChange = newArea - oldArea;
 
-      // Each side can move in (expand red zone) or out (shrink red zone) by 30-100px
-      const minChange = 30;
-      const maxChange = 100;
-
-      // Calculate new boundaries - each side independent
-      let newX = zone.x;
-      let newY = zone.y;
-      let newWidth = zone.width;
-      let newHeight = zone.height;
-
-      // Top side: 50% chance to change
-      if (Math.random() < 0.5) {
-        const topChange =
-          (Math.random() < 0.5 ? 1 : -1) *
-          (minChange + Math.random() * (maxChange - minChange));
-        newY = Math.max(0, Math.min(CANVAS_HEIGHT - 300, newY + topChange)); // Keep min 300px height
-        newHeight = newHeight - topChange;
-      }
-
-      // Bottom side: 50% chance to change
-      if (Math.random() < 0.5) {
-        const bottomChange =
-          (Math.random() < 0.5 ? 1 : -1) *
-          (minChange + Math.random() * (maxChange - minChange));
-        newHeight = Math.max(
-          300,
-          Math.min(CANVAS_HEIGHT - newY, newHeight + bottomChange)
-        );
-      }
-
-      // Left side: 50% chance to change
-      if (Math.random() < 0.5) {
-        const leftChange =
-          (Math.random() < 0.5 ? 1 : -1) *
-          (minChange + Math.random() * (maxChange - minChange));
-        newX = Math.max(0, Math.min(CANVAS_WIDTH - 300, newX + leftChange)); // Keep min 300px width
-        newWidth = newWidth - leftChange;
-      }
-
-      // Right side: 50% chance to change
-      if (Math.random() < 0.5) {
-        const rightChange =
-          (Math.random() < 0.5 ? 1 : -1) *
-          (minChange + Math.random() * (maxChange - minChange));
-        newWidth = Math.max(
-          300,
-          Math.min(CANVAS_WIDTH - newX, newWidth + rightChange)
-        );
-      }
-
-      zone.targetX = newX;
-      zone.targetY = newY;
-      zone.targetWidth = newWidth;
-      zone.targetHeight = newHeight;
-
-      // Dynamic message based on zone size change
-      const areaChange = newWidth * newHeight - zone.width * zone.height;
-      let message = "";
-      let color = "#ffffff";
-
+      // Show message if significant change
       if (Math.abs(areaChange) > 5000) {
-        if (areaChange > 0) {
-          message = "✨ RED ZONES SHRINKING! ✨";
-          color = "#00ff88";
-        } else {
-          message = "⚠️ RED ZONES CLOSING IN! ⚠️";
-          color = "#ff4444";
-        }
+        const message =
+          areaChange > 0
+            ? "✨ RED ZONES SHRINKING! ✨"
+            : "⚠️ RED ZONES CLOSING IN! ⚠️";
+        const color = areaChange > 0 ? "#00ff88" : "#ff4444";
 
         floatingTextsRef.current.push({
           position: { x: CANVAS_WIDTH / 2, y: 100 },
@@ -1258,14 +1082,11 @@ function App() {
           color: color,
           size: 28,
           lifetime: 2000,
-          createdAt: Date.now(),
+          createdAt: now,
           velocity: { x: 0, y: 0 },
         });
       }
     }
-
-    zone.isTransitioning = true;
-    zone.transitionProgress = 0;
   };
 
   const pointToLineDistance = (
@@ -2131,6 +1952,17 @@ function App() {
     ctx.textAlign = "left";
   };
 
+  // Initialize GameRenderer
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    rendererRef.current = new GameRenderer(ctx, CANVAS_WIDTH, CANVAS_HEIGHT);
+  }, []);
+
   // Game loop
   useEffect(() => {
     // Allow game loop during PLAYING or SHOP (for player movement in shop)
@@ -2158,7 +1990,24 @@ function App() {
       lastTimeRef.current = now;
 
       updateGame(deltaTime, now);
-      renderGame(ctx, now);
+
+      // Render using GameRenderer
+      if (rendererRef.current) {
+        rendererRef.current.render(
+          playerRef.current,
+          enemiesRef.current,
+          bulletsRef.current,
+          enemyProjectilesRef.current,
+          powerUpsRef.current,
+          particlesRef.current,
+          floatingTextsRef.current,
+          lasersRef.current,
+          statsRef.current,
+          playZoneRef.current,
+          shakeRef.current.intensity,
+          now
+        );
+      }
 
       animationFrameRef.current = requestAnimationFrame(gameLoop);
     };

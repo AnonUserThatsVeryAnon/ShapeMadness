@@ -17,13 +17,14 @@ import { screenShake } from "../utils/helpers";
  */
 export class CombatSystem {
   /**
-   * Handle player shooting at nearest enemy
+   * Handle player shooting at nearest enemy with multi-shot support
    */
   shootAtNearestEnemy(
     player: Player,
     enemies: Enemy[],
     now: number,
-    createBullet: (bullet: Bullet) => void
+    createBullet: (bullet: Bullet) => void,
+    getUpgradeLevel: (upgradeId: string) => number
   ) {
     // Check fire rate
     if (now - player.lastShot < this.getEffectiveFireRate(player)) {
@@ -47,20 +48,26 @@ export class CombatSystem {
 
     if (!nearestEnemy) return;
 
-    // Create bullet
-    const angle = Math.atan2(
-      nearestEnemy.position.y - player.position.y,
-      nearestEnemy.position.x - player.position.x
-    );
+    // Calculate direction to target
+    const direction = {
+      x: nearestEnemy.position.x - player.position.x,
+      y: nearestEnemy.position.y - player.position.y,
+    };
+    const length = Math.sqrt(direction.x ** 2 + direction.y ** 2);
+    direction.x /= length;
+    direction.y /= length;
 
-    const bulletSpeed = 8;
+    const bulletSpeed = 10;
     const effectiveDamage = this.getEffectiveDamage(player);
+    const multiShotLevel = getUpgradeLevel("multi_shot");
+    const spreadAngle = 0.3;
 
-    const bullet: Bullet = {
+    // Main bullet
+    const mainBullet: Bullet = {
       position: { ...player.position },
       velocity: {
-        x: Math.cos(angle) * bulletSpeed,
-        y: Math.sin(angle) * bulletSpeed,
+        x: direction.x * bulletSpeed,
+        y: direction.y * bulletSpeed,
       },
       radius: 5,
       damage: effectiveDamage,
@@ -69,14 +76,85 @@ export class CombatSystem {
       createdAt: now,
       active: true,
     };
+    createBullet(mainBullet);
 
-    createBullet(bullet);
+    // Multi-shot bullets
+    if (multiShotLevel >= 1) {
+      // Level 1: Right bullet
+      const rightAngle = Math.atan2(direction.y, direction.x) + spreadAngle;
+      createBullet({
+        position: { ...player.position },
+        velocity: {
+          x: Math.cos(rightAngle) * bulletSpeed,
+          y: Math.sin(rightAngle) * bulletSpeed,
+        },
+        radius: 3.5,
+        damage: effectiveDamage * 0.5,
+        target: nearestEnemy,
+        lifetime: 3000,
+        createdAt: now,
+        active: true,
+      });
+    }
+
+    if (multiShotLevel >= 2) {
+      // Level 2: Left bullet
+      const leftAngle = Math.atan2(direction.y, direction.x) - spreadAngle;
+      createBullet({
+        position: { ...player.position },
+        velocity: {
+          x: Math.cos(leftAngle) * bulletSpeed,
+          y: Math.sin(leftAngle) * bulletSpeed,
+        },
+        radius: 3.5,
+        damage: effectiveDamage * 0.5,
+        target: nearestEnemy,
+        lifetime: 3000,
+        createdAt: now,
+        active: true,
+      });
+    }
+
+    if (multiShotLevel >= 3) {
+      // Level 3: Two more bullets at wider angles
+      const wideRightAngle = Math.atan2(direction.y, direction.x) + spreadAngle * 2;
+      const wideLeftAngle = Math.atan2(direction.y, direction.x) - spreadAngle * 2;
+
+      createBullet({
+        position: { ...player.position },
+        velocity: {
+          x: Math.cos(wideRightAngle) * bulletSpeed,
+          y: Math.sin(wideRightAngle) * bulletSpeed,
+        },
+        radius: 3,
+        damage: effectiveDamage * 0.3,
+        target: nearestEnemy,
+        lifetime: 3000,
+        createdAt: now,
+        active: true,
+      });
+
+      createBullet({
+        position: { ...player.position },
+        velocity: {
+          x: Math.cos(wideLeftAngle) * bulletSpeed,
+          y: Math.sin(wideLeftAngle) * bulletSpeed,
+        },
+        radius: 3,
+        damage: effectiveDamage * 0.3,
+        target: nearestEnemy,
+        lifetime: 3000,
+        createdAt: now,
+        active: true,
+      });
+    }
+
     player.lastShot = now;
     audioSystem.playShoot();
   }
 
   /**
-   * Get effective fire rate considering power-ups and upgrades
+   * Get effective fire rate considering power-ups, upgrades, and debuffs
    */
   private getEffectiveFireRate(player: Player): number {
     let fireRate = player.fireRate;
@@ -87,6 +165,11 @@ export class CombatSystem {
     );
     if (hasFireRatePowerUp) {
       fireRate *= 0.5; // 2x faster
+    }
+
+    // Slow debuff (doubles fire rate delay)
+    if (player.slowedUntil && Date.now() < player.slowedUntil) {
+      fireRate *= 2;
     }
 
     return Math.max(fireRate, 50); // Cap at 50ms
@@ -155,10 +238,16 @@ export class CombatSystem {
     particles: Particle[],
     floatingTexts: FloatingText[],
     now: number,
-    onEnemyKilled: (enemy: Enemy) => void
+    onEnemyKilled: (enemy: Enemy) => void,
+    getUpgradeLevel: (upgradeId: string) => number
   ) {
+    const piercing = getUpgradeLevel("pierce") > 0;
+    const explosiveLevel = getUpgradeLevel("explosive");
+
     bullets.forEach((bullet) => {
       if (!bullet.active) return;
+
+      let hit = false;
 
       enemies.forEach((enemy) => {
         if (!enemy.active) return;
@@ -170,7 +259,7 @@ export class CombatSystem {
 
           // Hit effects
           particles.push(
-            ...createParticles(bullet.position, 5, enemy.color, 3)
+            ...createParticles(bullet.position, 8, "#ffeb3b", 3, 500)
           );
           floatingTexts.push({
             position: { ...enemy.position },
@@ -182,16 +271,57 @@ export class CombatSystem {
             velocity: { x: 0, y: -2 },
           });
 
-          bullet.active = false;
+          // Explosive damage
+          if (explosiveLevel > 0) {
+            const explosionRadius = 50 + explosiveLevel * 20;
+            enemies.forEach((e) => {
+              if (!e.active || e === enemy) return;
+              if (distance(bullet.position, e.position) < explosionRadius) {
+                const splashDamage = Math.min(bullet.damage * 0.5, e.health);
+                e.health -= bullet.damage * 0.5;
+
+                floatingTexts.push({
+                  position: { ...e.position },
+                  text: `-${Math.ceil(splashDamage)}`,
+                  color: "#ff6b00",
+                  size: 14,
+                  lifetime: 800,
+                  createdAt: now,
+                  velocity: { x: 0, y: -2 },
+                });
+
+                if (e.health <= 0) {
+                  e.active = false;
+                  onEnemyKilled(e);
+                }
+              }
+            });
+            particles.push(
+              ...createParticles(bullet.position, 20, "#ff6b00", 5, 800)
+            );
+          }
+
           audioSystem.playHit();
+          hit = true;
 
           // Check if enemy died
           if (enemy.health <= 0) {
             enemy.active = false;
             onEnemyKilled(enemy);
           }
+
+          // Deactivate bullet if not piercing
+          if (!piercing) {
+            bullet.active = false;
+          }
         }
       });
+
+      // If hit and not piercing, mark inactive (handled above already)
+      // This is for the filter later
+      if (hit && !piercing) {
+        bullet.active = false;
+      }
     });
   }
 
