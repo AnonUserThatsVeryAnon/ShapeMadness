@@ -4,6 +4,8 @@ import type { BossConfig, BossPhase, GameContext } from './BossConfig';
 import { getCurrentPhase, shouldExecuteAbility, markAbilityExecuted } from './BossConfig';
 import { OVERSEER_CONFIG } from './OverseerConfig';
 import { distance } from '../../utils/helpers';
+import { audioSystem } from '../../utils/audio';
+import { createBossSpawnParticles, createPhaseTransitionParticles } from '../../utils/particles';
 
 // Registry of all boss configurations
 const BOSS_REGISTRY = new Map<string, BossConfig>([
@@ -34,7 +36,7 @@ export function isBoss(enemyType: string): boolean {
 /**
  * Initialize boss with its configuration
  */
-export function initializeBoss(boss: Enemy): void {
+export function initializeBoss(boss: Enemy, context?: GameContext): void {
   const config = getBossConfig(boss.type);
   if (!config) return;
   
@@ -43,6 +45,14 @@ export function initializeBoss(boss: Enemy): void {
   boss.lastPhaseChange = Date.now();
   boss.abilityTimers = {};
   boss.bossConfig = config;
+  
+  // Play boss spawn sound and effects
+  audioSystem.playBossSpawn();
+  audioSystem.startBossMusic();
+  
+  if (context) {
+    context.addParticles(createBossSpawnParticles(boss.position));
+  }
 }
 
 /**
@@ -59,7 +69,7 @@ export function updateBossAbilities(
   if (!config) return;
   
   // Check for phase transition
-  checkPhaseTransition(boss, config, context, currentTime);
+  checkPhaseTransition(boss, config, context);
   
   // Get current phase and execute abilities
   const currentPhase = getCurrentPhase(boss, config);
@@ -79,8 +89,7 @@ export function updateBossAbilities(
 function checkPhaseTransition(
   boss: Enemy,
   config: BossConfig,
-  context: GameContext,
-  currentTime: number
+  context: GameContext
 ): void {
   const healthPercent = (boss.health / boss.maxHealth) * 100;
   const currentPhase = getCurrentPhase(boss, config);
@@ -102,7 +111,7 @@ function checkPhaseTransition(
   
   // Phase transition needed?
   if (targetPhaseIndex !== currentPhaseIndex) {
-    transitionToPhase(boss, config.phases[targetPhaseIndex], context, currentTime);
+    transitionToPhase(boss, config.phases[targetPhaseIndex], context, Date.now());
   }
 }
 
@@ -125,6 +134,10 @@ function transitionToPhase(
   if (newPhase.speedMultiplier) {
     boss.speed *= newPhase.speedMultiplier;
   }
+  
+  // Play phase transition sound and effects
+  audioSystem.playBossPhaseChange();
+  context.addParticles(createPhaseTransitionParticles(boss.position, newPhase.color));
   
   // Execute onEnter callback
   if (newPhase.onEnter) {

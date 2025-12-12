@@ -308,28 +308,21 @@ export class GameRenderer {
   private drawEnemyEffects(enemy: Enemy, now: number) {
     const ctx = this.ctx;
 
+    // Turret Sniper shield effect
+    if (enemy.type === EnemyType.TURRET_SNIPER) {
+      this.drawTurretSniperEffects(enemy, now);
+    }
+
     // Boss aura and effects
     if (enemy.isBoss && enemy.type === EnemyType.OVERSEER) {
-      const pulse = Math.sin(now / 200) * 0.3 + 0.7;
+      this.drawBossEffects(enemy, now);
       
-      // Outer aura
-      ctx.shadowBlur = 30 * pulse;
-      ctx.shadowColor = enemy.color;
-      ctx.fillStyle = `${enemy.color}22`;
-      ctx.beginPath();
-      ctx.arc(
-        enemy.position.x,
-        enemy.position.y,
-        enemy.radius * 1.5 * pulse,
-        0,
-        Math.PI * 2
-      );
-      ctx.fill();
-      
-      // Phase 3 intense glow
-      if (enemy.bossPhase === 3) {
-        ctx.shadowBlur = 50 * pulse;
-        ctx.shadowColor = '#ff1a1a';
+      // Draw shockwave visual (Phase 3)
+      if (enemy.bossPhase === 3 && enemy.frozenUntil) {
+        const timeSinceShockwave = now - enemy.frozenUntil;
+        if (timeSinceShockwave < 500) {
+          this.drawShockwaveRing(enemy, timeSinceShockwave);
+        }
       }
     }
 
@@ -528,6 +521,277 @@ export class GameRenderer {
     this.ctx.globalAlpha = 1;
   }
 
+  private drawBossEffects(enemy: Enemy, now: number) {
+    const ctx = this.ctx;
+    const pulse = Math.sin(now / 200) * 0.3 + 0.7;
+    const fastPulse = Math.sin(now / 100) * 0.5 + 0.5;
+    
+    // Multi-layered aura effect
+    const layers = 3;
+    for (let i = 0; i < layers; i++) {
+      const layerPulse = Math.sin(now / (300 + i * 100)) * 0.2 + 0.8;
+      const gradient = ctx.createRadialGradient(
+        enemy.position.x,
+        enemy.position.y,
+        enemy.radius,
+        enemy.position.x,
+        enemy.position.y,
+        enemy.radius * (2 + i * 0.5) * layerPulse
+      );
+      
+      gradient.addColorStop(0, `${enemy.color}00`);
+      gradient.addColorStop(0.5, `${enemy.color}${Math.floor(40 - i * 10).toString(16).padStart(2, '0')}`);
+      gradient.addColorStop(1, `${enemy.color}00`);
+      
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(
+        enemy.position.x,
+        enemy.position.y,
+        enemy.radius * (2 + i * 0.5) * layerPulse,
+        0,
+        Math.PI * 2
+      );
+      ctx.fill();
+    }
+    
+    // Energy rings
+    ctx.strokeStyle = `${enemy.color}80`;
+    ctx.lineWidth = 3;
+    for (let i = 0; i < 2; i++) {
+      const ringSize = enemy.radius * (1.3 + i * 0.3) * pulse;
+      const rotation = (now / 1000 + i * Math.PI) % (Math.PI * 2);
+      
+      ctx.beginPath();
+      ctx.arc(
+        enemy.position.x,
+        enemy.position.y,
+        ringSize,
+        rotation,
+        rotation + Math.PI * 1.5
+      );
+      ctx.stroke();
+    }
+    
+    // Phase-specific effects
+    if (enemy.bossPhase === 1) {
+      // Phase 1: Purple mystical aura
+      ctx.shadowBlur = 30 * pulse;
+      ctx.shadowColor = '#5a1d7a';
+      
+      // Floating runes effect
+      for (let i = 0; i < 6; i++) {
+        const angle = (now / 2000 + i * Math.PI / 3) % (Math.PI * 2);
+        const radius = enemy.radius * 2;
+        const x = enemy.position.x + Math.cos(angle) * radius;
+        const y = enemy.position.y + Math.sin(angle) * radius;
+        
+        ctx.fillStyle = `rgba(90, 29, 122, ${0.5 * fastPulse})`;
+        ctx.beginPath();
+        ctx.arc(x, y, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else if (enemy.bossPhase === 2) {
+      // Phase 2: Orange energy crackling
+      ctx.shadowBlur = 40 * pulse;
+      ctx.shadowColor = '#ff6b1a';
+      
+      // Energy sparks
+      for (let i = 0; i < 8; i++) {
+        const angle = (now / 1500 + i * Math.PI / 4) % (Math.PI * 2);
+        const radius = enemy.radius * (1.5 + Math.sin(now / 200 + i) * 0.3);
+        const x = enemy.position.x + Math.cos(angle) * radius;
+        const y = enemy.position.y + Math.sin(angle) * radius;
+        
+        ctx.fillStyle = `rgba(255, 107, 26, ${0.7 * pulse})`;
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else if (enemy.bossPhase === 3) {
+      // Phase 3: Red rage aura with screen distortion effect
+      ctx.shadowBlur = 60 * pulse;
+      ctx.shadowColor = '#ff1a1a';
+      
+      // Intense pulsing rings
+      for (let i = 0; i < 3; i++) {
+        const ringPulse = Math.sin(now / 100 + i * Math.PI / 1.5) * 0.5 + 0.5;
+        ctx.strokeStyle = `rgba(255, 26, 26, ${0.4 * ringPulse})`;
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.arc(
+          enemy.position.x,
+          enemy.position.y,
+          enemy.radius * (2 + i * 0.7) * ringPulse,
+          0,
+          Math.PI * 2
+        );
+        ctx.stroke();
+      }
+      
+      // Flame-like particles
+      for (let i = 0; i < 12; i++) {
+        const angle = (now / 800 - i * Math.PI / 6) % (Math.PI * 2);
+        const radius = enemy.radius * (1.2 + Math.sin(now / 150 + i) * 0.5);
+        const x = enemy.position.x + Math.cos(angle) * radius;
+        const y = enemy.position.y + Math.sin(angle) * radius;
+        
+        ctx.fillStyle = `rgba(255, ${Math.floor(26 + Math.random() * 100)}, 26, ${0.8 * fastPulse})`;
+        ctx.beginPath();
+        ctx.arc(x, y, 3 + Math.random() * 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    
+    ctx.shadowBlur = 0;
+  }
+
+  private drawShockwaveRing(enemy: Enemy, age: number) {
+    const ctx = this.ctx;
+    const progress = age / 500;
+    const radius = 50 + progress * 250;
+    const alpha = 1 - progress;
+    
+    // Outer ring
+    ctx.strokeStyle = `rgba(255, 26, 26, ${alpha * 0.6})`;
+    ctx.lineWidth = 12 * (1 - progress);
+    ctx.beginPath();
+    ctx.arc(enemy.position.x, enemy.position.y, radius, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    // Inner ring
+    ctx.strokeStyle = `rgba(255, 100, 100, ${alpha * 0.8})`;
+    ctx.lineWidth = 6 * (1 - progress);
+    ctx.beginPath();
+    ctx.arc(enemy.position.x, enemy.position.y, radius - 10, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    // Core ring
+    ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+    ctx.lineWidth = 3 * (1 - progress);
+    ctx.beginPath();
+    ctx.arc(enemy.position.x, enemy.position.y, radius - 15, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  private drawTurretSniperEffects(enemy: Enemy, now: number) {
+    const ctx = this.ctx;
+    
+    // Destruction animation phase (turret breaking apart)
+    if (enemy.destructionAnimationStart) {
+      const animationDuration = 1000;
+      const animationProgress = (now - enemy.destructionAnimationStart) / animationDuration;
+      const shake = Math.sin(now / 20) * (10 * animationProgress);
+      const flash = Math.sin(now / 50) * 0.5 + 0.5;
+      
+      // Turret shaking and flashing
+      ctx.save();
+      ctx.translate(shake, shake * 0.7);
+      
+      // Flash red/orange
+      const flashColor = flash > 0.5 ? '#ff5722' : '#ff9800';
+      ctx.shadowBlur = 20 * animationProgress;
+      ctx.shadowColor = flashColor;
+      
+      // Critical warning text
+      ctx.fillStyle = flashColor;
+      ctx.font = 'bold 14px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('CRITICAL!', enemy.position.x, enemy.position.y - enemy.radius - 50);
+      
+      // Expanding danger circle
+      ctx.strokeStyle = `rgba(255, 87, 34, ${0.8 - animationProgress * 0.6})`;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(enemy.position.x, enemy.position.y, 80 + animationProgress * 30, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      ctx.shadowBlur = 0;
+      ctx.restore();
+      return; // Skip other effects during animation
+    }
+    
+    // Proximity warning and destruction progress
+    if (enemy.isBeingDestroyed && enemy.destructionProgress !== undefined) {
+      const progress = enemy.destructionProgress;
+      
+      // Pulsing danger ring
+      const dangerPulse = Math.sin(now / 100) * 0.4 + 0.6;
+      ctx.strokeStyle = `rgba(255, 87, 34, ${0.8 * dangerPulse})`;
+      ctx.lineWidth = 3;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      ctx.arc(enemy.position.x, enemy.position.y, 80, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      
+      // Circular progress bar
+      const progressBarRadius = enemy.radius + 25;
+      const progressAngle = progress * Math.PI * 2;
+      
+      // Background circle
+      ctx.strokeStyle = 'rgba(255, 152, 0, 0.3)';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(enemy.position.x, enemy.position.y, progressBarRadius, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // Progress arc
+      ctx.strokeStyle = progress > 0.7 ? '#ff5722' : '#ff9800';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(
+        enemy.position.x,
+        enemy.position.y,
+        progressBarRadius,
+        -Math.PI / 2,
+        -Math.PI / 2 + progressAngle
+      );
+      ctx.stroke();
+      
+      // Warning text
+      ctx.fillStyle = progress > 0.7 ? '#ff5722' : '#ff9800';
+      ctx.font = 'bold 11px monospace';
+      ctx.textAlign = 'center';
+      const percentage = Math.floor(progress * 100);
+      ctx.fillText(`DESTROYING ${percentage}%`, enemy.position.x, enemy.position.y - enemy.radius - 40);
+      
+      // Instruction text
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+      ctx.font = '9px monospace';
+      ctx.fillText('STAY CLOSE!', enemy.position.x, enemy.position.y - enemy.radius - 55);
+    } else {
+      // Show proximity hint when player could start destroying
+      ctx.fillStyle = 'rgba(255, 152, 0, 0.7)';
+      ctx.font = 'bold 10px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('GET CLOSE', enemy.position.x, enemy.position.y - enemy.radius - 25);
+      
+      // Draw proximity indicator circle
+      ctx.strokeStyle = 'rgba(255, 152, 0, 0.3)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.arc(enemy.position.x, enemy.position.y, 80, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    
+    // Turret base - draw ground shadow/base
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+    ctx.beginPath();
+    ctx.ellipse(
+      enemy.position.x,
+      enemy.position.y + enemy.radius + 5,
+      enemy.radius * 1.3,
+      enemy.radius * 0.5,
+      0,
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
+  }
+
   private drawEnemyBase(enemy: Enemy) {
     this.ctx.fillStyle = enemy.color;
     this.ctx.beginPath();
@@ -647,43 +911,74 @@ export class GameRenderer {
   private drawLasers(lasers: LaserBeam[], now: number) {
     lasers.forEach((laser) => {
       const age = now - laser.createdAt;
+      const pulse = Math.sin(now / 50) * 0.3 + 0.7;
 
       if (laser.isWarning) {
-        // Warning phase - blinking red line
+        // Warning phase - blinking red line with energy buildup
         const alpha = Math.sin(age / 100) * 0.15 + 0.25;
+        
+        // Outer warning glow
+        this.ctx.strokeStyle = `rgba(255, 150, 0, ${alpha * 0.5})`;
+        this.ctx.lineWidth = laser.width + 6;
+        this.ctx.setLineDash([20, 10]);
+        this.ctx.beginPath();
+        this.ctx.moveTo(laser.startX, laser.startY);
+        this.ctx.lineTo(laser.endX, laser.endY);
+        this.ctx.stroke();
+        
+        // Main warning line
         this.ctx.strokeStyle = `rgba(255, 0, 0, ${alpha})`;
         this.ctx.lineWidth = laser.width;
-        this.ctx.setLineDash([20, 10]);
         this.ctx.beginPath();
         this.ctx.moveTo(laser.startX, laser.startY);
         this.ctx.lineTo(laser.endX, laser.endY);
         this.ctx.stroke();
         this.ctx.setLineDash([]);
       } else {
-        // Active phase - bright laser
-        // Outer glow
-        this.ctx.strokeStyle = "rgba(255, 100, 100, 0.3)";
-        this.ctx.lineWidth = laser.width + 10;
+        // Active phase - intense laser with multiple layers
+        // Outermost glow
+        this.ctx.shadowBlur = 30;
+        this.ctx.shadowColor = '#ff6b1a';
+        this.ctx.strokeStyle = "rgba(255, 100, 26, 0.2)";
+        this.ctx.lineWidth = laser.width + 20;
+        this.ctx.beginPath();
+        this.ctx.moveTo(laser.startX, laser.startY);
+        this.ctx.lineTo(laser.endX, laser.endY);
+        this.ctx.stroke();
+
+        // Mid glow
+        this.ctx.strokeStyle = `rgba(255, 107, 26, ${0.4 * pulse})`;
+        this.ctx.lineWidth = laser.width + 12;
         this.ctx.beginPath();
         this.ctx.moveTo(laser.startX, laser.startY);
         this.ctx.lineTo(laser.endX, laser.endY);
         this.ctx.stroke();
 
         // Inner beam
-        this.ctx.strokeStyle = "#ff3333";
+        this.ctx.strokeStyle = "#ff6b1a";
         this.ctx.lineWidth = laser.width;
         this.ctx.beginPath();
         this.ctx.moveTo(laser.startX, laser.startY);
         this.ctx.lineTo(laser.endX, laser.endY);
         this.ctx.stroke();
 
-        // Core
-        this.ctx.strokeStyle = "#ffffff";
-        this.ctx.lineWidth = laser.width / 3;
+        // Bright core
+        this.ctx.strokeStyle = "#ffaa44";
+        this.ctx.lineWidth = laser.width / 2;
         this.ctx.beginPath();
         this.ctx.moveTo(laser.startX, laser.startY);
         this.ctx.lineTo(laser.endX, laser.endY);
         this.ctx.stroke();
+        
+        // Ultra-bright center line
+        this.ctx.strokeStyle = `rgba(255, 255, 255, ${pulse})`;
+        this.ctx.lineWidth = laser.width / 4;
+        this.ctx.beginPath();
+        this.ctx.moveTo(laser.startX, laser.startY);
+        this.ctx.lineTo(laser.endX, laser.endY);
+        this.ctx.stroke();
+        
+        this.ctx.shadowBlur = 0;
       }
     });
   }

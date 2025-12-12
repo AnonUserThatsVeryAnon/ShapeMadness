@@ -1,7 +1,8 @@
 // Boss Configuration System - Data-driven boss behaviors
 import type { Enemy, Vector2, EnemyType, LaserBeam, Particle } from '../../types/game';
 import { createEnemy } from '../../utils/enemies';
-import { createParticles } from '../../utils/particles';
+import { createParticles, createShockwaveParticles, createLaserSparkParticles } from '../../utils/particles';
+import { audioSystem } from '../../utils/audio';
 
 export interface SpawnInstruction {
   type: EnemyType;
@@ -17,6 +18,7 @@ export interface GameContext {
   damagePlayer: (damage: number, time: number) => void;
   addLasers?: (lasers: LaserBeam[]) => void;
   clearLasers?: () => void;
+  triggerScreenShake?: (intensity: number) => void;
 }
 
 export type AbilityExecutor = (
@@ -79,6 +81,9 @@ export function createSpawnAbility(
       
       context.addEnemies(enemies);
       context.addParticles(createParticles(boss.position, 25, color, 8));
+      
+      // Play spawn sound
+      audioSystem.playBossSpawnMinions();
     },
   };
 }
@@ -111,6 +116,9 @@ export function createSpecificSpawnAbility(
       
       context.addEnemies(enemies);
       context.addParticles(createParticles(boss.position, 25, color, 8));
+      
+      // Play spawn sound
+      audioSystem.playBossSpawnMinions();
     },
   };
 }
@@ -151,6 +159,23 @@ export function createRotatingLaserAbility(
       if (context.addLasers) {
         context.addLasers(lasers);
       }
+      
+      // Play laser sound occasionally (not every frame)
+      if (Math.random() < 0.05) {
+        audioSystem.playBossLaser();
+      }
+      
+      // Add laser spark particles
+      if (Math.random() < 0.1) {
+        for (let i = 0; i < laserCount; i++) {
+          const laserAngle = currentRotation + (i * Math.PI * 2) / laserCount;
+          const sparkPos = {
+            x: boss.position.x + Math.cos(laserAngle) * (laserLength * 0.5),
+            y: boss.position.y + Math.sin(laserAngle) * (laserLength * 0.5),
+          };
+          context.addParticles(createLaserSparkParticles(sparkPos, laserAngle));
+        }
+      }
     },
   };
 }
@@ -165,7 +190,15 @@ export function createShockwaveAbility(
     cooldown,
     execute: (boss, context) => {
       // Distance check happens in collision system
-      context.addParticles(createParticles(boss.position, 30, color, 8));
+      context.addParticles(createShockwaveParticles(boss.position, color));
+      
+      // Play shockwave sound
+      audioSystem.playBossShockwave();
+      
+      // Trigger screen shake
+      if (context.triggerScreenShake) {
+        context.triggerScreenShake(15);
+      }
     },
   };
 }

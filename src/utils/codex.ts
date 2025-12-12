@@ -232,6 +232,38 @@ export const ENEMY_CARDS: Record<EnemyType, EnemyCard> = {
     implemented: false,
   },
 
+  [EnemyType.TURRET_SNIPER]: {
+    type: EnemyType.TURRET_SNIPER,
+    name: 'Turret Sniper',
+    description: 'A stationary turret built like a fortified bunker. It deploys an impenetrable hexagonal shield when you\'re far away, forcing you to approach for close-range combat.',
+    abilities: [
+      'STATIONARY - Cannot move',
+      'Shield Range: 250 units',
+      'Shield BLOCKS all bullets',
+      'Fires powerful shots when vulnerable',
+      'Shoots every 2 seconds',
+      '40 damage per shot',
+    ],
+    stats: {
+      health: ENEMY_CONFIGS[EnemyType.TURRET_SNIPER].health,
+      speed: ENEMY_CONFIGS[EnemyType.TURRET_SNIPER].speed,
+      damage: ENEMY_CONFIGS[EnemyType.TURRET_SNIPER].damage,
+      value: ENEMY_CONFIGS[EnemyType.TURRET_SNIPER].value,
+    },
+    unlockRound: 12,
+    discovered: false,
+    color: ENEMY_CONFIGS[EnemyType.TURRET_SNIPER].color,
+    icon: '🏰',
+    tips: [
+      'MUST approach to damage it',
+      'Watch for "VULNERABLE" text',
+      'Dodge its powerful shots up close',
+      'Shield activates instantly at range',
+      'Circle-strafe while attacking',
+    ],
+    implemented: true,
+  },
+
   [EnemyType.ICE]: {
     type: EnemyType.ICE,
     name: 'Ice Cell',

@@ -55,6 +55,13 @@ export interface Enemy extends Entity {
   sniperTarget?: { x: number; y: number };
   lastHealTime?: number;
   slowFieldRadius?: number; // For Timebomb - randomized per enemy
+  // Turret Sniper properties
+  lastShot?: number; // Last time turret fired
+  shootCooldown?: number; // Time between shots
+  destructionProgress?: number; // Progress towards destruction (0-1)
+  destructionStartTime?: number; // When player started being close
+  isBeingDestroyed?: boolean; // Player is currently in range
+  destructionAnimationStart?: number; // When destruction animation started
   // Boss properties
   isBoss?: boolean;
   bossPhase?: number; // Current phase (1, 2, or 3)
@@ -154,6 +161,7 @@ export const EnemyType = {
   PROTECTOR: 'PROTECTOR',
   MAGICIAN: 'MAGICIAN',
   SNIPER: 'SNIPER',
+  TURRET_SNIPER: 'TURRET_SNIPER',
   ICE: 'ICE',
   BOMB: 'BOMB',
   BUFFER: 'BUFFER',

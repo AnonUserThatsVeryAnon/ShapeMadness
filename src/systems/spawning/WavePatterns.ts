@@ -51,23 +51,30 @@ export const WAVE_PATTERNS = {
     description: 'Shooters added for ranged pressure',
   },
 
+  TURRET_DEFENSE: {
+    types: [EnemyType.BASIC, EnemyType.FAST, EnemyType.SPLITTER, EnemyType.TANK, EnemyType.SHOOTER, EnemyType.TURRET_SNIPER],
+    weights: [10, 15, 12, 18, 14, 6],
+    countFormula: (round: number) => 5 + round * 2,
+    description: 'Stationary turrets force close combat',
+  },
+
   SUPPORT_ENHANCED: {
-    types: [EnemyType.BASIC, EnemyType.FAST, EnemyType.SPLITTER, EnemyType.TANK, EnemyType.SHOOTER, EnemyType.BUFFER],
-    weights: [10, 15, 12, 18, 14, 8],
+    types: [EnemyType.BASIC, EnemyType.FAST, EnemyType.SPLITTER, EnemyType.TANK, EnemyType.SHOOTER, EnemyType.TURRET_SNIPER, EnemyType.BUFFER],
+    weights: [10, 15, 12, 18, 14, 6, 8],
     countFormula: (round: number) => 5 + round * 2,
     description: 'Buffers make other enemies stronger',
   },
 
   CHAIN_COORDINATION: {
-    types: [EnemyType.BASIC, EnemyType.FAST, EnemyType.SPLITTER, EnemyType.TANK, EnemyType.SHOOTER, EnemyType.BUFFER, EnemyType.CHAIN_PARTNER],
-    weights: [10, 15, 12, 18, 14, 8, 8],
+    types: [EnemyType.BASIC, EnemyType.FAST, EnemyType.SPLITTER, EnemyType.TANK, EnemyType.SHOOTER, EnemyType.TURRET_SNIPER, EnemyType.BUFFER, EnemyType.CHAIN_PARTNER],
+    weights: [10, 15, 12, 18, 14, 6, 8, 8],
     countFormula: (round: number) => 5 + round * 2,
     description: 'Chain Partners coordinate attacks',
   },
 
   TEMPORAL_NIGHTMARE: {
-    types: [EnemyType.BASIC, EnemyType.FAST, EnemyType.SPLITTER, EnemyType.TANK, EnemyType.SHOOTER, EnemyType.BUFFER, EnemyType.CHAIN_PARTNER, EnemyType.TIME_DISTORTION],
-    weights: [10, 15, 12, 18, 14, 8, 8, 8],
+    types: [EnemyType.BASIC, EnemyType.FAST, EnemyType.SPLITTER, EnemyType.TANK, EnemyType.SHOOTER, EnemyType.TURRET_SNIPER, EnemyType.BUFFER, EnemyType.CHAIN_PARTNER, EnemyType.TIME_DISTORTION],
+    weights: [10, 15, 12, 18, 14, 6, 8, 8, 8],
     countFormula: (round: number) => 5 + round * 2,
     description: 'Time Distortion enemies slow the arena',
   },
@@ -80,6 +87,7 @@ export const DIFFICULTY_CURVE: DifficultyProgression[] = [
   { unlockRound: 3, patternKey: 'SPLITTER_CHAOS', weight: 100 },
   { unlockRound: 5, patternKey: 'TANK_ASSAULT', weight: 100 },
   { unlockRound: 10, patternKey: 'RANGED_SIEGE', weight: 100 },
+  { unlockRound: 12, patternKey: 'TURRET_DEFENSE', weight: 100 },
   { unlockRound: 15, patternKey: 'SUPPORT_ENHANCED', weight: 100 },
   { unlockRound: 18, patternKey: 'CHAIN_COORDINATION', weight: 100 },
   { unlockRound: 20, patternKey: 'TEMPORAL_NIGHTMARE', weight: 100 },

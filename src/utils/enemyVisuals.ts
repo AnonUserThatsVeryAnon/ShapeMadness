@@ -48,6 +48,11 @@ export const ENEMY_VISUALS: Record<EnemyType, EnemyVisualInfo> = {
     pattern: 'scope',
     description: 'Orange circle with sniper scope',
   },
+  [EnemyType.TURRET_SNIPER]: {
+    icon: '🏰',
+    pattern: 'crosshair',
+    description: 'Stationary turret with deployable shield',
+  },
   [EnemyType.ICE]: {
     icon: '❄️',
     pattern: 'snowflake',

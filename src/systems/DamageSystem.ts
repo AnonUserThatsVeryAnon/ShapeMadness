@@ -1,7 +1,7 @@
 // Centralized Damage System
 import type { Enemy, Player, FloatingText, Particle } from '../types/game';
 import { audioSystem } from '../utils/audio';
-import { createParticles } from '../utils/particles';
+import { createParticles, createBossDeathExplosion } from '../utils/particles';
 
 export interface DamageResult {
   actualDamage: number;
@@ -45,17 +45,38 @@ export class DamageSystem {
 
     if (killed) {
       enemy.active = false;
-      audioSystem.playEnemyDeath();
-      screenShake = 5;
+      
+      // Boss death is epic!
+      if (enemy.isBoss) {
+        audioSystem.playBossDeath();
+        audioSystem.stopBossMusic();
+        screenShake = 25;
+        
+        // Epic boss death explosion
+        particles.push(...createBossDeathExplosion(enemy.position));
+        
+        floatingTexts.push({
+          position: { ...enemy.position },
+          text: 'BOSS DEFEATED!',
+          color: '#ffff00',
+          size: 40,
+          lifetime: 2000,
+          createdAt: now,
+          velocity: { x: 0, y: -2 },
+        });
+      } else {
+        audioSystem.playEnemyDeath();
+        screenShake = 5;
 
-      // Death particles
-      particles.push(...createParticles(enemy.position, 30, enemy.color, 8));
-      particles.push(...createParticles(enemy.position, 10, '#ffffff', 6, 300));
+        // Death particles
+        particles.push(...createParticles(enemy.position, 30, enemy.color, 8));
+        particles.push(...createParticles(enemy.position, 10, '#ffffff', 6, 300));
+      }
 
       // Kill text
       floatingTexts.push({
         position: { ...enemy.position },
-        text: 'KILL!',
+        text: enemy.isBoss ? '' : 'KILL!',
         color: '#ff4444',
         size: 20,
         lifetime: 1000,

@@ -30,7 +30,11 @@ import {
   ENEMY_CONFIGS,
 } from "./utils/enemies";
 // drawEnemyPattern now handled by GameRenderer
-import { createParticles, updateParticles } from "./utils/particles";
+import {
+  createParticles,
+  updateParticles,
+  createBossSpawnParticles,
+} from "./utils/particles";
 import {
   UPGRADES,
   purchaseUpgrade,
@@ -273,6 +277,35 @@ function App() {
       CANVAS_HEIGHT
     );
 
+    // Check if boss spawned and add entrance effects
+    const bossEnemy = enemiesRef.current.find((e) => e.isBoss);
+    if (bossEnemy) {
+      // Add boss spawn particles
+      particlesRef.current.push(
+        ...createBossSpawnParticles(bossEnemy.position)
+      );
+
+      // Add boss intro messages
+      if (bossEnemy.bossConfig?.introMessages) {
+        bossEnemy.bossConfig.introMessages.forEach((msg, index) => {
+          setTimeout(() => {
+            floatingTextsRef.current.push({
+              position: {
+                x: CANVAS_WIDTH / 2,
+                y: CANVAS_HEIGHT / 2 - 100 + index * 60,
+              },
+              text: msg.text,
+              color: msg.color,
+              size: msg.size,
+              lifetime: 2000,
+              createdAt: Date.now(),
+              velocity: { x: 0, y: -0.5 },
+            });
+          }, index * 400);
+        });
+      }
+    }
+
     // Debug: Log boss spawn
     if (currentRound === 15) {
       console.log(
@@ -467,7 +500,14 @@ function App() {
         }
       }
 
-      updateEnemyPosition(enemy, player, deltaTime);
+      // Boss entrance animation - descend dramatically into play area
+      if (enemy.isBoss && enemy.position.y < 150) {
+        // Override normal movement during entrance
+        enemy.position.y += 2 * deltaTime * 60; // Slow descent
+        enemy.velocity = { x: 0, y: 0 }; // No movement toward player yet
+      } else {
+        updateEnemyPosition(enemy, player, deltaTime);
+      }
 
       // Buffer enemies rotate buffs and apply to nearby enemies
       if (enemy.type === EnemyType.BUFFER) {
@@ -628,6 +668,42 @@ function App() {
         }
       }
 
+      // Turret Sniper fires powerful shots when shield is down
+      if (enemy.type === EnemyType.TURRET_SNIPER) {
+        if (!enemy.lastShot) enemy.lastShot = now;
+
+        const shootCooldown = enemy.shootCooldown || 2000;
+
+        // Only fire when shield is down (player is close)
+        if (!enemy.shieldActive && now - enemy.lastShot > shootCooldown) {
+          const toPlayer = {
+            x: player.position.x - enemy.position.x,
+            y: player.position.y - enemy.position.y,
+          };
+          const direction = normalize(toPlayer);
+
+          // Fire a larger, more damaging projectile
+          enemyProjectilesRef.current.push({
+            position: { ...enemy.position },
+            velocity: multiply(direction, 8),
+            radius: 8,
+            damage: enemy.damage,
+            lifetime: 4000,
+            createdAt: now,
+            active: true,
+            color: "#ff5722",
+          });
+
+          enemy.lastShot = now;
+          audioSystem.playHit(); // Turret fire sound
+
+          // Large muzzle flash
+          particlesRef.current.push(
+            ...createParticles(enemy.position, 15, "#ff5722", 4)
+          );
+        }
+      }
+
       // BOSS ABILITIES - Managed by BossAbilitySystem
       if (enemy.isBoss) {
         // Create game context for boss abilities
@@ -650,6 +726,12 @@ function App() {
           clearLasers: () => {
             lasersRef.current = [];
           },
+          triggerScreenShake: (intensity: number) => {
+            shakeRef.current.intensity = Math.max(
+              shakeRef.current.intensity,
+              intensity
+            );
+          },
         };
 
         // Update boss abilities and handle phase transitions
@@ -669,13 +751,112 @@ function App() {
         }
       }
 
-      // Check collision with player
-      if (!player.invulnerable && checkCollision(player, enemy)) {
-        damagePlayer(enemy.damage, now);
-        enemy.active = false;
-        particlesRef.current.push(
-          ...createParticles(enemy.position, 15, enemy.color, 4)
-        );
+      // Turret Sniper proximity destruction mechanic
+      if (enemy.type === EnemyType.TURRET_SNIPER) {
+        const distToPlayer = distance(player.position, enemy.position);
+        const destructionRange = 80; // Player must be within this range
+        const destructionTime = 5000; // 5 seconds
+
+        if (distToPlayer <= destructionRange) {
+          // Player is in range - start or continue destruction
+          if (!enemy.isBeingDestroyed) {
+            enemy.isBeingDestroyed = true;
+            enemy.destructionStartTime = now;
+            enemy.destructionProgress = 0;
+          } else {
+            // Update progress
+            const elapsed = now - (enemy.destructionStartTime || now);
+            enemy.destructionProgress = Math.min(elapsed / destructionTime, 1);
+
+            // Create sparking particles as destruction progresses
+            if (Math.random() < 0.1 + enemy.destructionProgress * 0.3) {
+              particlesRef.current.push(
+                ...createParticles(
+                  {
+                    x: enemy.position.x + (Math.random() - 0.5) * 30,
+                    y: enemy.position.y + (Math.random() - 0.5) * 30,
+                  },
+                  3,
+                  enemy.destructionProgress > 0.7 ? "#ff5722" : "#ff9800",
+                  2,
+                  400
+                )
+              );
+            }
+
+            // Destruction complete!
+            if (enemy.destructionProgress >= 1) {
+              // Start destruction animation if not already started
+              if (!enemy.destructionAnimationStart) {
+                enemy.destructionAnimationStart = now;
+                audioSystem.playEnemyDeath();
+                // Award money
+                player.money += enemy.value;
+                floatingTextsRef.current.push({
+                  position: { ...enemy.position },
+                  text: `+$${enemy.value}`,
+                  color: "#4caf50",
+                  size: 16,
+                  lifetime: 1000,
+                  createdAt: now,
+                  velocity: { x: 0, y: -2 },
+                  alpha: 1,
+                });
+              }
+
+              // Play animation for 1 second before removing
+              const animationDuration = 1000;
+              const animationProgress =
+                (now - enemy.destructionAnimationStart) / animationDuration;
+
+              // Create continuous explosion particles during animation
+              if (Math.random() < 0.3) {
+                particlesRef.current.push(
+                  ...createParticles(
+                    {
+                      x: enemy.position.x + (Math.random() - 0.5) * 40,
+                      y: enemy.position.y + (Math.random() - 0.5) * 40,
+                    },
+                    8,
+                    Math.random() > 0.5 ? "#ff5722" : "#ff9800",
+                    4 + Math.random() * 3,
+                    600
+                  )
+                );
+              }
+
+              // Final massive explosion and remove after animation completes
+              if (animationProgress >= 1) {
+                enemy.active = false;
+                // Massive final explosion
+                particlesRef.current.push(
+                  ...createParticles(enemy.position, 50, "#ff5722", 6, 1000)
+                );
+                particlesRef.current.push(
+                  ...createParticles(enemy.position, 30, "#ff9800", 4, 800)
+                );
+                particlesRef.current.push(
+                  ...createParticles(enemy.position, 20, "#fff", 3, 600)
+                );
+              }
+            }
+          }
+        } else {
+          // Player moved away - reset progress
+          if (enemy.isBeingDestroyed) {
+            enemy.isBeingDestroyed = false;
+            enemy.destructionProgress = 0;
+          }
+        }
+      } else {
+        // Normal enemy collision with player
+        if (!player.invulnerable && checkCollision(player, enemy)) {
+          damagePlayer(enemy.damage, now);
+          enemy.active = false;
+          particlesRef.current.push(
+            ...createParticles(enemy.position, 15, enemy.color, 4)
+          );
+        }
       }
     });
 
@@ -695,6 +876,26 @@ function App() {
       enemies.forEach((enemy) => {
         if (!enemy.active) return;
         if (checkCollision(bullet, enemy)) {
+          // Turret Sniper is invulnerable - bullets pass through
+          if (enemy.type === EnemyType.TURRET_SNIPER) {
+            bullet.active = false;
+            particlesRef.current.push(
+              ...createParticles(bullet.position, 8, "#ff9800", 3, 300)
+            );
+            // Create floating text to indicate immunity
+            floatingTextsRef.current.push({
+              position: { x: bullet.position.x, y: bullet.position.y },
+              text: "IMMUNE",
+              color: "#ff9800",
+              size: 12,
+              lifetime: 600,
+              createdAt: now,
+              velocity: { x: 0, y: -1 },
+              alpha: 1,
+            });
+            return;
+          }
+
           // Reduce damage on pierce hits (first hit 100%, subsequent 50%)
           const hitCount = (bullet as any).hitCount || 0;
           const damageMultiplier = hitCount === 0 ? 1.0 : 0.5;
@@ -1423,8 +1624,69 @@ function App() {
         return;
       }
 
+      // Debug: Spawn Turret Sniper with 'T' key during gameplay
+      if (
+        (key === "t" || e.code === "KeyT") &&
+        gameState === GameState.PLAYING
+      ) {
+        e.preventDefault();
+        const player = playerRef.current;
+        const playZone = playZoneRef.current;
+        const spawnDistance = 300;
+        const angle = Math.random() * Math.PI * 2;
+
+        // Calculate spawn position relative to player
+        let spawnX = player.position.x + Math.cos(angle) * spawnDistance;
+        let spawnY = player.position.y + Math.sin(angle) * spawnDistance;
+
+        // Clamp to play zone boundaries with margin for turret radius
+        const margin = 50;
+        spawnX = Math.max(
+          playZone.x + margin,
+          Math.min(playZone.x + playZone.width - margin, spawnX)
+        );
+        spawnY = Math.max(
+          playZone.y + margin,
+          Math.min(playZone.y + playZone.height - margin, spawnY)
+        );
+
+        const turret = {
+          type: EnemyType.TURRET_SNIPER,
+          position: {
+            x: spawnX,
+            y: spawnY,
+          },
+          velocity: { x: 0, y: 0 },
+          radius: ENEMY_CONFIGS[EnemyType.TURRET_SNIPER].radius,
+          health: ENEMY_CONFIGS[EnemyType.TURRET_SNIPER].health,
+          maxHealth: ENEMY_CONFIGS[EnemyType.TURRET_SNIPER].health,
+          speed: ENEMY_CONFIGS[EnemyType.TURRET_SNIPER].speed,
+          damage: ENEMY_CONFIGS[EnemyType.TURRET_SNIPER].damage,
+          value: ENEMY_CONFIGS[EnemyType.TURRET_SNIPER].value,
+          color: ENEMY_CONFIGS[EnemyType.TURRET_SNIPER].color,
+          active: true,
+          lastShot: 0,
+          shootCooldown: 2000,
+          destructionProgress: 0,
+          isBeingDestroyed: false,
+        };
+        enemiesRef.current.push(turret);
+        console.log(
+          "Spawned Turret Sniper at:",
+          turret.position,
+          "Clamped to play zone"
+        );
+        return;
+      }
+
       // Add to movement keys (exclude special keys)
-      if (key !== "q" && e.code !== "KeyQ" && key !== "escape") {
+      if (
+        key !== "q" &&
+        e.code !== "KeyQ" &&
+        key !== "t" &&
+        e.code !== "KeyT" &&
+        key !== "escape"
+      ) {
         keysRef.current.add(key);
       }
     };

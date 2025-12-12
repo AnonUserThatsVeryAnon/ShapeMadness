@@ -68,6 +68,14 @@ export const ENEMY_CONFIGS = {
     color: '#ff5722',
     radius: 14,
   },
+  [EnemyType.TURRET_SNIPER]: {
+    health: 200,
+    speed: 0, // Stationary
+    damage: 40,
+    value: 35,
+    color: '#37474f',
+    radius: 20,
+  },
   [EnemyType.ICE]: {
     health: 90,
     speed: 2,
@@ -153,6 +161,14 @@ export function createEnemy(type: EnemyType, position: Vector2): Enemy {
   // Timebomb gets randomized slow field radius (200-400px)
   if (type === EnemyType.TIME_DISTORTION) {
     enemy.slowFieldRadius = 200 + Math.random() * 200; // Random between 200-400
+  }
+
+  // Initialize Turret Sniper properties
+  if (type === EnemyType.TURRET_SNIPER) {
+    enemy.shieldRange = 250; // Shield activates when player is 250+ units away
+    enemy.shieldActive = false;
+    enemy.lastShot = 0;
+    enemy.shootCooldown = 2000; // Shoot every 2 seconds
   }
 
   // Initialize boss properties
@@ -251,6 +267,12 @@ export function updateEnemyPosition(enemy: Enemy, player: Player, deltaTime: num
       break;
     }
     
+    case EnemyType.TURRET_SNIPER: {
+      // Stationary turret - shoots continuously regardless of distance
+      enemy.velocity = { x: 0, y: 0 };
+      break;
+    }
+    
     case EnemyType.OVERSEER: {
       // BOSS: Three-phase behavior
       if (!enemy.isBoss) break;
@@ -315,31 +337,52 @@ export function spawnEnemiesForRound(
   }
 
   for (let i = 0; i < spawnCount; i++) {
-    // Spawn at random edge of screen
-    const edge = Math.floor(Math.random() * 4);
+    // Select enemy type from pattern first
+    const type = selectEnemyType(pattern);
+    
+    // Determine spawn location based on enemy type
     let x = 0, y = 0;
     
-    switch (edge) {
-      case 0: // Top
-        x = randomRange(0, canvasWidth);
-        y = -spawnMargin;
-        break;
-      case 1: // Right
-        x = canvasWidth + spawnMargin;
-        y = randomRange(0, canvasHeight);
-        break;
-      case 2: // Bottom
-        x = randomRange(0, canvasWidth);
-        y = canvasHeight + spawnMargin;
-        break;
-      case 3: // Left
-        x = -spawnMargin;
-        y = randomRange(0, canvasHeight);
-        break;
+    if (type === EnemyType.TURRET_SNIPER) {
+      // Turret Snipers spawn within the play area (not at edges)
+      // Position them strategically away from center
+      const centerX = canvasWidth / 2;
+      const centerY = canvasHeight / 2;
+      const minDistFromCenter = 200;
+      const maxDistFromCenter = Math.min(canvasWidth, canvasHeight) / 2 - 100;
+      
+      const angle = Math.random() * Math.PI * 2;
+      const dist = randomRange(minDistFromCenter, maxDistFromCenter);
+      x = centerX + Math.cos(angle) * dist;
+      y = centerY + Math.sin(angle) * dist;
+      
+      // Ensure it's within bounds with margin
+      x = Math.max(spawnMargin + 20, Math.min(canvasWidth - spawnMargin - 20, x));
+      y = Math.max(spawnMargin + 20, Math.min(canvasHeight - spawnMargin - 20, y));
+    } else {
+      // Regular enemies spawn at edges
+      const edge = Math.floor(Math.random() * 4);
+      
+      switch (edge) {
+        case 0: // Top
+          x = randomRange(0, canvasWidth);
+          y = -spawnMargin;
+          break;
+        case 1: // Right
+          x = canvasWidth + spawnMargin;
+          y = randomRange(0, canvasHeight);
+          break;
+        case 2: // Bottom
+          x = randomRange(0, canvasWidth);
+          y = canvasHeight + spawnMargin;
+          break;
+        case 3: // Left
+          x = -spawnMargin;
+          y = randomRange(0, canvasHeight);
+          break;
+      }
     }
 
-    // Select enemy type from pattern
-    const type = selectEnemyType(pattern);
     const enemy = createEnemy(type, { x, y });
     enemies.push(enemy);
     
