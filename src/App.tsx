@@ -140,7 +140,7 @@ function App() {
   const statsRef = useRef<GameStats>({
     score: 0,
     kills: 0,
-    round: 1,
+    round: 0,
     combo: 0,
     comboMultiplier: 1,
     highScore: loadFromLocalStorage("highScore", 0),
@@ -185,7 +185,7 @@ function App() {
     statsRef.current = {
       score: 0,
       kills: 0,
-      round: 1,
+      round: 0,
       combo: 0,
       comboMultiplier: 1,
       highScore: loadFromLocalStorage("highScore", 0),
