@@ -3,7 +3,7 @@ interface GameOverProps {
   round: number;
   kills: number;
   highScore: number;
-  onRestart: () => void;
+  onRestart?: () => void;
   onMainMenu: () => void;
 }
 
@@ -12,50 +12,28 @@ export function GameOver({
   round,
   kills,
   highScore,
-  onRestart,
   onMainMenu,
 }: GameOverProps) {
-  const isNewHighScore = score > highScore;
+  const isNewHighScore = score === highScore && score > 0;
 
   return (
-    <div className="game-over">
-      <div className="game-over-content">
-        <h1 className="game-over-title">💀 Game Over</h1>
-
-        {isNewHighScore && (
-          <div className="new-high-score">🎉 NEW HIGH SCORE! 🎉</div>
-        )}
-
-        <div className="stats-grid">
-          <div className="stat-item">
-            <div className="stat-label">Final Score:</div>
-            <div className="stat-value">{score.toLocaleString()}</div>
-          </div>
-          <div className="stat-item">
-            <div className="stat-label">Round Reached:</div>
-            <div className="stat-value">{round}</div>
-          </div>
-          <div className="stat-item">
-            <div className="stat-label">Total Kills:</div>
-            <div className="stat-value">{kills}</div>
-          </div>
-          <div className="stat-item">
-            <div className="stat-label">High Score:</div>
-            <div className="stat-value">
-              {Math.max(score, highScore).toLocaleString()}
-            </div>
-          </div>
-        </div>
-
-        <div className="menu-buttons">
-          <button onClick={onRestart} className="btn-primary">
-            🔄 Play Again
-          </button>
-          <button onClick={onMainMenu} className="btn-secondary">
-            🏠 Main Menu
-          </button>
-        </div>
+    <div className="menu-overlay game-over-overlay">
+      <h1 className="game-over-title">💀 GAME OVER</h1>
+      <div className="final-stats">
+        <p>
+          Final Score: <strong>{score.toLocaleString()}</strong>
+        </p>
+        <p>
+          Round Reached: <strong>{round}</strong>
+        </p>
+        <p>
+          Total Kills: <strong>{kills}</strong>
+        </p>
+        {isNewHighScore && <p className="new-record">🏆 NEW HIGH SCORE! 🏆</p>}
       </div>
+      <button className="menu-button" onClick={onMainMenu}>
+        MAIN MENU
+      </button>
     </div>
   );
 }

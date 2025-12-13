@@ -10,32 +10,39 @@ export function GameMenu({
   onShowCodex,
 }: GameMenuProps) {
   return (
-    <div className="menu">
-      <div className="menu-content">
-        <h1>🎮 Mouse Defense</h1>
-        <p className="subtitle">Survive the endless waves!</p>
-
-        <div className="menu-buttons">
-          <button onClick={onStartGame} className="btn-primary">
-            ▶ Start Game
-          </button>
-          <button onClick={onShowCodex} className="btn-secondary">
-            📚 Enemy Codex
-          </button>
-        </div>
-
-        {highScore > 0 && (
-          <div className="high-score">
-            <p>High Score: {highScore.toLocaleString()}</p>
-          </div>
-        )}
-
-        <div className="controls-info">
-          <h3>Controls</h3>
-          <p>🎮 WASD / Arrow Keys - Move</p>
-          <p>🖱️ Mouse - Auto-aim & shoot</p>
-          <p>⏸️ ESC - Pause</p>
-        </div>
+    <div className="menu-overlay">
+      <h1 className="game-title">SHAPE MADNESS</h1>
+      <p className="game-subtitle">Survive the endless waves!</p>
+      <button className="menu-button" onClick={onStartGame}>
+        START GAME
+      </button>
+      <button
+        className="menu-button"
+        onClick={onShowCodex}
+        style={{
+          backgroundColor: "#4ecdcb",
+          fontSize: "16px",
+          marginTop: "10px",
+        }}
+      >
+        📖 VIEW CODEX
+      </button>
+      {highScore > 0 && (
+        <p className="high-score">High Score: {highScore.toLocaleString()}</p>
+      )}
+      <div className="controls-info">
+        <p>
+          <strong>WASD</strong> - Move
+        </p>
+        <p>
+          <strong>Q</strong> - Toggle Auto/Manual Aim
+        </p>
+        <p>
+          <strong>Auto-Shoot</strong> - Target nearest enemy
+        </p>
+        <p>
+          <strong>ESC</strong> - Pause
+        </p>
       </div>
     </div>
   );

@@ -17,6 +17,7 @@ import {
   distance,
   checkCollision,
   screenShake,
+  formatNumber,
   loadFromLocalStorage,
   saveToLocalStorage,
   add,
@@ -34,7 +35,12 @@ import {
   updateParticles,
   createBossSpawnParticles,
 } from "./utils/particles";
-import { UPGRADES, resetUpgrades, getUpgradeLevel } from "./utils/upgrades";
+import {
+  UPGRADES,
+  purchaseUpgrade,
+  resetUpgrades,
+  getUpgradeLevel,
+} from "./utils/upgrades";
 import { discoverEnemy, getCodexState } from "./utils/codexProgress";
 import type { CodexState } from "./types/codex";
 
@@ -50,20 +56,13 @@ import {
   checkBossCollisions,
 } from "./systems/spawning/BossAbilitySystem";
 
-// Custom Hooks (NEW - Modular Architecture)
-// Note: These hooks are available for future integration
-// import { useGameEntities } from "./hooks/useGameEntities";
-// import { usePlayerState } from "./hooks/usePlayerState";
-// import { useInputHandlers } from "./hooks/useInputHandlers";
-
 // UI Components
 import { EnemyCard } from "./components/EnemyCard";
 import { CodexMenu } from "./components/CodexMenu";
-import { ShopMenu } from "./components/ShopMenu";
-import { GameHUD } from "./components/GameHUD";
-import { GameMenu } from "./components/GameMenu";
-import { PauseMenu } from "./components/PauseMenu";
-import { GameOver } from "./components/GameOver";
+// UI components to be integrated in future update
+// import { GameMenu } from "./components/GameMenu";
+// import { PauseMenu } from "./components/PauseMenu";
+// import { GameOver } from "./components/GameOver";
 import "./App.css";
 
 // Dynamic canvas size - uses full window
@@ -1727,71 +1726,291 @@ function App() {
         className="game-canvas"
       />
 
-      {/* Main Menu - Modular Component */}
       {gameState === GameState.MENU && (
-        <GameMenu
-          highScore={statsRef.current.highScore}
-          onStartGame={() => {
-            initializePlayer();
-            startRound();
-          }}
-          onShowCodex={() => setShowCodex(true)}
-        />
+        <div className="menu-overlay">
+          <h1
+            className="game-title"
+            onClick={() => {
+              initializePlayer();
+              activateDebugMode();
+            }}
+            style={{ cursor: "pointer" }}
+            title="Click to start at Wave 15 with max upgrades (Debug Mode)"
+          >
+            SHAPE MADNESS
+          </h1>
+          <p className="game-subtitle">Survive the endless waves!</p>
+          <button
+            className="menu-button"
+            onClick={() => {
+              initializePlayer();
+              startRound();
+            }}
+          >
+            START GAME
+          </button>
+          <button
+            className="menu-button"
+            onClick={() => setShowCodex(true)}
+            style={{
+              backgroundColor: "#4ecdcb",
+              fontSize: "16px",
+              marginTop: "10px",
+            }}
+          >
+            📖 VIEW CODEX
+          </button>
+          {statsRef.current.highScore > 0 && (
+            <p className="high-score">
+              High Score: {formatNumber(statsRef.current.highScore)}
+            </p>
+          )}
+          <div className="controls-info">
+            <p>
+              <strong>WASD</strong> - Move
+            </p>
+            <p>
+              <strong>Q</strong> - Toggle Auto/Manual Aim
+            </p>
+            <p>
+              <strong>Auto-Shoot</strong> - Target nearest enemy
+            </p>
+            <p>
+              <strong>ESC</strong> - Pause
+            </p>
+          </div>
+        </div>
       )}
 
-      {/* Game HUD - Modular Component */}
+      {/* Aim Mode Indicator - Bottom Right */}
       {gameState === GameState.PLAYING && (
-        <GameHUD
-          aimMode={aimMode}
-          onToggleAimMode={() => {
+        <div
+          className={`aim-mode-indicator ${
+            aimMode === AimMode.MANUAL ? "manual" : ""
+          }`}
+          onClick={() => {
             const newMode = aimingSystemRef.current.toggleAimMode();
             setAimMode(newMode);
           }}
-        />
+          title="Click or press Q to toggle aim mode"
+        >
+          {aimMode === AimMode.MANUAL ? "🎯 Manual" : "🤖 Auto"}
+        </div>
       )}
 
-      {/* Shop Menu - Modular Component */}
+      {/* Wave Timer Overlay - Top Center */}
       {gameState === GameState.SHOP && (
-        <ShopMenu
-          player={playerRef.current}
-          round={statsRef.current.round}
-          waveTimer={waveTimer}
-          isPaused={isPaused}
-          shopTab={shopTab}
-          onShopTabChange={setShopTab}
-          onSkipWave={skipWaveTimer}
-          onForceUpdate={() => forceUpdate({})}
-        />
+        <div className="wave-timer-overlay">
+          <div className="wave-timer-compact">
+            <span className="wave-timer-text">Next Wave:</span>
+            <span
+              className={`wave-timer-countdown ${
+                waveTimer <= 5 && !isPaused ? "urgent" : ""
+              }`}
+            >
+              {isPaused ? "PAUSED" : `${waveTimer}s`}
+            </span>
+            <button className="skip-wave-compact" onClick={skipWaveTimer}>
+              ⚡ SKIP
+            </button>
+          </div>
+        </div>
       )}
 
-      {/* Game Over - Modular Component */}
+      {gameState === GameState.SHOP && (
+        <div className="menu-overlay shop-overlay">
+          <h1 className="shop-title">🛒 ROUND {statsRef.current.round} SHOP</h1>
+
+          <div className="shop-header">
+            <div className="shop-stats">
+              <p className="shop-money">💰 ${playerRef.current.money}</p>
+              <p className="shop-stat">
+                ❤️ {playerRef.current.health}/{playerRef.current.maxHealth}
+              </p>
+              <p className="shop-stat">
+                💥 {playerRef.current.damage.toFixed(1)}
+              </p>
+              <p className="shop-stat">
+                🛡️ {playerRef.current.defense.toFixed(1)}%
+              </p>
+              <p className="shop-stat">
+                🏃 {playerRef.current.speed.toFixed(1)}
+              </p>
+            </div>
+          </div>
+          <p className="shop-tip">
+            💡 Tip: Skip early for bonus cash, or take time to upgrade wisely!
+          </p>
+
+          <div className="shop-tabs">
+            <button
+              className={`shop-tab ${shopTab === "core" ? "active" : ""}`}
+              onClick={() => setShopTab("core")}
+            >
+              📊 CORE STATS
+            </button>
+            <button
+              className={`shop-tab ${shopTab === "special" ? "active" : ""}`}
+              onClick={() => setShopTab("special")}
+            >
+              ✨ SPECIAL ABILITIES
+            </button>
+          </div>
+
+          <div className="upgrades-grid">
+            {UPGRADES.filter((u) => u.category === shopTab).map((upgrade) => {
+              const progressPercent =
+                (upgrade.currentLevel / upgrade.maxLevel) * 100;
+              const isMaxLevel = upgrade.currentLevel >= upgrade.maxLevel;
+              const canAfford = playerRef.current.money >= upgrade.cost;
+
+              // Calculate what the stat will be after upgrade
+              let statPreview = "";
+              if (!isMaxLevel) {
+                const player = playerRef.current;
+                switch (upgrade.id) {
+                  case "health":
+                    statPreview = `${player.maxHealth} → ${
+                      player.maxHealth + 10
+                    }`;
+                    break;
+                  case "defense":
+                    statPreview = `${player.defense.toFixed(1)}% → ${Math.min(
+                      20,
+                      player.defense + 0.1
+                    ).toFixed(1)}%`;
+                    break;
+                  case "damage":
+                    statPreview = `${player.damage.toFixed(1)} → ${(
+                      player.damage + 0.2
+                    ).toFixed(1)}`;
+                    break;
+                  case "fire_rate": {
+                    const currentRPS = (1000 / player.fireRate).toFixed(1);
+                    const newRPS = (
+                      1000 / Math.max(50, player.fireRate * 0.97)
+                    ).toFixed(1);
+                    statPreview = `${currentRPS} → ${newRPS} shots/sec`;
+                    break;
+                  }
+                  case "speed":
+                    statPreview = `${player.speed.toFixed(1)} → ${(
+                      player.speed + 0.1
+                    ).toFixed(1)}`;
+                    break;
+                  case "regen":
+                    statPreview = `${(upgrade.currentLevel * 0.05).toFixed(
+                      2
+                    )} → ${((upgrade.currentLevel + 1) * 0.05).toFixed(
+                      2
+                    )} HP/s`;
+                    break;
+                }
+              }
+
+              return (
+                <div
+                  key={upgrade.id}
+                  className={`upgrade-card ${
+                    canAfford && !isMaxLevel ? "affordable" : ""
+                  } ${isMaxLevel ? "max-level" : ""}`}
+                >
+                  <div className="upgrade-icon">{upgrade.icon}</div>
+                  <div className="upgrade-info">
+                    <h3>{upgrade.name}</h3>
+                    <p className="upgrade-desc">{upgrade.description}</p>
+                    {statPreview && (
+                      <p className="upgrade-preview">{statPreview}</p>
+                    )}
+                    <p className="upgrade-level">
+                      Level {upgrade.currentLevel}/{upgrade.maxLevel}
+                    </p>
+                    <div className="upgrade-progress-container">
+                      <div
+                        className={`upgrade-progress-bar ${
+                          isMaxLevel ? "max-level" : ""
+                        }`}
+                        style={{ width: `${progressPercent}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div className="upgrade-action">
+                    {!isMaxLevel && (
+                      <div
+                        className={`upgrade-cost ${
+                          canAfford ? "affordable" : ""
+                        }`}
+                      >
+                        ${upgrade.cost}
+                      </div>
+                    )}
+                    <button
+                      className={`upgrade-button ${isMaxLevel ? "max" : ""}`}
+                      disabled={!canAfford || isMaxLevel}
+                      onClick={() => {
+                        if (purchaseUpgrade(upgrade, playerRef.current)) {
+                          audioSystem.playPurchase();
+                          forceUpdate({}); // Force re-render to update UI
+                        }
+                      }}
+                    >
+                      {isMaxLevel ? "MAXED" : "UPGRADE"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {gameState === GameState.GAME_OVER && (
-        <GameOver
-          score={statsRef.current.score}
-          round={statsRef.current.round}
-          kills={statsRef.current.kills}
-          highScore={statsRef.current.highScore}
-          onMainMenu={() => {
-            initializePlayer();
-            setGameState(GameState.MENU);
-          }}
-        />
+        <div className="menu-overlay game-over-overlay">
+          <h1 className="game-over-title">💀 GAME OVER</h1>
+          <div className="final-stats">
+            <p>
+              Final Score:{" "}
+              <strong>{formatNumber(statsRef.current.score)}</strong>
+            </p>
+            <p>
+              Round Reached: <strong>{statsRef.current.round}</strong>
+            </p>
+            <p>
+              Total Kills: <strong>{statsRef.current.kills}</strong>
+            </p>
+            {statsRef.current.score === statsRef.current.highScore &&
+              statsRef.current.score > 0 && (
+                <p className="new-record">🏆 NEW HIGH SCORE! 🏆</p>
+              )}
+          </div>
+          <button
+            className="menu-button"
+            onClick={() => {
+              initializePlayer();
+              setGameState(GameState.MENU);
+            }}
+          >
+            MAIN MENU
+          </button>
+        </div>
       )}
 
-      {/* Pause Menu - Modular Component */}
       {isPaused && gameState === GameState.PLAYING && !showingCard && (
-        <PauseMenu
-          onResume={() => setIsPaused(false)}
-          onRestart={() => {
-            setIsPaused(false);
-            initializePlayer();
-            startRound();
-          }}
-          onMainMenu={() => {
-            setIsPaused(false);
-            setGameState(GameState.MENU);
-          }}
-        />
+        <div className="menu-overlay pause-overlay">
+          <h1 className="pause-title">⏸️ PAUSED</h1>
+          <button className="menu-button" onClick={() => setIsPaused(false)}>
+            RESUME
+          </button>
+          <button
+            className="menu-button secondary"
+            onClick={() => {
+              setIsPaused(false);
+              setGameState(GameState.MENU);
+            }}
+          >
+            QUIT TO MENU
+          </button>
+        </div>
       )}
 
       {showingCard && (
