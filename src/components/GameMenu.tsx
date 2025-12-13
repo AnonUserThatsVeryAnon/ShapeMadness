@@ -2,16 +2,29 @@ interface GameMenuProps {
   highScore: number;
   onStartGame: () => void;
   onShowCodex: () => void;
+  onDebugMode?: () => void;
 }
 
 export function GameMenu({
   highScore,
   onStartGame,
   onShowCodex,
+  onDebugMode,
 }: GameMenuProps) {
   return (
     <div className="menu-overlay">
-      <h1 className="game-title">SHAPE MADNESS</h1>
+      <h1
+        className="game-title"
+        onClick={onDebugMode}
+        style={onDebugMode ? { cursor: "pointer" } : undefined}
+        title={
+          onDebugMode
+            ? "Click to start at Wave 15 with max upgrades (Debug Mode)"
+            : undefined
+        }
+      >
+        SHAPE MADNESS
+      </h1>
       <p className="game-subtitle">Survive the endless waves!</p>
       <button className="menu-button" onClick={onStartGame}>
         START GAME

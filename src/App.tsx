@@ -674,9 +674,15 @@ function App() {
         if (!enemy.lastShot) enemy.lastShot = now;
 
         const shootCooldown = enemy.shootCooldown || 2000;
+        const distToPlayer = distance(player.position, enemy.position);
+        const destructionRange = 80; // Player must be within this range to destroy
 
-        // Only fire when shield is down (player is close)
-        if (!enemy.shieldActive && now - enemy.lastShot > shootCooldown) {
+        // Only fire when shield is down (player is close) but NOT in destruction range
+        if (
+          !enemy.shieldActive &&
+          distToPlayer > destructionRange &&
+          now - enemy.lastShot > shootCooldown
+        ) {
           const toPlayer = {
             x: player.position.x - enemy.position.x,
             y: player.position.y - enemy.position.y,
@@ -1091,6 +1097,21 @@ function App() {
     if (gameState === GameState.PLAYING && enemies.every((e) => !e.active)) {
       // Clear powerups from the field when wave completes
       powerUpSystemRef.current.clearAll(powerUpsRef.current);
+
+      // Award bonus for completing first round
+      if (stats.round === 1) {
+        player.money += 100;
+        floatingTextsRef.current.push({
+          position: { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 },
+          text: "First Round Bonus: +$100",
+          color: "#4caf50",
+          size: 24,
+          lifetime: 2000,
+          createdAt: Date.now(),
+          velocity: { x: 0, y: -1 },
+          alpha: 1,
+        });
+      }
 
       // Show discovery card if any enemies were discovered this round
       if (pendingDiscoveriesRef.current.length > 0) {
@@ -1736,6 +1757,10 @@ function App() {
             startRound();
           }}
           onShowCodex={() => setShowCodex(true)}
+          onDebugMode={() => {
+            initializePlayer();
+            activateDebugMode();
+          }}
         />
       )}
 
