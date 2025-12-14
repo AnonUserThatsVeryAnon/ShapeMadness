@@ -762,10 +762,13 @@ function App() {
         const destructionRange = 80; // Player must be within this range to destroy
 
         // Only fire when shield is down (player is close) but NOT in destruction range
+        // AND not being destroyed or in destruction animation
         if (
           !enemy.shieldActive &&
           distToPlayer > destructionRange &&
-          now - enemy.lastShot > shootCooldown
+          now - enemy.lastShot > shootCooldown &&
+          !enemy.isBeingDestroyed &&
+          !enemy.destructionAnimationStart
         ) {
           const toPlayer = {
             x: player.position.x - enemy.position.x,
@@ -933,11 +936,12 @@ function App() {
             }
           }
         } else {
-          // Player moved away - reset progress
-          if (enemy.isBeingDestroyed) {
+          // Player moved away - reset progress ONLY if destruction animation hasn't started
+          if (enemy.isBeingDestroyed && !enemy.destructionAnimationStart) {
             enemy.isBeingDestroyed = false;
             enemy.destructionProgress = 0;
           }
+          // If destruction animation started, let it continue to completion regardless of range
         }
       } else {
         // Normal enemy collision with player
@@ -968,7 +972,12 @@ function App() {
         if (!enemy.active) return;
         if (checkCollision(bullet, enemy)) {
           // Turret Sniper is invulnerable - bullets pass through
-          if (enemy.type === EnemyType.TURRET_SNIPER) {
+          // BUT becomes vulnerable once destruction starts
+          if (
+            enemy.type === EnemyType.TURRET_SNIPER &&
+            !enemy.isBeingDestroyed &&
+            !enemy.destructionAnimationStart
+          ) {
             bullet.active = false;
             particlesRef.current.push(
               ...createParticles(bullet.position, 8, "#ff9800", 3, 300)
