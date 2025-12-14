@@ -9,7 +9,7 @@ export function DebugMenu({ onClose, onStartDebug }: DebugMenuProps) {
   const [debugRound, setDebugRound] = useState(15);
 
   // Calculate scaled values based on round
-  const startingMoney = Math.max(500, debugRound * 50);
+  const startingMoney = Math.max(500, debugRound * 5000);
   const damageLevels = Math.min(20, Math.floor(debugRound * 1.3));
   const fireRateLevels = Math.min(15, Math.floor(debugRound));
   const healthLevels = Math.min(10, Math.floor(debugRound * 0.7));

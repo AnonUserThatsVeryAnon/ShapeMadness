@@ -404,8 +404,8 @@ function App() {
       }
     }
 
-    // Give money scaled with round
-    player.money = Math.max(500, targetRound * 50);
+    // Give money scaled with round (x100 for debug mode)
+    player.money = Math.max(500, targetRound * 50) * 100;
 
     // Set to target round - 1 so startRound() increments to target
     stats.round = targetRound - 1;
@@ -422,6 +422,41 @@ function App() {
     particlesRef.current = [];
     floatingTextsRef.current = [];
     lasersRef.current = [];
+
+    // Set play zone size based on target round
+    // Rounds 1-10: Progressive expansion from 400 to full canvas
+    // Round 11+: Full canvas with dynamic shifts
+    const playZone = playZoneRef.current;
+    if (targetRound <= 10) {
+      // Simulate progressive expansion: each round expands by ~20%
+      // Start at 400, grow to approximately full canvas by round 10
+      const expansionFactor = Math.pow(1.2, Math.min(targetRound - 1, 10));
+      let zoneSize = Math.min(
+        INITIAL_ZONE_SIZE * expansionFactor,
+        Math.min(CANVAS_WIDTH, CANVAS_HEIGHT)
+      );
+
+      playZone.width = zoneSize;
+      playZone.height = zoneSize;
+      playZone.x = (CANVAS_WIDTH - zoneSize) / 2;
+      playZone.y = (CANVAS_HEIGHT - zoneSize) / 2;
+      playZone.targetWidth = zoneSize;
+      playZone.targetHeight = zoneSize;
+      playZone.targetX = playZone.x;
+      playZone.targetY = playZone.y;
+    } else {
+      // Round 11+: Set to full canvas (will be randomized on first round start)
+      playZone.width = CANVAS_WIDTH;
+      playZone.height = CANVAS_HEIGHT;
+      playZone.x = 0;
+      playZone.y = 0;
+      playZone.targetWidth = CANVAS_WIDTH;
+      playZone.targetHeight = CANVAS_HEIGHT;
+      playZone.targetX = 0;
+      playZone.targetY = 0;
+    }
+    playZone.isTransitioning = false;
+    playZone.transitionProgress = 0;
 
     // Reset player position
     player.position = { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 };
