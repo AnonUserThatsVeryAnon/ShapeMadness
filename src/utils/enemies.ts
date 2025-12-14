@@ -357,22 +357,28 @@ export function spawnEnemiesForRound(
       const borderMargin = 80; // Distance from edge
       const edge = Math.floor(Math.random() * 4);
       
+      // Ensure we have valid spawn bounds
+      const minX = borderMargin;
+      const maxX = canvasWidth - borderMargin;
+      const minY = borderMargin;
+      const maxY = canvasHeight - borderMargin;
+      
       switch (edge) {
         case 0: // Top border
-          x = randomRange(borderMargin, canvasWidth - borderMargin);
+          x = Math.max(minX, Math.min(maxX, randomRange(minX, maxX)));
           y = borderMargin;
           break;
         case 1: // Right border
           x = canvasWidth - borderMargin;
-          y = randomRange(borderMargin, canvasHeight - borderMargin);
+          y = Math.max(minY, Math.min(maxY, randomRange(minY, maxY)));
           break;
         case 2: // Bottom border
-          x = randomRange(borderMargin, canvasWidth - borderMargin);
+          x = Math.max(minX, Math.min(maxX, randomRange(minX, maxX)));
           y = canvasHeight - borderMargin;
           break;
         case 3: // Left border
           x = borderMargin;
-          y = randomRange(borderMargin, canvasHeight - borderMargin);
+          y = Math.max(minY, Math.min(maxY, randomRange(minY, maxY)));
           break;
       }
     } else {

@@ -890,61 +890,25 @@ function App() {
               );
             }
 
-            // Destruction complete!
-            if (enemy.destructionProgress >= 1) {
-              // Start destruction animation if not already started
-              if (!enemy.destructionAnimationStart) {
-                enemy.destructionAnimationStart = now;
-                audioSystem.playEnemyDeath();
-                // Award money
-                player.money += enemy.value;
-                floatingTextsRef.current.push({
-                  position: { ...enemy.position },
-                  text: `+$${enemy.value}`,
-                  color: "#4caf50",
-                  size: 16,
-                  lifetime: 1000,
-                  createdAt: now,
-                  velocity: { x: 0, y: -2 },
-                  alpha: 1,
-                });
-              }
-
-              // Play animation for 1 second before removing
-              const animationDuration = 1000;
-              const animationProgress =
-                (now - enemy.destructionAnimationStart) / animationDuration;
-
-              // Create continuous explosion particles during animation
-              if (Math.random() < 0.3) {
-                particlesRef.current.push(
-                  ...createParticles(
-                    {
-                      x: enemy.position.x + (Math.random() - 0.5) * 40,
-                      y: enemy.position.y + (Math.random() - 0.5) * 40,
-                    },
-                    8,
-                    Math.random() > 0.5 ? "#ff5722" : "#ff9800",
-                    4 + Math.random() * 3,
-                    600
-                  )
-                );
-              }
-
-              // Final massive explosion and remove after animation completes
-              if (animationProgress >= 1) {
-                enemy.active = false;
-                // Massive final explosion
-                particlesRef.current.push(
-                  ...createParticles(enemy.position, 50, "#ff5722", 6, 1000)
-                );
-                particlesRef.current.push(
-                  ...createParticles(enemy.position, 30, "#ff9800", 4, 800)
-                );
-                particlesRef.current.push(
-                  ...createParticles(enemy.position, 20, "#fff", 3, 600)
-                );
-              }
+            // Destruction complete - start animation!
+            if (
+              enemy.destructionProgress >= 1 &&
+              !enemy.destructionAnimationStart
+            ) {
+              enemy.destructionAnimationStart = now;
+              audioSystem.playEnemyDeath();
+              // Award money
+              player.money += enemy.value;
+              floatingTextsRef.current.push({
+                position: { ...enemy.position },
+                text: `+$${enemy.value}`,
+                color: "#4caf50",
+                size: 16,
+                lifetime: 1000,
+                createdAt: now,
+                velocity: { x: 0, y: -2 },
+                alpha: 1,
+              });
             }
           }
         } else {
@@ -954,6 +918,44 @@ function App() {
             enemy.destructionProgress = 0;
           }
           // If destruction animation started, let it continue to completion regardless of range
+        }
+
+        // Handle destruction animation (runs regardless of player distance)
+        if (enemy.destructionAnimationStart) {
+          const animationDuration = 1000;
+          const animationProgress =
+            (now - enemy.destructionAnimationStart) / animationDuration;
+
+          // Create continuous explosion particles during animation
+          if (Math.random() < 0.3) {
+            particlesRef.current.push(
+              ...createParticles(
+                {
+                  x: enemy.position.x + (Math.random() - 0.5) * 40,
+                  y: enemy.position.y + (Math.random() - 0.5) * 40,
+                },
+                8,
+                Math.random() > 0.5 ? "#ff5722" : "#ff9800",
+                4 + Math.random() * 3,
+                600
+              )
+            );
+          }
+
+          // Final massive explosion and remove after animation completes
+          if (animationProgress >= 1) {
+            enemy.active = false;
+            // Massive final explosion
+            particlesRef.current.push(
+              ...createParticles(enemy.position, 50, "#ff5722", 6, 1000)
+            );
+            particlesRef.current.push(
+              ...createParticles(enemy.position, 30, "#ff9800", 4, 800)
+            );
+            particlesRef.current.push(
+              ...createParticles(enemy.position, 20, "#fff", 3, 600)
+            );
+          }
         }
       } else {
         // Normal enemy collision with player
