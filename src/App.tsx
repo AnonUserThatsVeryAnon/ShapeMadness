@@ -971,7 +971,7 @@ function App() {
       const explosiveLevel = getUpgradeLevel("explosive");
 
       // Track how many enemies this bullet has hit (for pierce damage reduction)
-      if (!(bullet as any).hitCount) (bullet as any).hitCount = 0;
+      if (!bullet.hitCount) bullet.hitCount = 0;
 
       enemies.forEach((enemy) => {
         if (!enemy.active) return;
@@ -997,9 +997,9 @@ function App() {
           }
 
           // Reduce damage on pierce hits (first hit 100%, subsequent 50%)
-          const hitCount = (bullet as any).hitCount || 0;
+          const hitCount = bullet.hitCount || 0;
           const damageMultiplier = hitCount === 0 ? 1.0 : 0.5;
-          (bullet as any).hitCount = hitCount + 1;
+          bullet.hitCount = hitCount + 1;
 
           // Use damageEnemy for full logic (combo, money, reflection)
           damageEnemy(enemy, bullet.damage * damageMultiplier, now);
@@ -1544,16 +1544,7 @@ function App() {
         // Play ice shatter sound
         audioSystem.playIceShatter();
 
-        // Create ice zone at death location
-        const iceZone = {
-          position: { ...enemy.position },
-          radius: 150,
-          createdAt: now,
-          duration: 5000, // 5 seconds
-          active: true,
-        };
-
-        // Store ice zone (we'll need to add this to refs)
+        // Store ice zone using floating text as temporary storage marker
         if (
           !floatingTextsRef.current.find((t) => t.text.includes("ICE_ZONE"))
         ) {

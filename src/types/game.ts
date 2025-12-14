@@ -69,6 +69,7 @@ export interface Enemy extends Entity {
   lastShockwave?: number; // For Overseer phase 3
   abilityTimers?: Record<string, number>; // Tracks when abilities were last used
   bossConfig?: import('../systems/spawning/BossConfig').BossConfig; // Reference to boss configuration
+  shieldActive?: boolean; // For Overseer boss shield
 }
 
 export interface Bullet extends Entity {
@@ -76,6 +77,7 @@ export interface Bullet extends Entity {
   target?: Enemy;
   lifetime: number;
   createdAt: number;
+  hitCount?: number; // Track pierce hits for damage reduction
 }
 
 export interface EnemyProjectile extends Entity {
