@@ -733,9 +733,12 @@ function App() {
           timeSinceLastShot < shootCooldown
         ) {
           // Store target position for aiming laser
-          if (!enemy.sniperCharging) {
-            enemy.sniperCharging = true;
-            enemy.sniperTarget = { x: player.position.x, y: player.position.y };
+          if (!enemy.shooterCharging) {
+            enemy.shooterCharging = true;
+            enemy.shooterTarget = {
+              x: player.position.x,
+              y: player.position.y,
+            };
           }
         }
 
@@ -759,8 +762,8 @@ function App() {
           });
 
           enemy.lastSpecialAbility = now;
-          enemy.sniperCharging = false;
-          enemy.sniperTarget = undefined;
+          enemy.shooterCharging = false;
+          enemy.shooterTarget = undefined;
 
           // Muzzle flash particles
           particlesRef.current.push(

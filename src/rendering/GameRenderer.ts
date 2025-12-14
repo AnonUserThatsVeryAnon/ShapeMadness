@@ -473,7 +473,7 @@ export class GameRenderer {
     }
 
     // Shooter aiming laser telegraph
-    if (enemy.type === EnemyType.SHOOTER && enemy.sniperCharging && enemy.sniperTarget) {
+    if (enemy.type === EnemyType.SHOOTER && enemy.shooterCharging && enemy.shooterTarget) {
       this.drawShooterAimingLaser(enemy, now);
     }
 
@@ -600,7 +600,7 @@ export class GameRenderer {
   }
 
   private drawShooterAimingLaser(enemy: Enemy, now: number) {
-    if (!enemy.sniperTarget) return;
+    if (!enemy.shooterTarget) return;
     
     const ctx = this.ctx;
     const intensity = Math.sin(now / 50) * 0.3 + 0.7; // Fast pulse for urgency
@@ -613,7 +613,7 @@ export class GameRenderer {
     
     ctx.beginPath();
     ctx.moveTo(enemy.position.x, enemy.position.y);
-    ctx.lineTo(enemy.sniperTarget.x, enemy.sniperTarget.y);
+    ctx.lineTo(enemy.shooterTarget.x, enemy.shooterTarget.y);
     ctx.stroke();
     
     // Draw glowing outer laser
@@ -628,15 +628,15 @@ export class GameRenderer {
     ctx.strokeStyle = `rgba(255, 82, 82, ${intensity})`; // Red warning
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(enemy.sniperTarget.x, enemy.sniperTarget.y, reticleSize, 0, Math.PI * 2);
+    ctx.arc(enemy.shooterTarget.x, enemy.shooterTarget.y, reticleSize, 0, Math.PI * 2);
     ctx.stroke();
     
     // Crosshair
     ctx.beginPath();
-    ctx.moveTo(enemy.sniperTarget.x - reticleSize, enemy.sniperTarget.y);
-    ctx.lineTo(enemy.sniperTarget.x + reticleSize, enemy.sniperTarget.y);
-    ctx.moveTo(enemy.sniperTarget.x, enemy.sniperTarget.y - reticleSize);
-    ctx.lineTo(enemy.sniperTarget.x, enemy.sniperTarget.y + reticleSize);
+    ctx.moveTo(enemy.shooterTarget.x - reticleSize, enemy.shooterTarget.y);
+    ctx.lineTo(enemy.shooterTarget.x + reticleSize, enemy.shooterTarget.y);
+    ctx.moveTo(enemy.shooterTarget.x, enemy.shooterTarget.y - reticleSize);
+    ctx.lineTo(enemy.shooterTarget.x, enemy.shooterTarget.y + reticleSize);
     ctx.stroke();
     
     ctx.restore();

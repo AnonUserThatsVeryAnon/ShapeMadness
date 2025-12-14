@@ -51,8 +51,10 @@ export interface Enemy extends Entity {
   chainPartner?: Enemy; // Reference to linked partner
   isProjection?: boolean; // For Magician's illusions
   parentMagician?: Enemy; // Link back to magician
-  sniperCharging?: boolean;
-  sniperTarget?: { x: number; y: number };
+  sniperCharging?: boolean; // For SNIPER enemy type (not yet implemented)
+  sniperTarget?: { x: number; y: number }; // For SNIPER enemy type (not yet implemented)
+  shooterCharging?: boolean; // For SHOOTER enemy aiming telegraph
+  shooterTarget?: { x: number; y: number }; // For SHOOTER enemy target position
   lastHealTime?: number;
   slowFieldRadius?: number; // For Timebomb - randomized per enemy
   shieldRange?: number; // For Protector Cell - shield activation range
