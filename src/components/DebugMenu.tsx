@@ -3,9 +3,14 @@ import { useState } from "react";
 interface DebugMenuProps {
   onClose: () => void;
   onStartDebug: (targetRound: number) => void;
+  onStartTestMode?: () => void;
 }
 
-export function DebugMenu({ onClose, onStartDebug }: DebugMenuProps) {
+export function DebugMenu({
+  onClose,
+  onStartDebug,
+  onStartTestMode,
+}: DebugMenuProps) {
   const [debugRound, setDebugRound] = useState(15);
 
   // Calculate scaled values based on round
@@ -127,7 +132,14 @@ export function DebugMenu({ onClose, onStartDebug }: DebugMenuProps) {
           </p>
         </div>
 
-        <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
+        <div
+          style={{
+            display: "flex",
+            gap: "10px",
+            justifyContent: "center",
+            marginBottom: "10px",
+          }}
+        >
           <button
             className="menu-button"
             onClick={() => onStartDebug(debugRound)}
@@ -141,18 +153,37 @@ export function DebugMenu({ onClose, onStartDebug }: DebugMenuProps) {
           >
             START AT ROUND {debugRound}
           </button>
-          <button
-            className="menu-button"
-            onClick={onClose}
-            style={{
-              backgroundColor: "#666",
-              flex: 0.5,
-              padding: "15px",
-            }}
-          >
-            CANCEL
-          </button>
         </div>
+
+        {onStartTestMode && (
+          <div style={{ marginBottom: "10px" }}>
+            <button
+              className="menu-button"
+              onClick={onStartTestMode}
+              style={{
+                backgroundColor: "#4ecdcb",
+                width: "100%",
+                padding: "15px",
+                fontSize: "16px",
+                fontWeight: "bold",
+              }}
+            >
+              🧪 TEST MODE (No Timer, Spawn with T)
+            </button>
+          </div>
+        )}
+
+        <button
+          className="menu-button"
+          onClick={onClose}
+          style={{
+            backgroundColor: "#666",
+            width: "100%",
+            padding: "15px",
+          }}
+        >
+          CANCEL
+        </button>
       </div>
     </div>
   );

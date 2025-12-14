@@ -26,6 +26,7 @@ import {
 } from "./utils/helpers";
 import {
   spawnEnemiesForRound,
+  spawnSpecificEnemy,
   updateEnemyPosition,
   ENEMY_CONFIGS,
 } from "./utils/enemies";
@@ -54,6 +55,7 @@ import {
 import { EnemyCard } from "./components/EnemyCard";
 import { CodexMenu } from "./components/CodexMenu";
 import { DebugMenu } from "./components/DebugMenu";
+import { SpawnMenu } from "./components/SpawnMenu";
 import { ShopMenu } from "./components/ShopMenu";
 import { GameHUD } from "./components/GameHUD";
 import { GameMenu } from "./components/GameMenu";
@@ -87,6 +89,8 @@ function App() {
 
   // Debug mode state
   const [showDebugMenu, setShowDebugMenu] = useState(false);
+  const [showSpawnMenu, setShowSpawnMenu] = useState(false);
+  const [isTestMode, setIsTestMode] = useState(false);
   const pendingDiscoveriesRef = useRef<EnemyType[]>([]); // Queue for end-of-round card display
 
   // Game state refs (for game loop access)
@@ -312,9 +316,14 @@ function App() {
     setGameState(GameState.PLAYING);
   }, [aimMode]);
 
-  // Wave timer countdown in shop
+  // Wave timer countdown in shop (skip in test mode)
   useEffect(() => {
-    if (gameState === GameState.SHOP && waveTimer > 0 && !isPaused) {
+    if (
+      gameState === GameState.SHOP &&
+      waveTimer > 0 &&
+      !isPaused &&
+      !isTestMode
+    ) {
       waveTimerRef.current = window.setInterval(() => {
         setWaveTimer((prev) => {
           if (prev <= 1) {
@@ -338,7 +347,7 @@ function App() {
         waveTimerRef.current = null;
       }
     };
-  }, [gameState, waveTimer, isPaused, startRound]);
+  }, [gameState, waveTimer, isPaused, isTestMode, startRound]);
 
   // Skip wave timer
   const skipWaveTimer = () => {
@@ -431,7 +440,7 @@ function App() {
       // Simulate progressive expansion: each round expands by ~20%
       // Start at 400, grow to approximately full canvas by round 10
       const expansionFactor = Math.pow(1.2, Math.min(targetRound - 1, 10));
-      let zoneSize = Math.min(
+      const zoneSize = Math.min(
         INITIAL_ZONE_SIZE * expansionFactor,
         Math.min(CANVAS_WIDTH, CANVAS_HEIGHT)
       );
@@ -473,6 +482,69 @@ function App() {
 
     audioSystem.playPurchase();
   };
+
+  // Test Mode - unlimited money, no timer, spawn enemies manually
+  const startTestMode = () => {
+    initializePlayer();
+    const player = playerRef.current;
+    const stats = statsRef.current;
+
+    // Give unlimited money
+    player.money = 999999;
+
+    // Set to round 0 (test mode)
+    stats.round = 0;
+    stats.score = 0;
+    stats.kills = 0;
+    stats.combo = 0;
+    stats.comboMultiplier = 1;
+
+    // Clear game state
+    enemiesRef.current = [];
+    bulletsRef.current = [];
+    enemyProjectilesRef.current = [];
+    powerUpsRef.current = [];
+    particlesRef.current = [];
+    floatingTextsRef.current = [];
+    lasersRef.current = [];
+    iceZonesRef.current = [];
+
+    // Set to full canvas
+    const playZone = playZoneRef.current;
+    playZone.width = CANVAS_WIDTH;
+    playZone.height = CANVAS_HEIGHT;
+    playZone.x = 0;
+    playZone.y = 0;
+    playZone.targetWidth = CANVAS_WIDTH;
+    playZone.targetHeight = CANVAS_HEIGHT;
+    playZone.targetX = 0;
+    playZone.targetY = 0;
+
+    setIsTestMode(true);
+    setGameState(GameState.PLAYING);
+    audioSystem.playPowerUp();
+  };
+
+  // Spawn specific enemy type in test mode
+  const handleSpawnEnemy = useCallback(
+    (enemyType: EnemyType, count: number) => {
+      const newEnemies = spawnSpecificEnemy(
+        enemyType,
+        count,
+        CANVAS_WIDTH,
+        CANVAS_HEIGHT,
+        playZoneRef.current
+      );
+      enemiesRef.current.push(...newEnemies);
+      audioSystem.playShoot();
+
+      // Discover enemy if not already discovered
+      newEnemies.forEach((enemy) => {
+        discoverEnemy(enemy.type);
+      });
+    },
+    []
+  );
 
   // Define game functions before useEffect
   const updateGame = (deltaTime: number, now: number) => {
@@ -1278,8 +1350,12 @@ function App() {
       );
     }
 
-    // Check if round complete (only during playing state)
-    if (gameState === GameState.PLAYING && enemies.every((e) => !e.active)) {
+    // Check if round complete (only during playing state, skip in test mode)
+    if (
+      gameState === GameState.PLAYING &&
+      !isTestMode &&
+      enemies.every((e) => !e.active)
+    ) {
       // Clear powerups from the field when wave completes
       powerUpSystemRef.current.clearAll(powerUpsRef.current);
 
@@ -1925,53 +2001,25 @@ function App() {
         return;
       }
 
-      // Debug: Spawn Turret Sniper with 'T' key during gameplay
+      // Debug: 'T' key in test mode toggles spawn menu
       if (
         (key === "t" || e.code === "KeyT") &&
-        gameState === GameState.PLAYING
+        gameState === GameState.PLAYING &&
+        isTestMode
       ) {
         e.preventDefault();
-        const player = playerRef.current;
-        const playZone = playZoneRef.current;
-        const spawnDistance = 300;
-        const angle = Math.random() * Math.PI * 2;
+        setShowSpawnMenu((prev) => !prev);
+        return;
+      }
 
-        // Calculate spawn position relative to player
-        let spawnX = player.position.x + Math.cos(angle) * spawnDistance;
-        let spawnY = player.position.y + Math.sin(angle) * spawnDistance;
-
-        // Clamp to play zone boundaries with margin for turret radius
-        const margin = 50;
-        spawnX = Math.max(
-          playZone.x + margin,
-          Math.min(playZone.x + playZone.width - margin, spawnX)
-        );
-        spawnY = Math.max(
-          playZone.y + margin,
-          Math.min(playZone.y + playZone.height - margin, spawnY)
-        );
-
-        const turret = {
-          type: EnemyType.TURRET_SNIPER,
-          position: {
-            x: spawnX,
-            y: spawnY,
-          },
-          velocity: { x: 0, y: 0 },
-          radius: ENEMY_CONFIGS[EnemyType.TURRET_SNIPER].radius,
-          health: ENEMY_CONFIGS[EnemyType.TURRET_SNIPER].health,
-          maxHealth: ENEMY_CONFIGS[EnemyType.TURRET_SNIPER].health,
-          speed: ENEMY_CONFIGS[EnemyType.TURRET_SNIPER].speed,
-          damage: ENEMY_CONFIGS[EnemyType.TURRET_SNIPER].damage,
-          value: ENEMY_CONFIGS[EnemyType.TURRET_SNIPER].value,
-          color: ENEMY_CONFIGS[EnemyType.TURRET_SNIPER].color,
-          active: true,
-          lastShot: 0,
-          shootCooldown: 2000,
-          destructionProgress: 0,
-          isBeingDestroyed: false,
-        };
-        enemiesRef.current.push(turret);
+      // Test mode: 'B' key opens shop
+      if (
+        (key === "b" || e.code === "KeyB") &&
+        gameState === GameState.PLAYING &&
+        isTestMode
+      ) {
+        e.preventDefault();
+        setGameState(GameState.SHOP);
         return;
       }
 
@@ -1981,6 +2029,8 @@ function App() {
         e.code !== "KeyQ" &&
         key !== "t" &&
         e.code !== "KeyT" &&
+        key !== "b" &&
+        e.code !== "KeyB" &&
         key !== "escape"
       ) {
         keysRef.current.add(key);
@@ -2011,7 +2061,7 @@ function App() {
       window.removeEventListener("keyup", handleKeyUp);
       window.removeEventListener("mousemove", handleMouseMove);
     };
-  }, [gameState]);
+  }, [gameState, isTestMode]);
 
   return (
     <div className="game-container">
@@ -2043,6 +2093,7 @@ function App() {
             const newMode = aimingSystemRef.current.toggleAimMode();
             setAimMode(newMode);
           }}
+          isTestMode={isTestMode}
         />
       )}
 
@@ -2057,6 +2108,8 @@ function App() {
           onShopTabChange={setShopTab}
           onSkipWave={skipWaveTimer}
           onForceUpdate={() => forceUpdate({})}
+          isTestMode={isTestMode}
+          onCloseShop={() => setGameState(GameState.PLAYING)}
         />
       )}
 
@@ -2124,10 +2177,25 @@ function App() {
             activateDebugMode(targetRound);
             setShowDebugMenu(false);
           }}
+          onStartTestMode={() => {
+            startTestMode();
+            setShowDebugMenu(false);
+          }}
         />
       )}
 
       {showCodex && <CodexMenu onClose={() => setShowCodex(false)} />}
+
+      {/* Spawn Menu - Test Mode Only */}
+      {showSpawnMenu && isTestMode && (
+        <SpawnMenu
+          onClose={() => setShowSpawnMenu(false)}
+          onSpawnEnemy={(enemyType, count) => {
+            handleSpawnEnemy(enemyType, count);
+            setShowSpawnMenu(false);
+          }}
+        />
+      )}
     </div>
   );
 }

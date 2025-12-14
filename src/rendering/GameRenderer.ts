@@ -1193,7 +1193,8 @@ export class GameRenderer {
     this.ctx.textAlign = "left";
     this.ctx.fillStyle = "#ffffff";
     this.ctx.font = "bold 20px monospace";
-    this.ctx.fillText(`Round: ${stats.round}`, 20, 80);
+    const roundText = stats.round === 0 ? "🧪 SANDBOX" : `Round: ${stats.round}`;
+    this.ctx.fillText(roundText, 20, 80);
     this.ctx.fillText(`Score: ${formatNumber(stats.score)}`, 20, 110);
     this.ctx.fillText(`Money: $${player.money}`, 20, 140);
     this.ctx.fillText(`Kills: ${stats.kills}`, 20, 170);

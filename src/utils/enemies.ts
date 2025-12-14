@@ -453,3 +453,63 @@ export function spawnEnemiesForRound(
 
   return enemies;
 }
+
+/**
+ * Spawn specific enemy type for debug/test mode
+ */
+export function spawnSpecificEnemy(
+  enemyType: EnemyType,
+  count: number,
+  canvasWidth: number,
+  canvasHeight: number,
+  playZone: PlayZone
+): Enemy[] {
+  const enemies: Enemy[] = [];
+  const spawnMargin = 50;
+
+  for (let i = 0; i < count; i++) {
+    let spawnX: number, spawnY: number;
+
+    // Determine spawn position (outside play zone)
+    const side = Math.floor(Math.random() * 4);
+    switch (side) {
+      case 0: // Top
+        spawnX = playZone.x + Math.random() * playZone.width;
+        spawnY = playZone.y - spawnMargin;
+        break;
+      case 1: // Right
+        spawnX = playZone.x + playZone.width + spawnMargin;
+        spawnY = playZone.y + Math.random() * playZone.height;
+        break;
+      case 2: // Bottom
+        spawnX = playZone.x + Math.random() * playZone.width;
+        spawnY = playZone.y + playZone.height + spawnMargin;
+        break;
+      case 3: // Left
+      default:
+        spawnX = playZone.x - spawnMargin;
+        spawnY = playZone.y + Math.random() * playZone.height;
+        break;
+    }
+
+    const enemy = createEnemy(enemyType, { x: spawnX, y: spawnY });
+
+    // Initialize boss if spawning a boss
+    if (enemyType === EnemyType.OVERSEER) {
+      initializeBoss(enemy);
+    }
+
+    // Handle chain partners (spawn in pairs)
+    if (enemyType === EnemyType.CHAIN_PARTNER && enemies.length > 0) {
+      const lastEnemy = enemies[enemies.length - 1];
+      if (lastEnemy.type === EnemyType.CHAIN_PARTNER && !lastEnemy.chainPartner) {
+        enemy.chainPartner = lastEnemy;
+        lastEnemy.chainPartner = enemy;
+      }
+    }
+
+    enemies.push(enemy);
+  }
+
+  return enemies;
+}

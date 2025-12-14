@@ -27,6 +27,8 @@ interface ShopMenuProps {
   onShopTabChange: (tab: "core" | "special") => void;
   onSkipWave: () => void;
   onForceUpdate: () => void;
+  isTestMode?: boolean;
+  onCloseShop?: () => void;
 }
 
 export function ShopMenu({
@@ -38,6 +40,8 @@ export function ShopMenu({
   onShopTabChange,
   onSkipWave,
   onForceUpdate,
+  isTestMode = false,
+  onCloseShop,
 }: ShopMenuProps) {
   const handlePurchase = (upgrade: Upgrade) => {
     if (purchaseUpgrade(upgrade, player)) {
@@ -82,26 +86,30 @@ export function ShopMenu({
 
   return (
     <>
-      {/* Wave Timer Overlay */}
-      <div className="wave-timer-overlay">
-        <div className="wave-timer-compact">
-          <span className="wave-timer-text">Next Wave:</span>
-          <span
-            className={`wave-timer-countdown ${
-              waveTimer <= 5 && !isPaused ? "urgent" : ""
-            }`}
-          >
-            {isPaused ? "PAUSED" : `${waveTimer}s`}
-          </span>
-          <button className="skip-wave-compact" onClick={onSkipWave}>
-            ⚡ SKIP
-          </button>
+      {/* Wave Timer Overlay - Hide in test mode */}
+      {!isTestMode && (
+        <div className="wave-timer-overlay">
+          <div className="wave-timer-compact">
+            <span className="wave-timer-text">Next Wave:</span>
+            <span
+              className={`wave-timer-countdown ${
+                waveTimer <= 5 && !isPaused ? "urgent" : ""
+              }`}
+            >
+              {isPaused ? "PAUSED" : `${waveTimer}s`}
+            </span>
+            <button className="skip-wave-compact" onClick={onSkipWave}>
+              ⚡ SKIP
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Shop Menu */}
       <div className="menu-overlay shop-overlay">
-        <h1 className="shop-title">🛒 ROUND {round} SHOP</h1>
+        <h1 className="shop-title">
+          {isTestMode ? "🧪 SANDBOX SHOP" : `🛒 ROUND ${round} SHOP`}
+        </h1>
 
         <div className="shop-header">
           <div className="shop-stats">
@@ -114,8 +122,26 @@ export function ShopMenu({
             <p className="shop-stat">🏃 {player.speed.toFixed(1)}</p>
           </div>
         </div>
+        {isTestMode && onCloseShop && (
+          <button
+            className="menu-button"
+            onClick={onCloseShop}
+            style={{
+              backgroundColor: "#4ecdcb",
+              padding: "12px 24px",
+              fontSize: "16px",
+              fontWeight: "bold",
+              marginBottom: "15px",
+              width: "auto",
+            }}
+          >
+            ✕ Close Shop (Press B)
+          </button>
+        )}
         <p className="shop-tip">
-          💡 Tip: Skip early for bonus cash, or take time to upgrade wisely!
+          {isTestMode
+            ? "💡 Unlimited upgrades! Press B to return to gameplay."
+            : "💡 Tip: Skip early for bonus cash, or take time to upgrade wisely!"}
         </p>
 
         <div className="shop-tabs">
