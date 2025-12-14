@@ -316,11 +316,13 @@ export function updateEnemyPosition(enemy: Enemy, player: Player, deltaTime: num
 
 import { getPatternForRound, selectEnemyType } from '../systems/spawning/WavePatterns';
 import { isBoss, initializeBoss } from '../systems/spawning/BossAbilitySystem';
+import type { PlayZone } from '../types/game';
 
 export function spawnEnemiesForRound(
   round: number,
   canvasWidth: number,
-  canvasHeight: number
+  canvasHeight: number,
+  playZone: PlayZone
 ): Enemy[] {
   const enemies: Enemy[] = [];
   const spawnMargin = 50;
@@ -352,34 +354,41 @@ export function spawnEnemiesForRound(
     let x = 0, y = 0;
     
     if (type === EnemyType.TURRET_SNIPER) {
-      // Turret Snipers spawn near the borders of the map
-      // This makes them strategic defensive positions
-      const borderMargin = 80; // Distance from edge
+      // Turret Snipers spawn near the borders of the play zone
+      // This makes them strategic defensive positions within the safe area
+      const borderMargin = 50; // Distance from play zone edge
       const edge = Math.floor(Math.random() * 4);
       
-      // Ensure we have valid spawn bounds
-      const minX = borderMargin;
-      const maxX = canvasWidth - borderMargin;
-      const minY = borderMargin;
-      const maxY = canvasHeight - borderMargin;
+      // Use play zone boundaries instead of canvas boundaries
+      const minX = playZone.x + borderMargin;
+      const maxX = playZone.x + playZone.width - borderMargin;
+      const minY = playZone.y + borderMargin;
+      const maxY = playZone.y + playZone.height - borderMargin;
       
-      switch (edge) {
-        case 0: // Top border
-          x = Math.max(minX, Math.min(maxX, randomRange(minX, maxX)));
-          y = borderMargin;
-          break;
-        case 1: // Right border
-          x = canvasWidth - borderMargin;
-          y = Math.max(minY, Math.min(maxY, randomRange(minY, maxY)));
-          break;
-        case 2: // Bottom border
-          x = Math.max(minX, Math.min(maxX, randomRange(minX, maxX)));
-          y = canvasHeight - borderMargin;
-          break;
-        case 3: // Left border
-          x = borderMargin;
-          y = Math.max(minY, Math.min(maxY, randomRange(minY, maxY)));
-          break;
+      // Ensure valid ranges
+      if (maxX <= minX || maxY <= minY) {
+        // Fallback to center if play zone is too small
+        x = playZone.x + playZone.width / 2;
+        y = playZone.y + playZone.height / 2;
+      } else {
+        switch (edge) {
+          case 0: // Top border of play zone
+            x = randomRange(minX, maxX);
+            y = minY;
+            break;
+          case 1: // Right border of play zone
+            x = maxX;
+            y = randomRange(minY, maxY);
+            break;
+          case 2: // Bottom border of play zone
+            x = randomRange(minX, maxX);
+            y = maxY;
+            break;
+          case 3: // Left border of play zone
+            x = minX;
+            y = randomRange(minY, maxY);
+            break;
+        }
       }
     } else {
       // Regular enemies spawn at edges

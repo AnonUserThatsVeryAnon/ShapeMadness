@@ -53,6 +53,7 @@ import {
 // UI Components
 import { EnemyCard } from "./components/EnemyCard";
 import { CodexMenu } from "./components/CodexMenu";
+import { DebugMenu } from "./components/DebugMenu";
 import { ShopMenu } from "./components/ShopMenu";
 import { GameHUD } from "./components/GameHUD";
 import { GameMenu } from "./components/GameMenu";
@@ -83,6 +84,9 @@ function App() {
   const [showingCard, setShowingCard] = useState<EnemyType | null>(null);
   const [showCodex, setShowCodex] = useState(false);
   const codexStateRef = useRef<CodexState>(getCodexState());
+
+  // Debug mode state
+  const [showDebugMenu, setShowDebugMenu] = useState(false);
   const pendingDiscoveriesRef = useRef<EnemyType[]>([]); // Queue for end-of-round card display
 
   // Game state refs (for game loop access)
@@ -269,7 +273,8 @@ function App() {
     enemiesRef.current = spawnEnemiesForRound(
       statsRef.current.round,
       CANVAS_WIDTH,
-      CANVAS_HEIGHT
+      CANVAS_HEIGHT,
+      playZoneRef.current
     );
 
     // Check if boss spawned and add entrance effects
@@ -346,58 +351,64 @@ function App() {
     startRound();
   };
 
-  // Debug function to skip to wave 15 boss fight with good upgrades
-  const activateDebugMode = () => {
+  // Debug function to skip to specific wave with good upgrades
+  const activateDebugMode = (targetRound: number = 15) => {
     const player = playerRef.current;
     const stats = statsRef.current;
 
     // Reset game state first
     resetUpgrades();
 
-    // Give moderate upgrades (not maxed, but competitive)
+    // Give moderate upgrades (scaled with target round)
     const damageUpgrade = UPGRADES.find((u) => u.id === "damage");
     const fireRateUpgrade = UPGRADES.find((u) => u.id === "fire_rate");
     const healthUpgrade = UPGRADES.find((u) => u.id === "health");
     const speedUpgrade = UPGRADES.find((u) => u.id === "speed");
     const defenseUpgrade = UPGRADES.find((u) => u.id === "defense");
 
-    // Apply 20 levels of key upgrades for boss fight readiness
+    // Scale upgrades based on target round
+    const damageLevels = Math.min(20, Math.floor(targetRound * 1.3));
+    const fireRateLevels = Math.min(15, Math.floor(targetRound));
+    const healthLevels = Math.min(10, Math.floor(targetRound * 0.7));
+    const speedLevels = Math.min(20, Math.floor(targetRound * 1.3));
+    const defenseLevels = Math.min(5, Math.floor(targetRound * 0.3));
+
     if (damageUpgrade) {
-      for (let i = 0; i < 20; i++) {
+      for (let i = 0; i < damageLevels; i++) {
         damageUpgrade.currentLevel++;
         damageUpgrade.effect(player);
       }
     }
     if (fireRateUpgrade) {
-      for (let i = 0; i < 15; i++) {
+      for (let i = 0; i < fireRateLevels; i++) {
         fireRateUpgrade.currentLevel++;
         fireRateUpgrade.effect(player);
       }
     }
     if (healthUpgrade) {
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < healthLevels; i++) {
         healthUpgrade.currentLevel++;
         healthUpgrade.effect(player);
       }
     }
     if (speedUpgrade) {
-      for (let i = 0; i < 20; i++) {
+      for (let i = 0; i < speedLevels; i++) {
         speedUpgrade.currentLevel++;
         speedUpgrade.effect(player);
       }
     }
     if (defenseUpgrade) {
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < defenseLevels; i++) {
         defenseUpgrade.currentLevel++;
         defenseUpgrade.effect(player);
       }
     }
 
-    // Give money for shop
-    player.money = 100000;
+    // Give money scaled with round
+    player.money = Math.max(500, targetRound * 50);
 
-    // Set to round 14 so startRound() increments to 15
-    stats.round = 14;
+    // Set to target round - 1 so startRound() increments to target
+    stats.round = targetRound - 1;
     stats.score = 0;
     stats.kills = 0;
     stats.combo = 0;
@@ -421,7 +432,7 @@ function App() {
     // Force UI update
     forceUpdate({});
 
-    // Enter shop before boss fight
+    // Enter shop before starting
     setGameState(GameState.SHOP);
     setWaveTimer(30);
 
@@ -1985,10 +1996,7 @@ function App() {
             startRound();
           }}
           onShowCodex={() => setShowCodex(true)}
-          onDebugMode={() => {
-            initializePlayer();
-            activateDebugMode();
-          }}
+          onDebugMode={() => setShowDebugMenu(true)}
         />
       )}
 
@@ -2068,6 +2076,18 @@ function App() {
               // All discoveries shown, proceed to shop
               setGameState(GameState.SHOP);
             }
+          }}
+        />
+      )}
+
+      {/* Debug Menu */}
+      {showDebugMenu && (
+        <DebugMenu
+          onClose={() => setShowDebugMenu(false)}
+          onStartDebug={(targetRound) => {
+            initializePlayer();
+            activateDebugMode(targetRound);
+            setShowDebugMenu(false);
           }}
         />
       )}
