@@ -241,6 +241,55 @@
   box-shadow: 0 4px 15px rgba(78, 205, 203, 0.5);
 }
 
+/* Sort Controls */
+.codex-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.codex-sort {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sort-label {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.sort-button {
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sort-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.sort-button.active {
+  background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
+  border-color: #ff6b6b;
+  color: white;
+  box-shadow: 0 3px 12px rgba(255, 107, 107, 0.4);
+}
+
 /* Main Content - Grid and Detail Panel */
 .codex-content {
   display: grid;
@@ -640,6 +689,106 @@
 
 .codex-close-button:active {
   transform: translateX(-50%) translateY(0);
+}
+
+/* Stat Bars */
+.stat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.stat-bar-container {
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.stat-bar {
+  height: 100%;
+  transition: width 0.5s ease-out;
+  border-radius: 4px;
+  box-shadow: 0 0 10px currentColor;
+}
+
+.stat-bar-health {
+  background: linear-gradient(90deg, #ff1a1a, #ff6b6b);
+  box-shadow: 0 0 10px rgba(255, 26, 26, 0.8);
+}
+
+.stat-bar-speed {
+  background: linear-gradient(90deg, #4ecdcb, #03a9f4);
+  box-shadow: 0 0 10px rgba(78, 205, 203, 0.8);
+}
+
+.stat-bar-damage {
+  background: linear-gradient(90deg, #ff6b1a, #ffeb3b);
+  box-shadow: 0 0 10px rgba(255, 107, 26, 0.8);
+}
+
+.stat-bar-money {
+  background: linear-gradient(90deg, #ffd700, #ffeb3b);
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+}
+
+/* Threat Level Indicator */
+.threat-level-container {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+.threat-level-label {
+  font-size: 12px;
+  font-weight: bold;
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 1px;
+  min-width: 100px;
+}
+
+.threat-level-bars {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+}
+
+.threat-bar {
+  flex: 1;
+  height: 24px;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.threat-bar.active {
+  animation: threatPulse 2s ease-in-out infinite;
+}
+
+@keyframes threatPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.threat-level-text {
+  font-size: 14px;
+  font-weight: bold;
+  min-width: 80px;
+  text-align: right;
+  color: #fff;
+  text-shadow: 0 0 10px currentColor;
 }
 
 /* Responsive Design */

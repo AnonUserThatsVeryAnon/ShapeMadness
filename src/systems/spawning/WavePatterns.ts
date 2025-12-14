@@ -78,6 +78,27 @@ export const WAVE_PATTERNS = {
     countFormula: (round: number) => 5 + round * 2,
     description: 'Time Distortion enemies slow the arena',
   },
+
+  FROST_ASSAULT: {
+    types: [EnemyType.BASIC, EnemyType.FAST, EnemyType.SPLITTER, EnemyType.TANK, EnemyType.SHOOTER, EnemyType.TURRET_SNIPER, EnemyType.BUFFER, EnemyType.CHAIN_PARTNER, EnemyType.TIME_DISTORTION, EnemyType.ICE],
+    weights: [10, 15, 12, 18, 14, 6, 8, 8, 8, 9],
+    countFormula: (round: number) => 5 + round * 2,
+    description: 'Ice enemies leave freezing zones on death',
+  },
+
+  EXPLOSIVE_CHAOS: {
+    types: [EnemyType.BASIC, EnemyType.FAST, EnemyType.SPLITTER, EnemyType.TANK, EnemyType.SHOOTER, EnemyType.TURRET_SNIPER, EnemyType.BUFFER, EnemyType.CHAIN_PARTNER, EnemyType.TIME_DISTORTION, EnemyType.ICE, EnemyType.BOMB],
+    weights: [10, 15, 12, 18, 14, 6, 8, 8, 8, 9, 10],
+    countFormula: (round: number) => 5 + round * 2,
+    description: 'Bombs explode on death dealing area damage',
+  },
+
+  AERIAL_SWARM: {
+    types: [EnemyType.BASIC, EnemyType.FAST, EnemyType.SPLITTER, EnemyType.TANK, EnemyType.SHOOTER, EnemyType.TURRET_SNIPER, EnemyType.BUFFER, EnemyType.CHAIN_PARTNER, EnemyType.TIME_DISTORTION, EnemyType.ICE, EnemyType.BOMB, EnemyType.LUFTI],
+    weights: [10, 15, 12, 18, 14, 6, 8, 8, 8, 9, 10, 12],
+    countFormula: (round: number) => 5 + round * 2,
+    description: 'Lufti teleport-dashes toward player',
+  },
 } as const;
 
 // Progressive difficulty curve - defines when patterns unlock
@@ -91,6 +112,9 @@ export const DIFFICULTY_CURVE: DifficultyProgression[] = [
   { unlockRound: 15, patternKey: 'SUPPORT_ENHANCED', weight: 100 },
   { unlockRound: 18, patternKey: 'CHAIN_COORDINATION', weight: 100 },
   { unlockRound: 20, patternKey: 'TEMPORAL_NIGHTMARE', weight: 100 },
+  { unlockRound: 22, patternKey: 'FROST_ASSAULT', weight: 100 },
+  { unlockRound: 25, patternKey: 'EXPLOSIVE_CHAOS', weight: 100 },
+  { unlockRound: 28, patternKey: 'AERIAL_SWARM', weight: 100 },
 ];
 
 /**

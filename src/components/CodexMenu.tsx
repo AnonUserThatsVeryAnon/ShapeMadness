@@ -14,6 +14,7 @@ type FilterType = "all" | "discovered" | "locked" | "implemented" | "boss";
 export function CodexMenu({ onClose }: CodexMenuProps) {
   const [selectedEnemy, setSelectedEnemy] = useState<EnemyType | null>(null);
   const [filter, setFilter] = useState<FilterType>("all");
+  const [sortBy, setSortBy] = useState<"round" | "threat" | "reward">("round");
   const codexState = getCodexState();
 
   // Get all enemy cards sorted by unlock round
@@ -28,21 +29,52 @@ export function CodexMenu({ onClose }: CodexMenuProps) {
       .sort((a, b) => a.card.unlockRound - b.card.unlockRound);
   }, [codexState.discoveredEnemies]);
 
-  // Filter enemies based on current filter
+  // Filter and sort enemies
   const filteredEnemies = useMemo(() => {
+    let filtered = allEnemies;
+
+    // Apply filter
     switch (filter) {
       case "discovered":
-        return allEnemies.filter((e) => e.discovered);
+        filtered = allEnemies.filter((e) => e.discovered);
+        break;
       case "locked":
-        return allEnemies.filter((e) => !e.discovered);
+        filtered = allEnemies.filter((e) => !e.discovered);
+        break;
       case "implemented":
-        return allEnemies.filter((e) => e.card.implemented);
+        filtered = allEnemies.filter((e) => e.card.implemented);
+        break;
       case "boss":
-        return allEnemies.filter((e) => e.type === EnemyType.OVERSEER);
+        filtered = allEnemies.filter((e) => e.type === EnemyType.OVERSEER);
+        break;
       default:
-        return allEnemies;
+        filtered = allEnemies;
     }
-  }, [allEnemies, filter]);
+
+    // Apply sort
+    return [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case "threat": {
+          const threatA =
+            (a.card.stats.health * 0.15 +
+              a.card.stats.damage * 3 +
+              a.card.stats.speed * 20) /
+            100;
+          const threatB =
+            (b.card.stats.health * 0.15 +
+              b.card.stats.damage * 3 +
+              b.card.stats.speed * 20) /
+            100;
+          return threatB - threatA;
+        }
+        case "reward":
+          return b.card.stats.value - a.card.stats.value;
+        case "round":
+        default:
+          return a.card.unlockRound - b.card.unlockRound;
+      }
+    });
+  }, [allEnemies, filter, sortBy]);
 
   const selectedCard = selectedEnemy
     ? allEnemies.find((e) => e.type === selectedEnemy)
@@ -218,42 +250,69 @@ export function CodexMenu({ onClose }: CodexMenuProps) {
         ))}
       </div>
 
-      {/* Filters */}
-      <div className="codex-filters">
-        <button
-          className={`filter-button ${filter === "all" ? "active" : ""}`}
-          onClick={() => setFilter("all")}
-        >
-          All ({allEnemies.length})
-        </button>
-        <button
-          className={`filter-button ${filter === "discovered" ? "active" : ""}`}
-          onClick={() => setFilter("discovered")}
-        >
-          Discovered ({allEnemies.filter((e) => e.discovered).length})
-        </button>
-        <button
-          className={`filter-button ${filter === "locked" ? "active" : ""}`}
-          onClick={() => setFilter("locked")}
-        >
-          Locked ({allEnemies.filter((e) => !e.discovered).length})
-        </button>
-        <button
-          className={`filter-button ${
-            filter === "implemented" ? "active" : ""
-          }`}
-          onClick={() => setFilter("implemented")}
-        >
-          Implemented ({allEnemies.filter((e) => e.card.implemented).length})
-        </button>
-        <button
-          className={`filter-button boss-filter ${
-            filter === "boss" ? "active" : ""
-          }`}
-          onClick={() => setFilter("boss")}
-        >
-          ⚠️ BOSSES (1)
-        </button>
+      {/* Filters and Sort */}
+      <div className="codex-controls">
+        <div className="codex-filters">
+          <button
+            className={`filter-button ${filter === "all" ? "active" : ""}`}
+            onClick={() => setFilter("all")}
+          >
+            All ({allEnemies.length})
+          </button>
+          <button
+            className={`filter-button ${
+              filter === "discovered" ? "active" : ""
+            }`}
+            onClick={() => setFilter("discovered")}
+          >
+            Discovered ({allEnemies.filter((e) => e.discovered).length})
+          </button>
+          <button
+            className={`filter-button ${filter === "locked" ? "active" : ""}`}
+            onClick={() => setFilter("locked")}
+          >
+            Locked ({allEnemies.filter((e) => !e.discovered).length})
+          </button>
+          <button
+            className={`filter-button ${
+              filter === "implemented" ? "active" : ""
+            }`}
+            onClick={() => setFilter("implemented")}
+          >
+            Implemented ({allEnemies.filter((e) => e.card.implemented).length})
+          </button>
+          <button
+            className={`filter-button boss-filter ${
+              filter === "boss" ? "active" : ""
+            }`}
+            onClick={() => setFilter("boss")}
+          >
+            ⚠️ BOSSES (1)
+          </button>
+        </div>
+
+        {/* Sort Options */}
+        <div className="codex-sort">
+          <span className="sort-label">Sort by:</span>
+          <button
+            className={`sort-button ${sortBy === "round" ? "active" : ""}`}
+            onClick={() => setSortBy("round")}
+          >
+            📅 Round
+          </button>
+          <button
+            className={`sort-button ${sortBy === "threat" ? "active" : ""}`}
+            onClick={() => setSortBy("threat")}
+          >
+            ⚠️ Threat
+          </button>
+          <button
+            className={`sort-button ${sortBy === "reward" ? "active" : ""}`}
+            onClick={() => setSortBy("reward")}
+          >
+            💰 Reward
+          </button>
+        </div>
       </div>
 
       {/* Main Content Area */}
@@ -351,32 +410,131 @@ export function CodexMenu({ onClose }: CodexMenuProps) {
                   {selectedCard.card.description}
                 </p>
 
-                {/* Stats */}
+                {/* Stats with visual bars */}
                 <div className="detail-stats">
                   <div className="detail-stat">
-                    <span className="detail-stat-label">HEALTH</span>
-                    <span className="detail-stat-value">
-                      {selectedCard.card.stats.health} HP
-                    </span>
+                    <div className="stat-header">
+                      <span className="detail-stat-label">❤️ HEALTH</span>
+                      <span className="detail-stat-value">
+                        {selectedCard.card.stats.health} HP
+                      </span>
+                    </div>
+                    <div className="stat-bar-container">
+                      <div
+                        className="stat-bar stat-bar-health"
+                        style={{
+                          width: `${Math.min(
+                            (selectedCard.card.stats.health / 500) * 100,
+                            100
+                          )}%`,
+                        }}
+                      />
+                    </div>
                   </div>
                   <div className="detail-stat">
-                    <span className="detail-stat-label">SPEED</span>
-                    <span className="detail-stat-value">
-                      {selectedCard.card.stats.speed}
-                    </span>
+                    <div className="stat-header">
+                      <span className="detail-stat-label">⚡ SPEED</span>
+                      <span className="detail-stat-value">
+                        {selectedCard.card.stats.speed}
+                      </span>
+                    </div>
+                    <div className="stat-bar-container">
+                      <div
+                        className="stat-bar stat-bar-speed"
+                        style={{
+                          width: `${Math.min(
+                            (selectedCard.card.stats.speed / 4) * 100,
+                            100
+                          )}%`,
+                        }}
+                      />
+                    </div>
                   </div>
                   <div className="detail-stat">
-                    <span className="detail-stat-label">DAMAGE</span>
-                    <span className="detail-stat-value">
-                      {selectedCard.card.stats.damage}
-                    </span>
+                    <div className="stat-header">
+                      <span className="detail-stat-label">⚔️ DAMAGE</span>
+                      <span className="detail-stat-value">
+                        {selectedCard.card.stats.damage}
+                      </span>
+                    </div>
+                    <div className="stat-bar-container">
+                      <div
+                        className="stat-bar stat-bar-damage"
+                        style={{
+                          width: `${Math.min(
+                            (selectedCard.card.stats.damage / 60) * 100,
+                            100
+                          )}%`,
+                        }}
+                      />
+                    </div>
                   </div>
                   <div className="detail-stat">
-                    <span className="detail-stat-label">MONEY</span>
-                    <span className="detail-stat-value">
-                      ${selectedCard.card.stats.value}
-                    </span>
+                    <div className="stat-header">
+                      <span className="detail-stat-label">💰 REWARD</span>
+                      <span className="detail-stat-value">
+                        ${selectedCard.card.stats.value}
+                      </span>
+                    </div>
+                    <div className="stat-bar-container">
+                      <div
+                        className="stat-bar stat-bar-money"
+                        style={{
+                          width: `${Math.min(
+                            (selectedCard.card.stats.value / 150) * 100,
+                            100
+                          )}%`,
+                        }}
+                      />
+                    </div>
                   </div>
+                </div>
+
+                {/* Threat Level Indicator */}
+                <div className="threat-level-container">
+                  <span className="threat-level-label">THREAT LEVEL:</span>
+                  <div className="threat-level-bars">
+                    {Array.from({ length: 5 }, (_, i) => {
+                      const threatScore =
+                        (selectedCard.card.stats.health * 0.15 +
+                          selectedCard.card.stats.damage * 3 +
+                          selectedCard.card.stats.speed * 20) /
+                        100;
+                      return (
+                        <div
+                          key={i}
+                          className={`threat-bar ${
+                            i < Math.ceil(threatScore) ? "active" : ""
+                          }`}
+                          style={{
+                            backgroundColor:
+                              i < Math.ceil(threatScore)
+                                ? threatScore >= 4
+                                  ? "#ff1a1a"
+                                  : threatScore >= 3
+                                  ? "#ff6b1a"
+                                  : threatScore >= 2
+                                  ? "#ffeb3b"
+                                  : "#4ecdcb"
+                                : "rgba(255,255,255,0.1)",
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
+                  <span className="threat-level-text">
+                    {(() => {
+                      const threatScore =
+                        (selectedCard.card.stats.health * 0.15 +
+                          selectedCard.card.stats.damage * 3 +
+                          selectedCard.card.stats.speed * 20) /
+                        100;
+                      if (threatScore >= 4) return "EXTREME";
+                      if (threatScore >= 3) return "HIGH";
+                      if (threatScore >= 2) return "MEDIUM";
+                      return "LOW";
+                    })()}
+                  </span>
                 </div>
 
                 {/* Abilities */}
