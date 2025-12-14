@@ -332,29 +332,49 @@ export function spawnEnemiesForRound(
   // Check if this is a boss round
   const bossRound = isBoss(EnemyType.OVERSEER) && round === 15;
 
+  // Track turret count to cap at 5 per round
+  let turretCount = 0;
+  const maxTurretsPerRound = 5;
+
   for (let i = 0; i < spawnCount; i++) {
     // Select enemy type from pattern first
-    const type = selectEnemyType(pattern);
+    let type = selectEnemyType(pattern);
+    
+    // If we've hit the turret cap, reroll to a different enemy type
+    if (type === EnemyType.TURRET_SNIPER && turretCount >= maxTurretsPerRound) {
+      // Reroll until we get a non-turret type
+      while (type === EnemyType.TURRET_SNIPER) {
+        type = selectEnemyType(pattern);
+      }
+    }
     
     // Determine spawn location based on enemy type
     let x = 0, y = 0;
     
     if (type === EnemyType.TURRET_SNIPER) {
-      // Turret Snipers spawn within the play area (not at edges)
-      // Position them strategically away from center
-      const centerX = canvasWidth / 2;
-      const centerY = canvasHeight / 2;
-      const minDistFromCenter = 200;
-      const maxDistFromCenter = Math.min(canvasWidth, canvasHeight) / 2 - 100;
+      // Turret Snipers spawn near the borders of the map
+      // This makes them strategic defensive positions
+      const borderMargin = 80; // Distance from edge
+      const edge = Math.floor(Math.random() * 4);
       
-      const angle = Math.random() * Math.PI * 2;
-      const dist = randomRange(minDistFromCenter, maxDistFromCenter);
-      x = centerX + Math.cos(angle) * dist;
-      y = centerY + Math.sin(angle) * dist;
-      
-      // Ensure it's within bounds with margin
-      x = Math.max(spawnMargin + 20, Math.min(canvasWidth - spawnMargin - 20, x));
-      y = Math.max(spawnMargin + 20, Math.min(canvasHeight - spawnMargin - 20, y));
+      switch (edge) {
+        case 0: // Top border
+          x = randomRange(borderMargin, canvasWidth - borderMargin);
+          y = borderMargin;
+          break;
+        case 1: // Right border
+          x = canvasWidth - borderMargin;
+          y = randomRange(borderMargin, canvasHeight - borderMargin);
+          break;
+        case 2: // Bottom border
+          x = randomRange(borderMargin, canvasWidth - borderMargin);
+          y = canvasHeight - borderMargin;
+          break;
+        case 3: // Left border
+          x = borderMargin;
+          y = randomRange(borderMargin, canvasHeight - borderMargin);
+          break;
+      }
     } else {
       // Regular enemies spawn at edges
       const edge = Math.floor(Math.random() * 4);
@@ -381,6 +401,11 @@ export function spawnEnemiesForRound(
 
     const enemy = createEnemy(type, { x, y });
     enemies.push(enemy);
+    
+    // Track turret spawns
+    if (type === EnemyType.TURRET_SNIPER) {
+      turretCount++;
+    }
     
     // If Chain Partner, spawn a partner nearby and link them
     if (type === EnemyType.CHAIN_PARTNER) {

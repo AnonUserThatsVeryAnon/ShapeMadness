@@ -394,7 +394,7 @@ function App() {
     }
 
     // Give money for shop
-    player.money = 10000;
+    player.money = 100000;
 
     // Set to round 14 so startRound() increments to 15
     stats.round = 14;
