@@ -101,13 +101,6 @@ export function CodexMenu({ onClose }: CodexMenuProps) {
     return "low";
   };
 
-  // Close modal when clicking backdrop
-  const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      setSelectedEnemy(null);
-    }
-  };
-
   const selectedCard = selectedEnemy
     ? allEnemies.find((e) => e.type === selectedEnemy)
     : null;
@@ -159,7 +152,12 @@ export function CodexMenu({ onClose }: CodexMenuProps) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        onClose();
+        if (selectedEnemy) {
+          setSelectedEnemy(null);
+          e.preventDefault();
+        } else {
+          onClose();
+        }
         return;
       }
 
@@ -181,7 +179,14 @@ export function CodexMenu({ onClose }: CodexMenuProps) {
       );
       if (currentIndex === -1) return;
 
-      const gridColumns = window.innerWidth > 768 ? 4 : 2; // Approximate grid columns
+      // Calculate grid columns more accurately based on viewport width
+      const getGridColumns = () => {
+        const width = window.innerWidth;
+        if (width <= 768) return 2;
+        if (width <= 1200) return 3;
+        return 4;
+      };
+      const gridColumns = getGridColumns();
 
       switch (e.key) {
         case "ArrowRight": {
@@ -225,7 +230,7 @@ export function CodexMenu({ onClose }: CodexMenuProps) {
       {/* Header */}
       <div className="codex-header">
         <div className="codex-title-section">
-          <h1 className="codex-title">📖 ENEMY CODEX</h1>
+          <h1 className="codex-title">ENEMY CODEX</h1>
           <p className="codex-subtitle">
             Your collection of discovered enemies
           </p>
@@ -269,6 +274,9 @@ export function CodexMenu({ onClose }: CodexMenuProps) {
             <span className="achievement-icon">{achievement.icon}</span>
             <div className="achievement-info">
               <span className="achievement-name">{achievement.name}</span>
+              <span className="achievement-description">
+                {achievement.description}
+              </span>
               <span className="achievement-progress">
                 {achievement.progress}
               </span>
@@ -280,34 +288,37 @@ export function CodexMenu({ onClose }: CodexMenuProps) {
         ))}
       </div>
       {/* Search Bar */}
-      <div style={{ marginBottom: "24px" }}>
+      <div className="codex-search-container">
         <input
           type="text"
           placeholder="🔍 Search enemies..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          style={{
-            width: "100%",
-            padding: "16px 20px",
-            fontSize: "16px",
-            background: "rgba(255, 255, 255, 0.05)",
-            backdropFilter: "blur(10px)",
-            border: "2px solid rgba(255, 255, 255, 0.15)",
-            borderRadius: "16px",
-            color: "white",
-            outline: "none",
-            transition: "all 0.3s ease",
-          }}
-          onFocus={(e) => {
-            e.target.style.borderColor = "rgba(78, 205, 203, 0.5)";
-            e.target.style.background = "rgba(255, 255, 255, 0.08)";
-          }}
-          onBlur={(e) => {
-            e.target.style.borderColor = "rgba(255, 255, 255, 0.15)";
-            e.target.style.background = "rgba(255, 255, 255, 0.05)";
-          }}
+          className="codex-search-input"
         />
+        {searchQuery && (
+          <button
+            className="search-clear-button"
+            onClick={() => setSearchQuery("")}
+            aria-label="Clear search"
+          >
+            ×
+          </button>
+        )}
       </div>
+      {/* Active Search Indicator */}
+      {searchQuery && (
+        <div className="active-filter-indicator">
+          <span className="filter-indicator-icon">🔍</span>
+          <span className="filter-indicator-text">
+            Searching: "{searchQuery}"
+          </span>
+          <span className="filter-indicator-count">
+            {filteredEnemies.length} result
+            {filteredEnemies.length !== 1 ? "s" : ""}
+          </span>
+        </div>
+      )}
       {/* Filters and Sort */}
       {!searchQuery && (
         <div className="codex-controls">
@@ -347,7 +358,8 @@ export function CodexMenu({ onClose }: CodexMenuProps) {
               }`}
               onClick={() => setFilter("boss")}
             >
-              ⚠️ BOSSES (1)
+              ⚠️ BOSSES (
+              {allEnemies.filter((e) => e.type === EnemyType.OVERSEER).length})
             </button>
           </div>
 
@@ -375,333 +387,334 @@ export function CodexMenu({ onClose }: CodexMenuProps) {
           </div>
         </div>
       )}
-      {/* Main Content Area */}
-      <div className="codex-content">
-        {/* Enemy Grid */}
-        <div className="codex-grid">
-          {filteredEnemies.map(({ type, card, discovered }) => {
-            const enemyCanvas = discovered
-              ? createEnemyCanvas(type, card.color, 80)
-              : null;
-            const threatLevel = getThreatLevel(card);
-
-            return (
+      {/* Main Content Area - Split Layout */}
+      <div className="codex-split-layout">
+        {/* Left Panel - Enemy List */}
+        <div className="codex-list-panel">
+          {/* Empty State for Search */}
+          {searchQuery && filteredEnemies.length === 0 && (
+            <div className="codex-empty-state">
+              <div className="empty-state-icon">🔍</div>
+              <h3 className="empty-state-title">No Enemies Found</h3>
+              <p className="empty-state-description">
+                No discovered enemies match "{searchQuery}"
+              </p>
               <button
-                key={type}
-                className={`codex-card ${
-                  discovered ? "discovered" : "locked"
-                } ${selectedEnemy === type ? "selected" : ""} ${
-                  card.implemented ? "implemented" : "placeholder"
-                }`}
-                onClick={() => setSelectedEnemy(type)}
+                className="empty-state-button"
+                onClick={() => setSearchQuery("")}
               >
-                {/* Round Badge */}
-                <div className="codex-card-round-badge">
-                  R{card.unlockRound}
-                </div>
-
-                {/* Threat Badge */}
-                {discovered && (
-                  <div
-                    className={`codex-card-threat-badge threat-badge-${threatLevel}`}
-                  >
-                    {threatLevel.toUpperCase()}
-                  </div>
-                )}
-
-                <div className="codex-card-icon-wrapper">
-                  {discovered && enemyCanvas ? (
-                    <canvas
-                      width="80"
-                      height="80"
-                      className="codex-card-canvas"
-                      ref={(el) => {
-                        if (el && enemyCanvas) {
-                          const ctx = el.getContext("2d");
-                          if (ctx) ctx.drawImage(enemyCanvas, 0, 0);
-                        }
-                      }}
-                      style={{ filter: `drop-shadow(0 0 8px ${card.color})` }}
-                    />
-                  ) : (
-                    <div className="codex-card-icon-locked">🔒</div>
-                  )}
-                </div>
-
-                <div className="codex-card-name">
-                  {discovered ? card.name : "???"}
-                </div>
-
-                {discovered && (
-                  <div className="codex-card-mini-stats">
-                    <div className="codex-card-mini-stat">
-                      <span className="mini-stat-label">❤️</span>
-                      <span className="mini-stat-value">
-                        {card.stats.health}
-                      </span>
-                    </div>
-                    <div className="mini-stat-bar">
-                      <div
-                        className="mini-stat-fill"
-                        style={{
-                          width: `${Math.min(
-                            (card.stats.health / 500) * 100,
-                            100
-                          )}%`,
-                        }}
-                      />
-                    </div>
-                    <div className="codex-card-mini-stat">
-                      <span className="mini-stat-label">💰</span>
-                      <span className="mini-stat-value">
-                        ${card.stats.value}
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                {!discovered && (
-                  <div className="codex-card-unlock">
-                    Unlocks Round {card.unlockRound}
-                  </div>
-                )}
-
-                {!card.implemented && (
-                  <div className="coming-soon-badge">Coming Soon</div>
-                )}
+                Clear Search
               </button>
-            );
-          })}
-        </div>
-      </div>{" "}
-      {/* Close codex-content */}
-      {/* Detail Panel - Modal Overlay */}
-      {selectedCard && (
-        <div className="codex-detail-panel" onClick={handleBackdropClick}>
-          <div className="codex-detail-content">
-            {/* Close Button */}
-            <button
-              className="codex-detail-close"
-              onClick={() => setSelectedEnemy(null)}
-              aria-label="Close"
-            >
-              ×
-            </button>
+            </div>
+          )}
+          {/* Enemy Grid */}
+          <div
+            className="codex-grid-panel"
+            style={{
+              display:
+                filteredEnemies.length === 0 && searchQuery ? "none" : "grid",
+            }}
+          >
+            {filteredEnemies.map(({ type, card, discovered }) => {
+              const enemyCanvas = discovered
+                ? createEnemyCanvas(type, card.color, 70)
+                : null;
+              const threatLevel = getThreatLevel(card);
 
-            {selectedCard.discovered ? (
-              <>
-                {/* Discovered Enemy Details */}
-                <div className="detail-header">
-                  <div className="detail-icon-wrapper">
-                    <canvas
-                      width="80"
-                      height="80"
-                      className="detail-icon-canvas"
-                      ref={(el) => {
-                        if (el) {
-                          const canvas = createEnemyCanvas(
-                            selectedCard.type,
-                            selectedCard.card.color,
-                            80
-                          );
-                          const ctx = el.getContext("2d");
-                          if (ctx) ctx.drawImage(canvas, 0, 0);
-                        }
-                      }}
-                      style={{
-                        filter: `drop-shadow(0 0 8px ${selectedCard.card.color})`,
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <h2 className="detail-name">{selectedCard.card.name}</h2>
-                    <p className="detail-unlock">
-                      Unlocked at Round {selectedCard.card.unlockRound}
-                    </p>
-                    <p className="detail-discovery-time">
-                      Discovered:{" "}
-                      {formatDiscoveryTime(selectedCard.discoveryTime)}
-                    </p>
-                  </div>
-                </div>
+              return (
+                <button
+                  key={type}
+                  className={`codex-grid-card ${
+                    discovered ? "discovered" : "locked"
+                  } ${selectedEnemy === type ? "selected" : ""} ${
+                    card.implemented ? "implemented" : "placeholder"
+                  }`}
+                  onClick={() => setSelectedEnemy(type)}
+                >
+                  {/* Round Badge */}
+                  <div className="grid-card-round">R{card.unlockRound}</div>
 
-                <p className="detail-description">
-                  {selectedCard.card.description}
-                </p>
-
-                {/* Stats with visual bars */}
-                <div className="detail-stats">
-                  <div className="detail-stat">
-                    <div className="stat-header">
-                      <span className="detail-stat-label">❤️ HEALTH</span>
-                      <span className="detail-stat-value">
-                        {selectedCard.card.stats.health} HP
-                      </span>
+                  {/* Threat Badge */}
+                  {discovered && (
+                    <div className={`grid-card-threat threat-${threatLevel}`}>
+                      {threatLevel === "extreme"
+                        ? "⚠️"
+                        : threatLevel === "high"
+                        ? "⚡"
+                        : threatLevel === "medium"
+                        ? "▲"
+                        : "●"}
                     </div>
-                    <div className="stat-bar-container">
-                      <div
-                        className="stat-bar stat-bar-health"
-                        style={{
-                          width: `${Math.min(
-                            (selectedCard.card.stats.health / 500) * 100,
-                            100
-                          )}%`,
+                  )}
+
+                  <div className="grid-card-icon">
+                    {discovered && enemyCanvas ? (
+                      <canvas
+                        width="70"
+                        height="70"
+                        className="grid-card-canvas"
+                        ref={(el) => {
+                          if (el && enemyCanvas) {
+                            const ctx = el.getContext("2d");
+                            if (ctx) ctx.drawImage(enemyCanvas, 0, 0);
+                          }
                         }}
+                        style={{ filter: `drop-shadow(0 0 8px ${card.color})` }}
                       />
-                    </div>
+                    ) : (
+                      <div className="grid-card-icon-locked">🔒</div>
+                    )}
                   </div>
-                  <div className="detail-stat">
-                    <div className="stat-header">
-                      <span className="detail-stat-label">⚡ SPEED</span>
-                      <span className="detail-stat-value">
-                        {selectedCard.card.stats.speed}
-                      </span>
-                    </div>
-                    <div className="stat-bar-container">
-                      <div
-                        className="stat-bar stat-bar-speed"
-                        style={{
-                          width: `${Math.min(
-                            (selectedCard.card.stats.speed / 4) * 100,
-                            100
-                          )}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                  <div className="detail-stat">
-                    <div className="stat-header">
-                      <span className="detail-stat-label">⚔️ DAMAGE</span>
-                      <span className="detail-stat-value">
-                        {selectedCard.card.stats.damage}
-                      </span>
-                    </div>
-                    <div className="stat-bar-container">
-                      <div
-                        className="stat-bar stat-bar-damage"
-                        style={{
-                          width: `${Math.min(
-                            (selectedCard.card.stats.damage / 60) * 100,
-                            100
-                          )}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                  <div className="detail-stat">
-                    <div className="stat-header">
-                      <span className="detail-stat-label">💰 REWARD</span>
-                      <span className="detail-stat-value">
-                        ${selectedCard.card.stats.value}
-                      </span>
-                    </div>
-                    <div className="stat-bar-container">
-                      <div
-                        className="stat-bar stat-bar-money"
-                        style={{
-                          width: `${Math.min(
-                            (selectedCard.card.stats.value / 150) * 100,
-                            100
-                          )}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
 
-                {/* Threat Level Indicator */}
-                <div className="threat-level-container">
-                  <span className="threat-level-label">THREAT LEVEL:</span>
-                  <div className="threat-level-bars">
-                    {Array.from({ length: 5 }, (_, i) => {
-                      const threatScore =
-                        (selectedCard.card.stats.health * 0.15 +
-                          selectedCard.card.stats.damage * 3 +
-                          selectedCard.card.stats.speed * 20) /
-                        100;
-                      return (
-                        <div
-                          key={i}
-                          className={`threat-bar ${
-                            i < Math.ceil(threatScore) ? "active" : ""
-                          }`}
-                          style={{
-                            backgroundColor:
-                              i < Math.ceil(threatScore)
-                                ? threatScore >= 4
-                                  ? "#ff1a1a"
-                                  : threatScore >= 3
-                                  ? "#ff6b1a"
-                                  : threatScore >= 2
-                                  ? "#ffeb3b"
-                                  : "#4ecdcb"
-                                : "rgba(255,255,255,0.1)",
-                          }}
-                        />
-                      );
-                    })}
+                  <div className="grid-card-name">
+                    {discovered ? card.name : "???"}
                   </div>
-                  <span className="threat-level-text">
-                    {(() => {
-                      const threatScore =
-                        (selectedCard.card.stats.health * 0.15 +
-                          selectedCard.card.stats.damage * 3 +
-                          selectedCard.card.stats.speed * 20) /
-                        100;
-                      if (threatScore >= 4) return "EXTREME";
-                      if (threatScore >= 3) return "HIGH";
-                      if (threatScore >= 2) return "MEDIUM";
-                      return "LOW";
-                    })()}
-                  </span>
-                </div>
 
-                {/* Abilities */}
-                {selectedCard.card.abilities.length > 0 && (
-                  <div className="detail-section">
-                    <h3 className="detail-section-title">Special Abilities</h3>
-                    <ul className="detail-list">
-                      {selectedCard.card.abilities.map((ability, idx) => (
-                        <li key={idx} className="detail-list-item">
-                          <span className="detail-bullet">▸</span>
-                          {ability}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+                  {discovered && (
+                    <div className="grid-card-value">
+                      💰 ${card.stats.value}
+                    </div>
+                  )}
 
-                {/* Tips */}
-                {selectedCard.card.tips.length > 0 && (
-                  <div className="detail-section">
-                    <h3 className="detail-section-title">Strategy Tips</h3>
-                    <ul className="detail-list">
-                      {selectedCard.card.tips.map((tip, idx) => (
-                        <li key={idx} className="detail-list-item tip">
-                          <span className="detail-bullet">💡</span>
-                          {tip}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </>
-            ) : (
-              /* Locked Enemy */
-              <div className="locked-detail">
-                <div className="locked-icon">🔒</div>
-                <h2 className="locked-title">Enemy Locked</h2>
-                <p className="locked-description">
-                  Discover this enemy in battle to unlock their information!
-                </p>
-                <p className="locked-hint">
-                  Appears starting at Round {selectedCard.card.unlockRound}
-                </p>
-              </div>
-            )}
+                  {!card.implemented && (
+                    <div className="grid-card-badge">Soon</div>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
-      )}
+
+        {/* Right Panel - Enemy Detail */}
+        <div className="codex-detail-panel-side">
+          {selectedCard ? (
+            <div className="codex-detail-content-side">
+              {selectedCard.discovered ? (
+                <>
+                  {/* Discovered Enemy Details */}
+                  <div className="detail-header">
+                    <div className="detail-icon-wrapper-large">
+                      <canvas
+                        width="120"
+                        height="120"
+                        className="detail-icon-canvas-large"
+                        ref={(el) => {
+                          if (el) {
+                            const canvas = createEnemyCanvas(
+                              selectedCard.type,
+                              selectedCard.card.color,
+                              120
+                            );
+                            const ctx = el.getContext("2d");
+                            if (ctx) ctx.drawImage(canvas, 0, 0);
+                          }
+                        }}
+                        style={{
+                          filter: `drop-shadow(0 0 15px ${selectedCard.card.color})`,
+                        }}
+                      />
+                    </div>
+                    <div className="detail-header-info">
+                      <h2 className="detail-name">{selectedCard.card.name}</h2>
+                      <p className="detail-unlock">
+                        Unlocked at Round {selectedCard.card.unlockRound}
+                      </p>
+                      <p className="detail-discovery-time">
+                        Discovered:{" "}
+                        {formatDiscoveryTime(selectedCard.discoveryTime)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <p className="detail-description">
+                    {selectedCard.card.description}
+                  </p>
+
+                  {/* Stats with visual bars */}
+                  <div className="detail-stats">
+                    <div className="detail-stat">
+                      <div className="stat-header">
+                        <span className="detail-stat-label">❤️ HEALTH</span>
+                        <span className="detail-stat-value">
+                          {selectedCard.card.stats.health} HP
+                        </span>
+                      </div>
+                      <div className="stat-bar-container">
+                        <div
+                          className="stat-bar stat-bar-health"
+                          style={{
+                            width: `${Math.min(
+                              (selectedCard.card.stats.health / 500) * 100,
+                              100
+                            )}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div className="detail-stat">
+                      <div className="stat-header">
+                        <span className="detail-stat-label">⚡ SPEED</span>
+                        <span className="detail-stat-value">
+                          {selectedCard.card.stats.speed}
+                        </span>
+                      </div>
+                      <div className="stat-bar-container">
+                        <div
+                          className="stat-bar stat-bar-speed"
+                          style={{
+                            width: `${Math.min(
+                              (selectedCard.card.stats.speed / 4) * 100,
+                              100
+                            )}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div className="detail-stat">
+                      <div className="stat-header">
+                        <span className="detail-stat-label">⚔️ DAMAGE</span>
+                        <span className="detail-stat-value">
+                          {selectedCard.card.stats.damage}
+                        </span>
+                      </div>
+                      <div className="stat-bar-container">
+                        <div
+                          className="stat-bar stat-bar-damage"
+                          style={{
+                            width: `${Math.min(
+                              (selectedCard.card.stats.damage / 60) * 100,
+                              100
+                            )}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div className="detail-stat">
+                      <div className="stat-header">
+                        <span className="detail-stat-label">💰 REWARD</span>
+                        <span className="detail-stat-value">
+                          ${selectedCard.card.stats.value}
+                        </span>
+                      </div>
+                      <div className="stat-bar-container">
+                        <div
+                          className="stat-bar stat-bar-money"
+                          style={{
+                            width: `${Math.min(
+                              (selectedCard.card.stats.value / 150) * 100,
+                              100
+                            )}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Threat Level Indicator */}
+                  <div className="threat-level-container">
+                    <span className="threat-level-label">THREAT LEVEL:</span>
+                    <div className="threat-level-bars">
+                      {Array.from({ length: 5 }, (_, i) => {
+                        const threatScore =
+                          (selectedCard.card.stats.health * 0.15 +
+                            selectedCard.card.stats.damage * 3 +
+                            selectedCard.card.stats.speed * 20) /
+                          100;
+                        return (
+                          <div
+                            key={i}
+                            className={`threat-bar ${
+                              i < Math.ceil(threatScore) ? "active" : ""
+                            }`}
+                            style={{
+                              backgroundColor:
+                                i < Math.ceil(threatScore)
+                                  ? threatScore >= 4
+                                    ? "#ff1a1a"
+                                    : threatScore >= 3
+                                    ? "#ff6b1a"
+                                    : threatScore >= 2
+                                    ? "#ffeb3b"
+                                    : "#4ecdcb"
+                                  : "rgba(255,255,255,0.1)",
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
+                    <span className="threat-level-text">
+                      {(() => {
+                        const threatScore =
+                          (selectedCard.card.stats.health * 0.15 +
+                            selectedCard.card.stats.damage * 3 +
+                            selectedCard.card.stats.speed * 20) /
+                          100;
+                        if (threatScore >= 4) return "EXTREME";
+                        if (threatScore >= 3) return "HIGH";
+                        if (threatScore >= 2) return "MEDIUM";
+                        return "LOW";
+                      })()}
+                    </span>
+                  </div>
+
+                  {/* Abilities */}
+                  {selectedCard.card.abilities.length > 0 && (
+                    <div className="detail-section">
+                      <h3 className="detail-section-title">
+                        Special Abilities
+                      </h3>
+                      <ul className="detail-list">
+                        {selectedCard.card.abilities.map((ability, idx) => (
+                          <li key={idx} className="detail-list-item">
+                            <span className="detail-bullet">▸</span>
+                            {ability}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Tips */}
+                  {selectedCard.card.tips.length > 0 && (
+                    <div className="detail-section">
+                      <h3 className="detail-section-title">Strategy Tips</h3>
+                      <ul className="detail-list">
+                        {selectedCard.card.tips.map((tip, idx) => (
+                          <li key={idx} className="detail-list-item tip">
+                            <span className="detail-bullet">💡</span>
+                            {tip}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </>
+              ) : (
+                /* Locked Enemy */
+                <div className="locked-detail">
+                  <div className="locked-icon">🔒</div>
+                  <h2 className="locked-title">Enemy Locked</h2>
+                  <p className="locked-description">
+                    Discover this enemy in battle to unlock their information!
+                  </p>
+                  <p className="locked-hint">
+                    Appears starting at Round {selectedCard.card.unlockRound}
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="codex-detail-placeholder">
+              <div className="placeholder-icon">👁️</div>
+              <h3 className="placeholder-title">Select an Enemy</h3>
+              <p className="placeholder-description">
+                Choose an enemy from the list to view their details, stats, and
+                abilities
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
       {/* Close Button */}
       <button className="codex-close-button" onClick={onClose}>
         ← Back to Menu
