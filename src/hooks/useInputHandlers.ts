@@ -3,9 +3,9 @@
  * Separates input handling from main component
  */
 import { useEffect, useRef } from 'react';
-import type { Enemy } from '../types/game';
+import type { Enemy, Player, PlayZone } from '../types/game';
 import { GameState, EnemyType } from '../types/game';
-import { AimMode } from '../systems/AimingSystem';
+
 import { ENEMY_CONFIGS } from '../utils/enemies';
 
 const CANVAS_WIDTH = window.innerWidth;
@@ -16,8 +16,8 @@ interface UseInputHandlersProps {
   onTogglePause: () => void;
   onToggleAimMode: () => void;
   enemiesRef: React.RefObject<Enemy[]>;
-  playerRef: React.RefObject<any>;
-  playZoneRef: React.RefObject<any>;
+  playerRef: React.RefObject<Player>;
+  playZoneRef: React.RefObject<PlayZone>;
 }
 
 export function useInputHandlers({

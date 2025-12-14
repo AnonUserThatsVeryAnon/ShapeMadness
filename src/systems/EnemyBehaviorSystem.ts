@@ -250,6 +250,7 @@ export const ENEMY_BEHAVIORS: Record<EnemyType, EnemyBehavior> = {
   [EnemyType.CHAIN_PARTNER]: new ChaseBehavior(),
   [EnemyType.EVIL_STORM]: new ChaseBehavior(),
   [EnemyType.LUFTI]: new FastBehavior(), // Reuse fast behavior
+  [EnemyType.TURRET_SNIPER]: new ChaseBehavior(), // Stationary but needs behavior
   [EnemyType.OVERSEER]: new OverseerBehavior(), // BOSS
 };
 

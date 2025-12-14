@@ -12,7 +12,7 @@ export class PlayerSystem {
   /**
    * Update player position based on input
    */
-  updateMovement(player: Player, keys: Set<string>, deltaTime: number = 1/60) {
+  updateMovement(player: Player, keys: Set<string>, deltaTime: number = 1/60, now: number = Date.now()) {
     const acceleration = { x: 0, y: 0 };
 
     // WASD + Arrow keys
@@ -36,6 +36,11 @@ export class PlayerSystem {
       (p) => p.type === PowerUpType.SPEED
     );
     if (speedPowerUp) speedMultiplier = 1.3;
+
+    // Apply ice zone slow effect (50% speed reduction)
+    if (player.slowedUntil && now < player.slowedUntil) {
+      speedMultiplier *= 0.5;
+    }
 
     // Apply acceleration
     const effectiveSpeed = player.speed * speedMultiplier;

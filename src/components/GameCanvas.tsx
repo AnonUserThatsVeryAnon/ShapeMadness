@@ -9,6 +9,7 @@ import type {
   GameStats,
   FloatingText,
   LaserBeam,
+  IceZone,
   PlayZone,
 } from "../types/game";
 import { GameRenderer } from "../rendering/GameRenderer";
@@ -24,6 +25,7 @@ interface GameCanvasProps {
   particles: Particle[];
   floatingTexts: FloatingText[];
   lasers: LaserBeam[];
+  iceZones: IceZone[];
   stats: GameStats;
   playZone: PlayZone;
   screenShakeIntensity: number;
@@ -44,6 +46,7 @@ export function GameCanvas({
   particles,
   floatingTexts,
   lasers,
+  iceZones,
   stats,
   playZone,
   screenShakeIntensity,
@@ -75,6 +78,7 @@ export function GameCanvas({
       particles,
       floatingTexts,
       lasers,
+      iceZones,
       stats,
       playZone,
       screenShakeIntensity,

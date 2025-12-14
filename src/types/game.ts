@@ -55,6 +55,7 @@ export interface Enemy extends Entity {
   sniperTarget?: { x: number; y: number };
   lastHealTime?: number;
   slowFieldRadius?: number; // For Timebomb - randomized per enemy
+  shieldRange?: number; // For Protector Cell - shield activation range
   // Turret Sniper properties
   lastShot?: number; // Last time turret fired
   shootCooldown?: number; // Time between shots
@@ -127,6 +128,14 @@ export interface LaserBeam {
   createdAt: number;
   isWarning: boolean;
   angle: number;
+}
+
+export interface IceZone {
+  position: Vector2;
+  radius: number;
+  createdAt: number;
+  duration: number;
+  active: boolean;
 }
 
 export interface PlayZone {

@@ -3,7 +3,7 @@
  * Extracted from App.tsx to improve modularity
  * This is the main game loop logic separated from rendering
  */
-import { useCallback, useRef } from 'react';
+import { useCallback } from 'react';
 import type {
   Player,
   Enemy,
@@ -17,13 +17,12 @@ import type {
   PlayZone,
 } from '../types/game';
 import { GameState, EnemyType } from '../types/game';
+import type { CodexState } from '../types/codex';
 import {
   distance,
   checkCollision,
   screenShake,
   add,
-  multiply,
-  normalize,
 } from '../utils/helpers';
 import {
   updateEnemyPosition,
@@ -31,7 +30,6 @@ import {
 } from '../utils/enemies';
 import {
   createParticles,
-  updateParticles,
 } from '../utils/particles';
 import { getUpgradeLevel } from '../utils/upgrades';
 import { discoverEnemy, getCodexState } from '../utils/codexProgress';
@@ -43,15 +41,12 @@ import { CombatSystem } from '../systems/CombatSystem';
 import { AimingSystem, AimMode } from '../systems/AimingSystem';
 import { ZoneSystem } from '../systems/ZoneSystem';
 import { PowerUpSystem } from '../systems/PowerUpSystem';
-import {
-  updateBossAbilities,
-  checkBossCollisions,
-} from '../systems/spawning/BossAbilitySystem';
+
 
 const CANVAS_WIDTH = window.innerWidth;
 const CANVAS_HEIGHT = window.innerHeight;
 const IFRAME_DURATION = 1000;
-const MAX_FLOATING_TEXTS = 200;
+
 
 interface UseGameUpdateProps {
   playerRef: React.RefObject<Player>;
@@ -73,7 +68,7 @@ interface UseGameUpdateProps {
   aimingSystemRef: React.RefObject<AimingSystem>;
   zoneSystemRef: React.RefObject<ZoneSystem>;
   powerUpSystemRef: React.RefObject<PowerUpSystem>;
-  codexStateRef: React.RefObject<any>;
+  codexStateRef: React.RefObject<CodexState>;
   pendingDiscoveriesRef: React.RefObject<EnemyType[]>;
   gameState: GameState;
   onGameStateChange: (state: GameState) => void;
@@ -86,17 +81,14 @@ export function useGameUpdate(props: UseGameUpdateProps) {
     playerRef,
     enemiesRef,
     bulletsRef,
-    enemyProjectilesRef,
     powerUpsRef,
     particlesRef,
     floatingTextsRef,
-    lasersRef,
     playZoneRef,
     statsRef,
     shakeRef,
     keysRef,
     mouseRef,
-    lastLaserTimeRef,
     playerSystemRef,
     combatSystemRef,
     aimingSystemRef,
@@ -513,7 +505,7 @@ export function useGameUpdate(props: UseGameUpdateProps) {
         const piercing = getUpgradeLevel('pierce') > 0;
         const explosiveLevel = getUpgradeLevel('explosive');
 
-        if (!(bullet as any).hitCount) (bullet as any).hitCount = 0;
+        if (!bullet.hitCount) bullet.hitCount = 0;
 
         enemies.forEach((enemy) => {
           if (!enemy.active || !checkCollision(bullet, enemy)) return;
@@ -541,9 +533,9 @@ export function useGameUpdate(props: UseGameUpdateProps) {
             return;
           }
 
-          const hitCount = (bullet as any).hitCount || 0;
+          const hitCount = bullet.hitCount || 0;
           const damageMultiplier = hitCount === 0 ? 1.0 : 0.5;
-          (bullet as any).hitCount = hitCount + 1;
+          bullet.hitCount = hitCount + 1;
 
           damageEnemy(enemy, bullet.damage * damageMultiplier, now);
 
@@ -647,11 +639,9 @@ export function useGameUpdate(props: UseGameUpdateProps) {
       playerRef,
       enemiesRef,
       bulletsRef,
-      enemyProjectilesRef,
       powerUpsRef,
       particlesRef,
       floatingTextsRef,
-      lasersRef,
       playZoneRef,
       statsRef,
       shakeRef,

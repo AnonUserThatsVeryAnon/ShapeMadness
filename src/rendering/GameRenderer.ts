@@ -8,6 +8,7 @@ import type {
   GameStats,
   FloatingText,
   LaserBeam,
+  IceZone,
   PlayZone,
 } from "../types/game";
 import { EnemyType } from "../types/game";
@@ -46,6 +47,7 @@ export class GameRenderer {
     particles: Particle[],
     floatingTexts: FloatingText[],
     lasers: LaserBeam[],
+    iceZones: IceZone[],
     stats: GameStats,
     playZone: PlayZone,
     screenShakeIntensity: number,
@@ -69,6 +71,7 @@ export class GameRenderer {
 
     // Draw game entities in layers (back to front)
     this.drawParticlesLayer(particles, true); // Background particles
+    this.drawIceZones(iceZones, now); // Ice zones behind everything
     this.drawPowerUps(powerUps, now);
     this.drawPlayer(player, now);
     this.drawChainConnections(enemies);
@@ -1044,6 +1047,43 @@ export class GameRenderer {
         proj.position.y - proj.velocity.y * 3
       );
       this.ctx.stroke();
+    });
+  }
+
+  private drawIceZones(iceZones: IceZone[], now: number) {
+    iceZones.forEach((iceZone) => {
+      const age = now - iceZone.createdAt;
+      const fadeProgress = age / iceZone.duration;
+      const alpha = 1 - fadeProgress; // Fade out over time
+      const pulse = Math.sin(now / 200) * 0.3 + 0.7;
+
+      // Outer glow
+      this.ctx.strokeStyle = `rgba(0, 188, 212, ${0.15 * alpha * pulse})`;
+      this.ctx.lineWidth = 15;
+      this.ctx.beginPath();
+      this.ctx.arc(iceZone.position.x, iceZone.position.y, iceZone.radius, 0, Math.PI * 2);
+      this.ctx.stroke();
+
+      // Mid layer
+      this.ctx.strokeStyle = `rgba(0, 188, 212, ${0.25 * alpha})`;
+      this.ctx.lineWidth = 8;
+      this.ctx.beginPath();
+      this.ctx.arc(iceZone.position.x, iceZone.position.y, iceZone.radius - 10, 0, Math.PI * 2);
+      this.ctx.stroke();
+
+      // Inner circle
+      this.ctx.fillStyle = `rgba(0, 188, 212, ${0.08 * alpha})`;
+      this.ctx.beginPath();
+      this.ctx.arc(iceZone.position.x, iceZone.position.y, iceZone.radius, 0, Math.PI * 2);
+      this.ctx.fill();
+
+      // Snowflake center marker
+      const iconAlpha = 0.6 * alpha;
+      this.ctx.font = "bold 32px monospace";
+      this.ctx.textAlign = "center";
+      this.ctx.textBaseline = "middle";
+      this.ctx.fillStyle = `rgba(179, 229, 252, ${iconAlpha})`;
+      this.ctx.fillText("❄️", iceZone.position.x, iceZone.position.y);
     });
   }
 

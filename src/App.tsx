@@ -10,6 +10,7 @@ import type {
   FloatingText,
   LaserBeam,
   PlayZone,
+  IceZone,
 } from "./types/game";
 import { GameState, EnemyType } from "./types/game";
 import { audioSystem } from "./utils/audio";
@@ -118,6 +119,7 @@ function App() {
   const particlesRef = useRef<Particle[]>([]);
   const floatingTextsRef = useRef<FloatingText[]>([]);
   const lasersRef = useRef<LaserBeam[]>([]);
+  const iceZonesRef = useRef<IceZone[]>([]);
   const lastLaserTimeRef = useRef<number>(0);
   // lastZoneDamageRef moved to ZoneSystem
 
@@ -461,7 +463,12 @@ function App() {
     // Update invulnerability, power-ups, and movement
     playerSystemRef.current.updateInvulnerability(player, now);
     playerSystemRef.current.updatePowerUps(player, now);
-    playerSystemRef.current.updateMovement(player, keysRef.current, deltaTime);
+    playerSystemRef.current.updateMovement(
+      player,
+      keysRef.current,
+      deltaTime,
+      now
+    );
 
     // Shoot based on aim mode (auto or manual) - only during active gameplay
     if (
@@ -1175,6 +1182,23 @@ function App() {
       return false;
     });
 
+    // Update ice zones and apply slow effect
+    iceZonesRef.current = iceZonesRef.current.filter((iceZone) => {
+      const age = now - iceZone.createdAt;
+      if (age >= iceZone.duration) {
+        return false; // Remove expired ice zone
+      }
+
+      // Check if player is in ice zone
+      const distToPlayer = distance(player.position, iceZone.position);
+      if (distToPlayer < iceZone.radius) {
+        // Apply 50% slow effect
+        player.slowedUntil = now + 100; // Persist for 0.1s
+      }
+
+      return true;
+    });
+
     // Update play zone transition and damage
     const zone = playZoneRef.current;
     zoneSystemRef.current.updateZoneTransition(zone, deltaTime);
@@ -1544,22 +1568,14 @@ function App() {
         // Play ice shatter sound
         audioSystem.playIceShatter();
 
-        // Store ice zone using floating text as temporary storage marker
-        if (
-          !floatingTextsRef.current.find((t) => t.text.includes("ICE_ZONE"))
-        ) {
-          // Use floating text as temporary storage marker
-          floatingTextsRef.current.push({
-            position: { ...enemy.position },
-            text: `ICE_ZONE_${now}`,
-            color: "#00bcd4",
-            size: 0, // Invisible
-            lifetime: 5000,
-            createdAt: now,
-            velocity: { x: 0, y: 0 },
-            alpha: 0,
-          });
-        }
+        // Create ice zone that slows the player
+        iceZonesRef.current.push({
+          position: { ...enemy.position },
+          radius: 150,
+          createdAt: now,
+          duration: 5000, // 5 seconds
+          active: true,
+        });
 
         // Ice particles
         particlesRef.current.push(
@@ -1814,6 +1830,7 @@ function App() {
           particlesRef.current,
           floatingTextsRef.current,
           lasersRef.current,
+          iceZonesRef.current,
           statsRef.current,
           playZoneRef.current,
           shakeRef.current.intensity,
