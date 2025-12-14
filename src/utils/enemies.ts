@@ -158,9 +158,9 @@ export function createEnemy(type: EnemyType, position: Vector2): Enemy {
     active: true,
   };
 
-  // Timebomb gets randomized slow field radius (200-400px)
+  // Timebomb gets randomized slow field radius (150-250px)
   if (type === EnemyType.TIME_DISTORTION) {
-    enemy.slowFieldRadius = 200 + Math.random() * 200; // Random between 200-400
+    enemy.slowFieldRadius = 150 + Math.random() * 100; // Random between 150-250
   }
 
   // Initialize Turret Sniper properties

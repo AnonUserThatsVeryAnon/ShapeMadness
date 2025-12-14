@@ -269,9 +269,9 @@ export class CombatSystem {
       fireRate *= 0.5; // 2x faster
     }
 
-    // Slow debuff (doubles fire rate delay)
+    // Slow debuff from Time Distortion field (60% slower = 2.5x fire rate delay)
     if (player.slowedUntil && Date.now() < player.slowedUntil) {
-      fireRate *= 2;
+      fireRate *= 2.5;
     }
 
     return Math.max(fireRate, 50); // Cap at 50ms

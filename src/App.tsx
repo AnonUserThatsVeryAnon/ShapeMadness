@@ -578,24 +578,36 @@ function App() {
 
       // Timebomb (TIME_DISTORTION) - Slow field effect
       if (enemy.type === EnemyType.TIME_DISTORTION) {
-        const slowFieldRadius = enemy.slowFieldRadius || 300; // Use individual radius
+        const slowFieldRadius = enemy.slowFieldRadius || 200; // Use individual radius
         const distToPlayer = distance(enemy.position, player.position);
 
         // Mark enemy as having active slow field for visual rendering
         enemy.lastSpecialAbility = now;
 
-        // Slow player fire rate when in range
+        // Slow player fire rate by 60% when inside field
         if (distToPlayer < slowFieldRadius) {
           player.slowedUntil = now + 200; // 0.2s slow persistence
         }
 
-        // Slow bullets that pass through the field
+        // Destroy bullets that hit the field border (can't shoot through it)
         bulletsRef.current.forEach((bullet) => {
           if (!bullet.active) return;
           const distToBullet = distance(enemy.position, bullet.position);
-          if (distToBullet < slowFieldRadius) {
-            // Reduce bullet velocity to 40% speed
-            bullet.velocity = multiply(bullet.velocity, 0.4);
+          const prevDistToBullet = distance(enemy.position, {
+            x: bullet.position.x - bullet.velocity.x * (deltaTime * 60),
+            y: bullet.position.y - bullet.velocity.y * (deltaTime * 60),
+          });
+
+          // If bullet crossed the border from outside, destroy it
+          if (
+            prevDistToBullet >= slowFieldRadius &&
+            distToBullet < slowFieldRadius
+          ) {
+            bullet.active = false;
+            // Create impact particles at border
+            particlesRef.current.push(
+              ...createParticles(bullet.position, 8, "#673ab7", 3, 400)
+            );
           }
         });
       }
