@@ -115,6 +115,7 @@ function App() {
     invulnerable: false,
     invulnerableUntil: 0,
     activePowerUps: [],
+    powerUpInventory: [null, null, null],
   });
 
   const enemiesRef = useRef<Enemy[]>([]);
@@ -186,6 +187,7 @@ function App() {
       invulnerable: false,
       invulnerableUntil: 0,
       activePowerUps: [],
+      powerUpInventory: [null, null, null],
     };
     // Clear power-ups to prevent persistence across restarts
     powerUpsRef.current = [];
@@ -1220,7 +1222,6 @@ function App() {
       player,
       now,
       particlesRef.current,
-      (powerUp) => playerSystemRef.current.applyPowerUp(player, powerUp, now),
       stats.round
     );
 
@@ -2028,16 +2029,31 @@ function App() {
         return;
       }
 
-      // Add to movement keys (exclude special keys)
+      // Use powerup from inventory: keys 1, 2, 3
       if (
-        key !== "q" &&
-        e.code !== "KeyQ" &&
-        key !== "t" &&
-        e.code !== "KeyT" &&
-        key !== "b" &&
-        e.code !== "KeyB" &&
-        key !== "escape"
+        (key === "1" || key === "2" || key === "3") &&
+        gameState === GameState.PLAYING
       ) {
+        e.preventDefault();
+        const slotIndex = parseInt(key) - 1;
+        const player = playerRef.current;
+        if (
+          playerSystemRef.current.usePowerUpFromInventory(
+            player,
+            slotIndex,
+            Date.now()
+          )
+        ) {
+          audioSystem.playPowerUp();
+        }
+        return;
+      }
+
+      // Add to movement keys (allow WASD and arrow keys, exclude special command keys)
+      const specialKeys = ["q", "t", "b", "1", "2", "3", "escape"];
+      const specialCodes = ["KeyQ", "KeyT", "KeyB"];
+
+      if (!specialKeys.includes(key) && !specialCodes.includes(e.code)) {
         keysRef.current.add(key);
       }
     };
@@ -2111,6 +2127,7 @@ function App() {
             setAimMode(newMode);
           }}
           isTestMode={isTestMode}
+          powerUpInventory={playerRef.current.powerUpInventory}
         />
       )}
       {/* Shop Menu - Modular Component */}

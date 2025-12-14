@@ -30,6 +30,7 @@ export interface Player extends Entity {
   invulnerableUntil: number;
   slowedUntil?: number;
   activePowerUps: ActivePowerUpEffect[];
+  powerUpInventory: (PowerUpType | null)[]; // Inventory slots for stored powerups (max 3)
 }
 
 export interface Enemy extends Entity {

@@ -149,6 +149,28 @@ export class PlayerSystem {
   }
 
   /**
+   * Use powerup from inventory slot
+   */
+  usePowerUpFromInventory(player: Player, slotIndex: number, now: number): boolean {
+    if (slotIndex < 0 || slotIndex >= player.powerUpInventory.length) {
+      return false;
+    }
+
+    const powerUpType = player.powerUpInventory[slotIndex];
+    if (powerUpType === null) {
+      return false;
+    }
+
+    // Apply the powerup effect
+    this.applyPowerUp(player, { type: powerUpType } as PowerUp, now);
+
+    // Remove from inventory
+    player.powerUpInventory[slotIndex] = null;
+
+    return true;
+  }
+
+  /**
    * Reset player to initial state
    */
   reset(player: Player) {
@@ -160,6 +182,7 @@ export class PlayerSystem {
     player.invulnerable = false;
     player.invulnerableUntil = 0;
     player.activePowerUps = [];
+    player.powerUpInventory = [null, null, null];
   }
 
 

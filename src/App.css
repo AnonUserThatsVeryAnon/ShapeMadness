@@ -891,6 +891,68 @@
   font-size: 0.8rem;
 }
 
+/* Powerup Inventory HUD - Minimalistic */
+.powerup-inventory-hud {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  display: flex;
+  gap: 8px;
+  z-index: 100;
+}
+
+.powerup-slot-mini {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(5px);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.powerup-slot-mini.filled {
+  background: rgba(0, 0, 0, 0.8);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.powerup-slot-mini:hover {
+  transform: scale(1.08);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.powerup-slot-mini.empty {
+  opacity: 0.4;
+}
+
+.slot-key {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  font-size: 0.65rem;
+  font-weight: bold;
+  color: rgba(255, 255, 255, 0.5);
+  background: rgba(0, 0, 0, 0.4);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: monospace;
+  line-height: 1;
+}
+
+.powerup-slot-mini.filled .slot-key {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.powerup-icon-mini {
+  font-size: 1.6rem;
+  filter: drop-shadow(0 0 4px currentColor);
+}
+
 /* Responsive - hide leaderboard on smaller screens */
 @media (max-width: 1200px) {
   .menu-leaderboard-panel {
@@ -899,5 +961,27 @@
   
   .menu-overlay {
     gap: 0;
+  }
+}
+
+/* Responsive powerup inventory */
+@media (max-width: 768px) {
+  .powerup-inventory-hud {
+    bottom: 15px;
+    left: 15px;
+    gap: 6px;
+  }
+  
+  .powerup-slot-mini {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .powerup-icon-mini {
+    font-size: 1.3rem;
+  }
+  
+  .slot-key {
+    font-size: 0.6rem;
   }
 }

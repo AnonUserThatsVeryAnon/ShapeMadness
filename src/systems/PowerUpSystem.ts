@@ -62,7 +62,6 @@ export class PowerUpSystem {
     player: Player,
     _now: number,
     particles: Particle[],
-    onCollect: (powerUp: PowerUp) => void,
     currentRound: number
   ): PowerUp[] {
     return powerUps.filter((powerUp) => {
@@ -73,15 +72,23 @@ export class PowerUpSystem {
 
       // Check collision with player
       if (checkCollision(player, powerUp)) {
-        // Trigger collection callback
-        onCollect(powerUp);
-
-        // Visual and audio feedback
-        audioSystem.playPowerUp();
-        particles.push(...createParticles(powerUp.position, 15, "#00ff00", 3));
-
-        // Remove the power-up
-        return false;
+        // Try to add to inventory (max 3 slots)
+        const emptySlotIndex = player.powerUpInventory.findIndex(slot => slot === null);
+        
+        if (emptySlotIndex !== -1) {
+          // Add to inventory
+          player.powerUpInventory[emptySlotIndex] = powerUp.type;
+          
+          // Visual and audio feedback
+          audioSystem.playPowerUp();
+          particles.push(...createParticles(powerUp.position, 15, "#00ff00", 3));
+          
+          // Remove the power-up
+          return false;
+        } else {
+          // Inventory full - powerup stays on ground
+          // Could add a visual indicator here
+        }
       }
 
       return true;

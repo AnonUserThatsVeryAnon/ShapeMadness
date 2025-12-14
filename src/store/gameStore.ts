@@ -73,12 +73,12 @@ const CANVAS_HEIGHT = window.innerHeight;
 const INITIAL_ZONE_SIZE = 400;
 
 const initialPlayer: Player = {
-  position: { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 },
+  position: { x: window.innerWidth / 2, y: window.innerHeight / 2 },
   velocity: { x: 0, y: 0 },
   radius: 20,
   health: 100,
   maxHealth: 100,
-  speed: 2.0,
+  speed: 1.0,
   damage: 20,
   fireRate: 300,
   lastShot: 0,
@@ -88,6 +88,7 @@ const initialPlayer: Player = {
   invulnerable: false,
   invulnerableUntil: 0,
   activePowerUps: [],
+  powerUpInventory: [null, null, null],
 };
 
 const initialPlayZone: PlayZone = {

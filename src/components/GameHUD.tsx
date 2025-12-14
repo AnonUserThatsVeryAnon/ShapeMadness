@@ -3,17 +3,32 @@
  * Displays player stats, score, and aim mode during gameplay
  */
 import { AimMode } from "../systems/AimingSystem";
+import type { PowerUpType } from "../types/game";
 
 interface GameHUDProps {
   aimMode: AimMode;
   onToggleAimMode: () => void;
   isTestMode?: boolean;
+  powerUpInventory: (PowerUpType | null)[];
 }
+
+// Powerup icons and names
+const POWERUP_INFO: Record<
+  string,
+  { icon: string; name: string; color: string }
+> = {
+  HEALTH: { icon: "❤️", name: "Health", color: "#ff6b6b" },
+  SPEED: { icon: "⚡", name: "Speed", color: "#4ecdc4" },
+  DAMAGE: { icon: "💪", name: "Damage", color: "#ff9f43" },
+  FIRE_RATE: { icon: "🔫", name: "Fire Rate", color: "#feca57" },
+  SHIELD: { icon: "🛡️", name: "Shield", color: "#48dbfb" },
+};
 
 export function GameHUD({
   aimMode,
   onToggleAimMode,
   isTestMode,
+  powerUpInventory,
 }: GameHUDProps) {
   return (
     <>
@@ -25,6 +40,31 @@ export function GameHUD({
         title="Click or press Q to toggle aim mode"
       >
         {aimMode === AimMode.MANUAL ? "🎯 Manual" : "🤖 Auto"}
+      </div>
+
+      {/* Powerup Inventory Display - Minimalistic */}
+      <div className="powerup-inventory-hud">
+        {powerUpInventory.map((powerUp, index) => (
+          <div
+            key={index}
+            className={`powerup-slot-mini ${powerUp ? "filled" : "empty"}`}
+            title={
+              powerUp
+                ? `${POWERUP_INFO[powerUp]?.name} (Press ${index + 1})`
+                : `Slot ${index + 1} - Empty`
+            }
+          >
+            <kbd className="slot-key">{index + 1}</kbd>
+            {powerUp && (
+              <span
+                className="powerup-icon-mini"
+                style={{ color: POWERUP_INFO[powerUp]?.color }}
+              >
+                {POWERUP_INFO[powerUp]?.icon}
+              </span>
+            )}
+          </div>
+        ))}
       </div>
       {isTestMode && (
         <div

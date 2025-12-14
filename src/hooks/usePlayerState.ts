@@ -28,6 +28,7 @@ export function usePlayerState() {
       invulnerable: false,
       invulnerableUntil: 0,
       activePowerUps: [],
+      powerUpInventory: [null, null, null],
     };
   }
 
