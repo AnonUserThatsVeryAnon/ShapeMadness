@@ -29,7 +29,6 @@ import {
   updateEnemyPosition,
   ENEMY_CONFIGS,
 } from "./utils/enemies";
-// drawEnemyPattern now handled by GameRenderer
 import {
   createParticles,
   updateParticles,
@@ -51,12 +50,6 @@ import {
   checkBossCollisions,
 } from "./systems/spawning/BossAbilitySystem";
 
-// Custom Hooks (NEW - Modular Architecture)
-// Note: These hooks are available for future integration
-// import { useGameEntities } from "./hooks/useGameEntities";
-// import { usePlayerState } from "./hooks/usePlayerState";
-// import { useInputHandlers } from "./hooks/useInputHandlers";
-
 // UI Components
 import { EnemyCard } from "./components/EnemyCard";
 import { CodexMenu } from "./components/CodexMenu";
@@ -75,7 +68,6 @@ const MAX_FLOATING_TEXTS = 200; // Prevent memory leak from accumulated floating
 
 // Play zone limits
 const INITIAL_ZONE_SIZE = 400; // Start small, expand to full screen by round 10
-// Zone constants moved to ZoneSystem
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -309,19 +301,9 @@ function App() {
       }
     }
 
-    // Debug: Log boss spawn
-    if (currentRound === 15) {
-      console.log(
-        "Round 15 - Boss spawned:",
-        enemiesRef.current.length,
-        "enemies"
-      );
-      console.log("Boss details:", enemiesRef.current[0]);
-    }
-
     bulletsRef.current = [];
     enemyProjectilesRef.current = [];
-    // Note: powerUps are cleared when entering shop, not when starting round
+    powerUpsRef.current = []; // Clear power-ups when starting new round
     setGameState(GameState.PLAYING);
   }, [aimMode]);
 
@@ -500,7 +482,6 @@ function App() {
       // Check for enemy discovery (codex system) - queue for end of round
       const isNewDiscovery = discoverEnemy(enemy.type);
       if (isNewDiscovery) {
-        console.log(`🎉 New Enemy Discovered: ${enemy.type}!`);
         codexStateRef.current = getCodexState(); // Update completion stats
         // Queue discovery to show at end of round
         if (!pendingDiscoveriesRef.current.includes(enemy.type)) {
@@ -1859,9 +1840,6 @@ function App() {
     const handleKeyDown = (e: KeyboardEvent) => {
       const key = e.key.toLowerCase();
 
-      // Debug: Log all key presses
-      console.log("Key pressed:", { key: e.key, code: e.code, gameState });
-
       if (e.key === "Escape") {
         setIsPaused((prev) => !prev);
       }
@@ -1873,10 +1851,8 @@ function App() {
         (gameState === GameState.PLAYING || gameState === GameState.SHOP)
       ) {
         e.preventDefault();
-        console.log("Q detected, toggling aim mode...");
         const newMode = aimingSystemRef.current.toggleAimMode();
         setAimMode(newMode);
-        console.log("Aim mode toggled to:", newMode);
         return;
       }
 
@@ -1927,11 +1903,6 @@ function App() {
           isBeingDestroyed: false,
         };
         enemiesRef.current.push(turret);
-        console.log(
-          "Spawned Turret Sniper at:",
-          turret.position,
-          "Clamped to play zone"
-        );
         return;
       }
 

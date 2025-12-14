@@ -331,10 +331,6 @@ export function spawnEnemiesForRound(
   
   // Check if this is a boss round
   const bossRound = isBoss(EnemyType.OVERSEER) && round === 15;
-  
-  if (bossRound) {
-    console.log('BOSS ROUND - Round 15 detected, spawning enemies + boss');
-  }
 
   for (let i = 0; i < spawnCount; i++) {
     // Select enemy type from pattern first
@@ -412,7 +408,6 @@ export function spawnEnemiesForRound(
       y: -100, // Spawn from top center
     });
     initializeBoss(boss); // Initialize boss with configuration
-    console.log('Boss added to enemy list:', boss.type, boss.isBoss, boss.health);
     enemies.push(boss);
   }
 

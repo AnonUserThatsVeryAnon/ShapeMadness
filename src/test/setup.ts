@@ -1,5 +1,5 @@
 // Test setup file
-import { expect, afterEach } from 'vitest';
+import { afterEach } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
@@ -9,11 +9,15 @@ afterEach(() => {
 });
 
 // Mock Web Audio API
-global.AudioContext = class AudioContext {
+global.AudioContext = class MockAudioContext {
   createGain() {
     return {
       connect: () => {},
-      gain: { value: 1, setValueAtTime: () => {}, exponentialRampToValueAtTime: () => {} },
+      gain: { 
+        value: 1, 
+        setValueAtTime: () => {}, 
+        exponentialRampToValueAtTime: () => {} 
+      },
     };
   }
   createOscillator() {
@@ -21,7 +25,10 @@ global.AudioContext = class AudioContext {
       connect: () => {},
       start: () => {},
       stop: () => {},
-      frequency: { setValueAtTime: () => {}, exponentialRampToValueAtTime: () => {} },
+      frequency: { 
+        setValueAtTime: () => {}, 
+        exponentialRampToValueAtTime: () => {} 
+      },
       type: 'sine',
     };
   }
@@ -31,13 +38,15 @@ global.AudioContext = class AudioContext {
   get currentTime() {
     return 0;
   }
-} as any;
+} as unknown as typeof AudioContext;
 
 // Mock localStorage
-const localStorageMock = {
-  getItem: (key: string) => null,
-  setItem: (key: string, value: string) => {},
-  removeItem: (key: string) => {},
+const localStorageMock: Storage = {
+  getItem: (_key: string) => null,
+  setItem: (_key: string, _value: string) => {},
+  removeItem: (_key: string) => {},
   clear: () => {},
+  key: (_index: number) => null,
+  length: 0,
 };
-global.localStorage = localStorageMock as Storage;
+global.localStorage = localStorageMock;

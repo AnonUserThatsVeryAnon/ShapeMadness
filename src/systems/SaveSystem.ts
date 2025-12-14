@@ -81,7 +81,6 @@ export class SaveSystem {
       };
 
       localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
-      console.log('Game saved successfully');
       return true;
     } catch (e) {
       console.error('Failed to save game:', e);
@@ -190,7 +189,6 @@ export class SaveSystem {
     achievements.forEach(({ id, condition }) => {
       if (condition && !meta.achievements.includes(id)) {
         meta.achievements.push(id);
-        console.log('🏆 Achievement unlocked:', id);
       }
     });
   }
@@ -226,7 +224,6 @@ export class SaveSystem {
         try {
           const data = JSON.parse(e.target?.result as string);
           localStorage.setItem(SAVE_KEY, JSON.stringify(data));
-          console.log('Save imported successfully');
           resolve(true);
         } catch (err) {
           console.error('Failed to import save:', err);
