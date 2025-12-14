@@ -381,7 +381,7 @@ function App() {
       }
     }
     if (speedUpgrade) {
-      for (let i = 0; i < 8; i++) {
+      for (let i = 0; i < 20; i++) {
         speedUpgrade.currentLevel++;
         speedUpgrade.effect(player);
       }
@@ -394,7 +394,7 @@ function App() {
     }
 
     // Give money for shop
-    player.money = 5000;
+    player.money = 10000;
 
     // Set to round 14 so startRound() increments to 15
     stats.round = 14;
