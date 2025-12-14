@@ -96,14 +96,24 @@ export function GameMenu({
             {leaderboard.map((entry, index) => (
               <div key={entry.id} className="leaderboard-panel-entry">
                 <span className="panel-rank">
-                  {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `#${index + 1}`}
+                  {index === 0
+                    ? "🥇"
+                    : index === 1
+                    ? "🥈"
+                    : index === 2
+                    ? "🥉"
+                    : `#${index + 1}`}
                 </span>
                 <div className="panel-info">
                   <div className="panel-name">{entry.player_name}</div>
                   <div className="panel-stats">
-                    <span className="panel-score">{entry.score.toLocaleString()}</span>
+                    <span className="panel-score">
+                      {entry.score.toLocaleString()}
+                    </span>
                     <span className="panel-wave">Wave {entry.wave}</span>
-                    <span className="panel-date">{formatDate(entry.created_at)}</span>
+                    <span className="panel-date">
+                      {formatDate(entry.created_at)}
+                    </span>
                   </div>
                 </div>
               </div>

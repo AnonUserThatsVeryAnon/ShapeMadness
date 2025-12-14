@@ -460,8 +460,6 @@ export function spawnEnemiesForRound(
 export function spawnSpecificEnemy(
   enemyType: EnemyType,
   count: number,
-  canvasWidth: number,
-  canvasHeight: number,
   playZone: PlayZone
 ): Enemy[] {
   const enemies: Enemy[] = [];

@@ -536,8 +536,6 @@ function App() {
       const newEnemies = spawnSpecificEnemy(
         enemyType,
         count,
-        CANVAS_WIDTH,
-        CANVAS_HEIGHT,
         playZoneRef.current
       );
       enemiesRef.current.push(...newEnemies);
@@ -2092,7 +2090,6 @@ function App() {
         height={CANVAS_HEIGHT}
         className="game-canvas"
       />
-
       {/* Main Menu - Modular Component */}
       {gameState === GameState.MENU && (
         <GameMenu
@@ -2104,7 +2101,8 @@ function App() {
           onShowCodex={() => setShowCodex(true)}
           onDebugMode={() => setShowDebugMenu(true)}
         />
-      )}      {/* Game HUD - Modular Component */}
+      )}{" "}
+      {/* Game HUD - Modular Component */}
       {gameState === GameState.PLAYING && (
         <GameHUD
           aimMode={aimMode}
@@ -2115,7 +2113,6 @@ function App() {
           isTestMode={isTestMode}
         />
       )}
-
       {/* Shop Menu - Modular Component */}
       {gameState === GameState.SHOP && (
         <ShopMenu
@@ -2131,7 +2128,6 @@ function App() {
           onCloseShop={() => setGameState(GameState.PLAYING)}
         />
       )}
-
       {/* Name Input Screen - Before Game Over */}
       {gameState === GameState.GAME_OVER && showNameInput && (
         <NameInputScreen
@@ -2141,7 +2137,6 @@ function App() {
           onSkip={handleSkipScore}
         />
       )}
-
       {/* Game Over - Modular Component */}
       {gameState === GameState.GAME_OVER && !showNameInput && (
         <GameOver
@@ -2155,7 +2150,6 @@ function App() {
           }}
         />
       )}
-
       {/* Pause Menu - Modular Component */}
       {isPaused && gameState === GameState.PLAYING && !showingCard && (
         <PauseMenu
@@ -2171,7 +2165,6 @@ function App() {
           }}
         />
       )}
-
       {showingCard && (
         <EnemyCard
           enemyType={showingCard}
@@ -2196,7 +2189,6 @@ function App() {
           }}
         />
       )}
-
       {/* Debug Menu */}
       {showDebugMenu && (
         <DebugMenu
@@ -2212,9 +2204,7 @@ function App() {
           }}
         />
       )}
-
       {showCodex && <CodexMenu onClose={() => setShowCodex(false)} />}
-
       {/* Spawn Menu - Test Mode Only */}
       {showSpawnMenu && isTestMode && (
         <SpawnMenu
