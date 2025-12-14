@@ -15,6 +15,7 @@ export function CodexMenu({ onClose }: CodexMenuProps) {
   const [selectedEnemy, setSelectedEnemy] = useState<EnemyType | null>(null);
   const [filter, setFilter] = useState<FilterType>("all");
   const [sortBy, setSortBy] = useState<"round" | "threat" | "reward">("round");
+  const [searchQuery, setSearchQuery] = useState("");
   const codexState = getCodexState();
 
   // Get all enemy cards sorted by unlock round
@@ -33,22 +34,33 @@ export function CodexMenu({ onClose }: CodexMenuProps) {
   const filteredEnemies = useMemo(() => {
     let filtered = allEnemies;
 
+    // Apply search query
+    if (searchQuery.trim()) {
+      filtered = filtered.filter(
+        (e) =>
+          e.discovered &&
+          e.card.name.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
     // Apply filter
-    switch (filter) {
-      case "discovered":
-        filtered = allEnemies.filter((e) => e.discovered);
-        break;
-      case "locked":
-        filtered = allEnemies.filter((e) => !e.discovered);
-        break;
-      case "implemented":
-        filtered = allEnemies.filter((e) => e.card.implemented);
-        break;
-      case "boss":
-        filtered = allEnemies.filter((e) => e.type === EnemyType.OVERSEER);
-        break;
-      default:
-        filtered = allEnemies;
+    if (!searchQuery.trim()) {
+      switch (filter) {
+        case "discovered":
+          filtered = allEnemies.filter((e) => e.discovered);
+          break;
+        case "locked":
+          filtered = allEnemies.filter((e) => !e.discovered);
+          break;
+        case "implemented":
+          filtered = allEnemies.filter((e) => e.card.implemented);
+          break;
+        case "boss":
+          filtered = allEnemies.filter((e) => e.type === EnemyType.OVERSEER);
+          break;
+        default:
+          filtered = allEnemies;
+      }
     }
 
     // Apply sort
@@ -74,7 +86,27 @@ export function CodexMenu({ onClose }: CodexMenuProps) {
           return a.card.unlockRound - b.card.unlockRound;
       }
     });
-  }, [allEnemies, filter, sortBy]);
+  }, [allEnemies, filter, sortBy, searchQuery]);
+
+  // Calculate threat level for an enemy
+  const getThreatLevel = (card: (typeof ENEMY_CARDS)[EnemyType]) => {
+    const score =
+      (card.stats.health * 0.15 +
+        card.stats.damage * 3 +
+        card.stats.speed * 20) /
+      100;
+    if (score >= 4) return "extreme";
+    if (score >= 3) return "high";
+    if (score >= 2) return "medium";
+    return "low";
+  };
+
+  // Close modal when clicking backdrop
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      setSelectedEnemy(null);
+    }
+  };
 
   const selectedCard = selectedEnemy
     ? allEnemies.find((e) => e.type === selectedEnemy)
@@ -217,7 +249,6 @@ export function CodexMenu({ onClose }: CodexMenuProps) {
           </div>
         </div>
       </div>
-
       {/* Progress Bar */}
       <div className="codex-progress-bar">
         <div
@@ -225,7 +256,6 @@ export function CodexMenu({ onClose }: CodexMenuProps) {
           style={{ width: `${codexState.completionPercentage}%` }}
         />
       </div>
-
       {/* Achievements */}
       <div className="achievements-section">
         {achievements.map((achievement) => (
@@ -249,80 +279,111 @@ export function CodexMenu({ onClose }: CodexMenuProps) {
           </div>
         ))}
       </div>
-
-      {/* Filters and Sort */}
-      <div className="codex-controls">
-        <div className="codex-filters">
-          <button
-            className={`filter-button ${filter === "all" ? "active" : ""}`}
-            onClick={() => setFilter("all")}
-          >
-            All ({allEnemies.length})
-          </button>
-          <button
-            className={`filter-button ${
-              filter === "discovered" ? "active" : ""
-            }`}
-            onClick={() => setFilter("discovered")}
-          >
-            Discovered ({allEnemies.filter((e) => e.discovered).length})
-          </button>
-          <button
-            className={`filter-button ${filter === "locked" ? "active" : ""}`}
-            onClick={() => setFilter("locked")}
-          >
-            Locked ({allEnemies.filter((e) => !e.discovered).length})
-          </button>
-          <button
-            className={`filter-button ${
-              filter === "implemented" ? "active" : ""
-            }`}
-            onClick={() => setFilter("implemented")}
-          >
-            Implemented ({allEnemies.filter((e) => e.card.implemented).length})
-          </button>
-          <button
-            className={`filter-button boss-filter ${
-              filter === "boss" ? "active" : ""
-            }`}
-            onClick={() => setFilter("boss")}
-          >
-            ⚠️ BOSSES (1)
-          </button>
-        </div>
-
-        {/* Sort Options */}
-        <div className="codex-sort">
-          <span className="sort-label">Sort by:</span>
-          <button
-            className={`sort-button ${sortBy === "round" ? "active" : ""}`}
-            onClick={() => setSortBy("round")}
-          >
-            📅 Round
-          </button>
-          <button
-            className={`sort-button ${sortBy === "threat" ? "active" : ""}`}
-            onClick={() => setSortBy("threat")}
-          >
-            ⚠️ Threat
-          </button>
-          <button
-            className={`sort-button ${sortBy === "reward" ? "active" : ""}`}
-            onClick={() => setSortBy("reward")}
-          >
-            💰 Reward
-          </button>
-        </div>
+      {/* Search Bar */}
+      <div style={{ marginBottom: "24px" }}>
+        <input
+          type="text"
+          placeholder="🔍 Search enemies..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          style={{
+            width: "100%",
+            padding: "16px 20px",
+            fontSize: "16px",
+            background: "rgba(255, 255, 255, 0.05)",
+            backdropFilter: "blur(10px)",
+            border: "2px solid rgba(255, 255, 255, 0.15)",
+            borderRadius: "16px",
+            color: "white",
+            outline: "none",
+            transition: "all 0.3s ease",
+          }}
+          onFocus={(e) => {
+            e.target.style.borderColor = "rgba(78, 205, 203, 0.5)";
+            e.target.style.background = "rgba(255, 255, 255, 0.08)";
+          }}
+          onBlur={(e) => {
+            e.target.style.borderColor = "rgba(255, 255, 255, 0.15)";
+            e.target.style.background = "rgba(255, 255, 255, 0.05)";
+          }}
+        />
       </div>
+      {/* Filters and Sort */}
+      {!searchQuery && (
+        <div className="codex-controls">
+          <div className="codex-filters">
+            <button
+              className={`filter-button ${filter === "all" ? "active" : ""}`}
+              onClick={() => setFilter("all")}
+            >
+              All ({allEnemies.length})
+            </button>
+            <button
+              className={`filter-button ${
+                filter === "discovered" ? "active" : ""
+              }`}
+              onClick={() => setFilter("discovered")}
+            >
+              Discovered ({allEnemies.filter((e) => e.discovered).length})
+            </button>
+            <button
+              className={`filter-button ${filter === "locked" ? "active" : ""}`}
+              onClick={() => setFilter("locked")}
+            >
+              Locked ({allEnemies.filter((e) => !e.discovered).length})
+            </button>
+            <button
+              className={`filter-button ${
+                filter === "implemented" ? "active" : ""
+              }`}
+              onClick={() => setFilter("implemented")}
+            >
+              Implemented ({allEnemies.filter((e) => e.card.implemented).length}
+              )
+            </button>
+            <button
+              className={`filter-button boss-filter ${
+                filter === "boss" ? "active" : ""
+              }`}
+              onClick={() => setFilter("boss")}
+            >
+              ⚠️ BOSSES (1)
+            </button>
+          </div>
 
+          {/* Sort Options */}
+          <div className="codex-sort">
+            <span className="sort-label">Sort by:</span>
+            <button
+              className={`sort-button ${sortBy === "round" ? "active" : ""}`}
+              onClick={() => setSortBy("round")}
+            >
+              📅 Round
+            </button>
+            <button
+              className={`sort-button ${sortBy === "threat" ? "active" : ""}`}
+              onClick={() => setSortBy("threat")}
+            >
+              ⚠️ Threat
+            </button>
+            <button
+              className={`sort-button ${sortBy === "reward" ? "active" : ""}`}
+              onClick={() => setSortBy("reward")}
+            >
+              💰 Reward
+            </button>
+          </div>
+        </div>
+      )}
       {/* Main Content Area */}
       <div className="codex-content">
         {/* Enemy Grid */}
         <div className="codex-grid">
           {filteredEnemies.map(({ type, card, discovered }) => {
             const enemyCanvas = discovered
-              ? createEnemyCanvas(type, card.color, 60)
+              ? createEnemyCanvas(type, card.color, 80)
               : null;
+            const threatLevel = getThreatLevel(card);
 
             return (
               <button
@@ -334,11 +395,25 @@ export function CodexMenu({ onClose }: CodexMenuProps) {
                 }`}
                 onClick={() => setSelectedEnemy(type)}
               >
+                {/* Round Badge */}
+                <div className="codex-card-round-badge">
+                  R{card.unlockRound}
+                </div>
+
+                {/* Threat Badge */}
+                {discovered && (
+                  <div
+                    className={`codex-card-threat-badge threat-badge-${threatLevel}`}
+                  >
+                    {threatLevel.toUpperCase()}
+                  </div>
+                )}
+
                 <div className="codex-card-icon-wrapper">
                   {discovered && enemyCanvas ? (
                     <canvas
-                      width="60"
-                      height="60"
+                      width="80"
+                      height="80"
                       className="codex-card-canvas"
                       ref={(el) => {
                         if (el && enemyCanvas) {
@@ -346,18 +421,51 @@ export function CodexMenu({ onClose }: CodexMenuProps) {
                           if (ctx) ctx.drawImage(enemyCanvas, 0, 0);
                         }
                       }}
-                      style={{ filter: `drop-shadow(0 0 5px ${card.color})` }}
+                      style={{ filter: `drop-shadow(0 0 8px ${card.color})` }}
                     />
                   ) : (
                     <div className="codex-card-icon-locked">🔒</div>
                   )}
                 </div>
+
                 <div className="codex-card-name">
                   {discovered ? card.name : "???"}
                 </div>
-                <div className="codex-card-unlock">
-                  Round {card.unlockRound}
-                </div>
+
+                {discovered && (
+                  <div className="codex-card-mini-stats">
+                    <div className="codex-card-mini-stat">
+                      <span className="mini-stat-label">❤️</span>
+                      <span className="mini-stat-value">
+                        {card.stats.health}
+                      </span>
+                    </div>
+                    <div className="mini-stat-bar">
+                      <div
+                        className="mini-stat-fill"
+                        style={{
+                          width: `${Math.min(
+                            (card.stats.health / 500) * 100,
+                            100
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                    <div className="codex-card-mini-stat">
+                      <span className="mini-stat-label">💰</span>
+                      <span className="mini-stat-value">
+                        ${card.stats.value}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {!discovered && (
+                  <div className="codex-card-unlock">
+                    Unlocks Round {card.unlockRound}
+                  </div>
+                )}
+
                 {!card.implemented && (
                   <div className="coming-soon-badge">Coming Soon</div>
                 )}
@@ -365,10 +473,21 @@ export function CodexMenu({ onClose }: CodexMenuProps) {
             );
           })}
         </div>
+      </div>{" "}
+      {/* Close codex-content */}
+      {/* Detail Panel - Modal Overlay */}
+      {selectedCard && (
+        <div className="codex-detail-panel" onClick={handleBackdropClick}>
+          <div className="codex-detail-content">
+            {/* Close Button */}
+            <button
+              className="codex-detail-close"
+              onClick={() => setSelectedEnemy(null)}
+              aria-label="Close"
+            >
+              ×
+            </button>
 
-        {/* Detail Panel */}
-        {selectedCard && (
-          <div className="codex-detail-panel">
             {selectedCard.discovered ? (
               <>
                 {/* Discovered Enemy Details */}
@@ -581,9 +700,8 @@ export function CodexMenu({ onClose }: CodexMenuProps) {
               </div>
             )}
           </div>
-        )}
-      </div>
-
+        </div>
+      )}
       {/* Close Button */}
       <button className="codex-close-button" onClick={onClose}>
         ← Back to Menu
