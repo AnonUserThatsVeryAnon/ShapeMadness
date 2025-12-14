@@ -391,7 +391,7 @@ export const ENEMY_CARDS: Record<EnemyType, EnemyCard> = {
       'Phase 2: Master dodging projectiles while maintaining DPS',
       'Phase 3: Keep distance from shockwave radius',
       'Upgrade damage and fire rate for faster phases',
-      'Defeating grants 500 money - huge reward!',
+      'Defeating grants 150 money - huge reward!',
       'Stay mobile and patient'
     ],
     implemented: true,

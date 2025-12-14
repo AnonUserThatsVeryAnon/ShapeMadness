@@ -47,10 +47,14 @@ export function CodexMenu({ onClose }: CodexMenuProps) {
     if (!searchQuery.trim()) {
       switch (filter) {
         case "discovered":
-          filtered = allEnemies.filter((e) => e.discovered);
+          filtered = allEnemies.filter(
+            (e) => e.discovered && e.card.implemented
+          );
           break;
         case "locked":
-          filtered = allEnemies.filter((e) => !e.discovered);
+          filtered = allEnemies.filter(
+            (e) => !e.discovered && e.card.implemented
+          );
           break;
         case "implemented":
           filtered = allEnemies.filter((e) => e.card.implemented);
@@ -59,7 +63,8 @@ export function CodexMenu({ onClose }: CodexMenuProps) {
           filtered = allEnemies.filter((e) => e.type === EnemyType.OVERSEER);
           break;
         default:
-          filtered = allEnemies;
+          // Default 'all' view only shows implemented enemies
+          filtered = allEnemies.filter((e) => e.card.implemented);
       }
     }
 
