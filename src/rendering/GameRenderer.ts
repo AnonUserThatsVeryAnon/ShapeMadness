@@ -223,10 +223,23 @@ export class GameRenderer {
       this.ctx.globalAlpha = 0.5;
     }
 
-    // Pulsing glow effect
+    // Pulsing glow effect (optimized: glow ring instead of shadowBlur)
     const pulse = Math.sin(now / 200) * 0.3 + 0.7;
-    this.ctx.shadowBlur = 20 * pulse;
-    this.ctx.shadowColor = "#00ff88";
+    
+    // Glow ring (more performant than shadowBlur)
+    this.ctx.strokeStyle = `rgba(0, 255, 136, ${0.3 * pulse})`;
+    this.ctx.lineWidth = 8;
+    this.ctx.beginPath();
+    const angle = -Math.PI / 2;
+    for (let i = 0; i < 3; i++) {
+      const a = angle + (i * Math.PI * 2) / 3;
+      const px = player.position.x + Math.cos(a) * (player.radius + 4);
+      const py = player.position.y + Math.sin(a) * (player.radius + 4);
+      if (i === 0) this.ctx.moveTo(px, py);
+      else this.ctx.lineTo(px, py);
+    }
+    this.ctx.closePath();
+    this.ctx.stroke();
 
     // Draw triangle (player is distinct from circular enemies)
     this.ctx.fillStyle = "#00ff88";
@@ -235,7 +248,6 @@ export class GameRenderer {
     this.ctx.beginPath();
 
     // Triangle pointing up
-    const angle = -Math.PI / 2;
     for (let i = 0; i < 3; i++) {
       const a = angle + (i * Math.PI * 2) / 3;
       const px = player.position.x + Math.cos(a) * player.radius;
@@ -253,7 +265,6 @@ export class GameRenderer {
     this.ctx.arc(player.position.x, player.position.y, 4, 0, Math.PI * 2);
     this.ctx.fill();
 
-    this.ctx.shadowBlur = 0;
     this.ctx.globalAlpha = 1;
   }
 
@@ -342,6 +353,42 @@ export class GameRenderer {
       }
     }
 
+    // Lufti mystical wind trail
+    if (enemy.type === EnemyType.LUFTI) {
+      for (let i = 1; i <= 4; i++) {
+        ctx.fillStyle = `rgba(139, 195, 74, ${0.25 / i})`; // Green with fade
+        ctx.beginPath();
+        ctx.arc(
+          enemy.position.x - enemy.velocity.x * i * 4,
+          enemy.position.y - enemy.velocity.y * i * 4,
+          enemy.radius * (1 - i * 0.15),
+          0,
+          Math.PI * 2
+        );
+        ctx.fill();
+      }
+      
+      // Teleport invulnerability glow (optimized, no shadowBlur)
+      if (enemy.frozenUntil && now < enemy.frozenUntil) {
+        const glowIntensity = Math.sin(now / 30) * 0.5 + 0.5;
+        
+        // Glow ring instead of shadow (more performant)
+        ctx.strokeStyle = `rgba(139, 195, 74, ${0.5 * glowIntensity})`;
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.arc(enemy.position.x, enemy.position.y, enemy.radius + 3, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // White flash overlay
+        ctx.globalAlpha = 0.3 * glowIntensity;
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath();
+        ctx.arc(enemy.position.x, enemy.position.y, enemy.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+    }
+
     // Tank ground shadow
     if (enemy.type === EnemyType.TANK) {
       ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
@@ -358,14 +405,58 @@ export class GameRenderer {
       ctx.fill();
     }
 
-    // Splitter warning glow
+    // Splitter warning glow (optimized, no shadowBlur)
     if (
       enemy.type === EnemyType.SPLITTER &&
       enemy.health < enemy.maxHealth * 0.3
     ) {
       const pulseGlow = Math.sin(now / 100) * 0.5 + 0.5;
-      ctx.shadowBlur = 15 * pulseGlow;
-      ctx.shadowColor = enemy.color;
+      // Draw glow ring instead of shadow
+      ctx.strokeStyle = `${enemy.color}80`;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(
+        enemy.position.x,
+        enemy.position.y,
+        enemy.radius + 4 * pulseGlow,
+        0,
+        Math.PI * 2
+      );
+      ctx.stroke();
+    }
+
+    // Bomb warning glow (red flashing when low health, optimized)
+    if (
+      enemy.type === EnemyType.BOMB &&
+      enemy.health < enemy.maxHealth * 0.3
+    ) {
+      const fastPulse = Math.sin(now / 80) * 0.5 + 0.5; // Faster pulse than Splitter
+      
+      // Red warning rings (no shadowBlur for performance)
+      ctx.strokeStyle = `rgba(255, 87, 34, ${fastPulse * 0.7})`;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(
+        enemy.position.x,
+        enemy.position.y,
+        enemy.radius + 8 * fastPulse,
+        0,
+        Math.PI * 2
+      );
+      ctx.stroke();
+      
+      // Inner ring for more intensity
+      ctx.strokeStyle = `rgba(255, 87, 34, ${fastPulse})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(
+        enemy.position.x,
+        enemy.position.y,
+        enemy.radius + 4 * fastPulse,
+        0,
+        Math.PI * 2
+      );
+      ctx.stroke();
     }
 
     // Buffer aura
@@ -376,6 +467,11 @@ export class GameRenderer {
     // Timebomb slow field
     if (enemy.type === EnemyType.TIME_DISTORTION) {
       this.drawTimebombField(enemy, now);
+    }
+
+    // Shooter aiming laser telegraph
+    if (enemy.type === EnemyType.SHOOTER && enemy.sniperCharging && enemy.sniperTarget) {
+      this.drawShooterAimingLaser(enemy, now);
     }
 
     // Buff indicators on buffed enemies
@@ -498,6 +594,49 @@ export class GameRenderer {
       Math.PI * 2
     );
     ctx.stroke();
+  }
+
+  private drawShooterAimingLaser(enemy: Enemy, now: number) {
+    if (!enemy.sniperTarget) return;
+    
+    const ctx = this.ctx;
+    const intensity = Math.sin(now / 50) * 0.3 + 0.7; // Fast pulse for urgency
+    
+    // Draw warning laser line from enemy to target
+    ctx.save();
+    ctx.strokeStyle = `rgba(170, 150, 218, ${0.6 * intensity})`; // Purple with pulse
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 5]);
+    
+    ctx.beginPath();
+    ctx.moveTo(enemy.position.x, enemy.position.y);
+    ctx.lineTo(enemy.sniperTarget.x, enemy.sniperTarget.y);
+    ctx.stroke();
+    
+    // Draw glowing outer laser
+    ctx.strokeStyle = `rgba(170, 150, 218, ${0.3 * intensity})`;
+    ctx.lineWidth = 6;
+    ctx.stroke();
+    
+    ctx.setLineDash([]);
+    
+    // Draw target reticle at aim point
+    const reticleSize = 15;
+    ctx.strokeStyle = `rgba(255, 82, 82, ${intensity})`; // Red warning
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(enemy.sniperTarget.x, enemy.sniperTarget.y, reticleSize, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    // Crosshair
+    ctx.beginPath();
+    ctx.moveTo(enemy.sniperTarget.x - reticleSize, enemy.sniperTarget.y);
+    ctx.lineTo(enemy.sniperTarget.x + reticleSize, enemy.sniperTarget.y);
+    ctx.moveTo(enemy.sniperTarget.x, enemy.sniperTarget.y - reticleSize);
+    ctx.lineTo(enemy.sniperTarget.x, enemy.sniperTarget.y + reticleSize);
+    ctx.stroke();
+    
+    ctx.restore();
   }
 
   private drawBuffIndicator(enemy: Enemy, now: number) {
@@ -914,47 +1053,29 @@ export class GameRenderer {
       const pulse = Math.sin(now / 50) * 0.3 + 0.7;
 
       if (laser.isWarning) {
-        // Warning phase - blinking red line with energy buildup
+        // Warning phase - dashed line (2 layers, optimized)
         const alpha = Math.sin(age / 100) * 0.15 + 0.25;
         
-        // Outer warning glow
-        this.ctx.strokeStyle = `rgba(255, 150, 0, ${alpha * 0.5})`;
-        this.ctx.lineWidth = laser.width + 6;
-        this.ctx.setLineDash([20, 10]);
-        this.ctx.beginPath();
-        this.ctx.moveTo(laser.startX, laser.startY);
-        this.ctx.lineTo(laser.endX, laser.endY);
-        this.ctx.stroke();
-        
-        // Main warning line
+        // Main warning line with dash
         this.ctx.strokeStyle = `rgba(255, 0, 0, ${alpha})`;
         this.ctx.lineWidth = laser.width;
+        this.ctx.setLineDash([20, 10]);
         this.ctx.beginPath();
         this.ctx.moveTo(laser.startX, laser.startY);
         this.ctx.lineTo(laser.endX, laser.endY);
         this.ctx.stroke();
         this.ctx.setLineDash([]);
       } else {
-        // Active phase - intense laser with multiple layers
-        // Outermost glow
-        this.ctx.shadowBlur = 30;
-        this.ctx.shadowColor = '#ff6b1a';
-        this.ctx.strokeStyle = "rgba(255, 100, 26, 0.2)";
-        this.ctx.lineWidth = laser.width + 20;
+        // Active phase - 3 layers instead of 7 (optimized from 7)
+        // Outer glow (no shadowBlur for performance)
+        this.ctx.strokeStyle = `rgba(255, 107, 26, ${0.25 * pulse})`;
+        this.ctx.lineWidth = laser.width + 14;
         this.ctx.beginPath();
         this.ctx.moveTo(laser.startX, laser.startY);
         this.ctx.lineTo(laser.endX, laser.endY);
         this.ctx.stroke();
 
-        // Mid glow
-        this.ctx.strokeStyle = `rgba(255, 107, 26, ${0.4 * pulse})`;
-        this.ctx.lineWidth = laser.width + 12;
-        this.ctx.beginPath();
-        this.ctx.moveTo(laser.startX, laser.startY);
-        this.ctx.lineTo(laser.endX, laser.endY);
-        this.ctx.stroke();
-
-        // Inner beam
+        // Main beam
         this.ctx.strokeStyle = "#ff6b1a";
         this.ctx.lineWidth = laser.width;
         this.ctx.beginPath();
@@ -962,23 +1083,13 @@ export class GameRenderer {
         this.ctx.lineTo(laser.endX, laser.endY);
         this.ctx.stroke();
 
-        // Bright core
-        this.ctx.strokeStyle = "#ffaa44";
-        this.ctx.lineWidth = laser.width / 2;
+        // Bright center core
+        this.ctx.strokeStyle = `rgba(255, 255, 255, ${pulse * 0.8})`;
+        this.ctx.lineWidth = laser.width / 3;
         this.ctx.beginPath();
         this.ctx.moveTo(laser.startX, laser.startY);
         this.ctx.lineTo(laser.endX, laser.endY);
         this.ctx.stroke();
-        
-        // Ultra-bright center line
-        this.ctx.strokeStyle = `rgba(255, 255, 255, ${pulse})`;
-        this.ctx.lineWidth = laser.width / 4;
-        this.ctx.beginPath();
-        this.ctx.moveTo(laser.startX, laser.startY);
-        this.ctx.lineTo(laser.endX, laser.endY);
-        this.ctx.stroke();
-        
-        this.ctx.shadowBlur = 0;
       }
     });
   }

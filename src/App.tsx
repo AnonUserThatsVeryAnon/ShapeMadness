@@ -510,6 +510,26 @@ function App() {
         updateEnemyPosition(enemy, player, deltaTime);
       }
 
+      // Bomb enemy warning when low health
+      if (
+        enemy.type === EnemyType.BOMB &&
+        enemy.health < enemy.maxHealth * 0.3
+      ) {
+        if (!enemy.lastSpecialAbility) enemy.lastSpecialAbility = now;
+
+        // Beep faster as health drops
+        const beepInterval =
+          500 + (enemy.health / enemy.maxHealth) * 0.3 * 1000; // 500ms to 800ms
+
+        if (now - enemy.lastSpecialAbility > beepInterval) {
+          // Visual warning flash
+          particlesRef.current.push(
+            ...createParticles(enemy.position, 3, "#ff5722", 3, 200)
+          );
+          enemy.lastSpecialAbility = now;
+        }
+      }
+
       // Buffer enemies rotate buffs and apply to nearby enemies
       if (enemy.type === EnemyType.BUFFER) {
         if (!enemy.lastSpecialAbility) {
@@ -637,12 +657,83 @@ function App() {
         }
       }
 
-      // Shooter enemies fire projectiles
+      // Lufti teleport/dash ability
+      if (enemy.type === EnemyType.LUFTI) {
+        if (!enemy.lastSpecialAbility) enemy.lastSpecialAbility = now;
+
+        const teleportCooldown = 3000; // Teleport every 3 seconds
+
+        if (now - enemy.lastSpecialAbility >= teleportCooldown) {
+          // Calculate teleport position (dash toward player)
+          const toPlayer = {
+            x: player.position.x - enemy.position.x,
+            y: player.position.y - enemy.position.y,
+          };
+          const direction = normalize(toPlayer);
+          const teleportDistance = 150; // Dash 150 pixels toward player
+
+          // Teleport particles at old position
+          particlesRef.current.push(
+            ...createParticles(enemy.position, 20, enemy.color, 4, 400)
+          );
+          particlesRef.current.push(
+            ...createParticles(enemy.position, 10, "#ffffff", 3, 300)
+          );
+
+          // Play teleport sound
+          audioSystem.playTeleport();
+
+          // Update position (teleport)
+          enemy.position.x += direction.x * teleportDistance;
+          enemy.position.y += direction.y * teleportDistance;
+
+          // Keep within bounds
+          enemy.position.x = Math.max(
+            50,
+            Math.min(CANVAS_WIDTH - 50, enemy.position.x)
+          );
+          enemy.position.y = Math.max(
+            50,
+            Math.min(CANVAS_HEIGHT - 50, enemy.position.y)
+          );
+
+          // Teleport particles at new position
+          particlesRef.current.push(
+            ...createParticles(enemy.position, 20, enemy.color, 4, 400)
+          );
+          particlesRef.current.push(
+            ...createParticles(enemy.position, 10, "#ffffff", 3, 300)
+          );
+
+          // Brief invulnerability during teleport
+          enemy.frozenUntil = now + 200; // 0.2s invulnerable
+
+          enemy.lastSpecialAbility = now;
+        }
+      }
+
+      // Shooter enemies fire projectiles with aiming telegraph
       if (enemy.type === EnemyType.SHOOTER) {
         if (!enemy.lastSpecialAbility) enemy.lastSpecialAbility = now;
 
-        // Fire every 2 seconds
-        if (now - enemy.lastSpecialAbility > 2000) {
+        const timeSinceLastShot = now - enemy.lastSpecialAbility;
+        const shootCooldown = 2000;
+        const chargeTime = 600; // 0.6s aiming telegraph
+
+        // Start charging at 1.4s (0.6s before firing at 2s)
+        if (
+          timeSinceLastShot >= shootCooldown - chargeTime &&
+          timeSinceLastShot < shootCooldown
+        ) {
+          // Store target position for aiming laser
+          if (!enemy.sniperCharging) {
+            enemy.sniperCharging = true;
+            enemy.sniperTarget = { x: player.position.x, y: player.position.y };
+          }
+        }
+
+        // Fire after full cooldown
+        if (timeSinceLastShot >= shootCooldown) {
           const toPlayer = {
             x: player.position.x - enemy.position.x,
             y: player.position.y - enemy.position.y,
@@ -661,6 +752,8 @@ function App() {
           });
 
           enemy.lastSpecialAbility = now;
+          enemy.sniperCharging = false;
+          enemy.sniperTarget = undefined;
 
           // Muzzle flash particles
           particlesRef.current.push(
@@ -1048,16 +1141,31 @@ function App() {
       if (age < laser.warningTime + laser.activeTime) {
         laser.isWarning = false;
 
-        // Check collision with player
+        // Check collision with player (optimized with bounding box)
         if (!player.invulnerable) {
-          const distToLine = pointToLineDistance(
-            player.position,
-            { x: laser.startX, y: laser.startY },
-            { x: laser.endX, y: laser.endY }
-          );
+          // Early exit with bounding box check (cheap)
+          const padding = laser.width / 2 + player.radius;
+          const minX = Math.min(laser.startX, laser.endX) - padding;
+          const maxX = Math.max(laser.startX, laser.endX) + padding;
+          const minY = Math.min(laser.startY, laser.endY) - padding;
+          const maxY = Math.max(laser.startY, laser.endY) + padding;
 
-          if (distToLine < laser.width / 2 + player.radius) {
-            damagePlayer(20, now);
+          // Only do expensive distance check if in bounding box
+          if (
+            player.position.x >= minX &&
+            player.position.x <= maxX &&
+            player.position.y >= minY &&
+            player.position.y <= maxY
+          ) {
+            const distToLine = pointToLineDistance(
+              player.position,
+              { x: laser.startX, y: laser.startY },
+              { x: laser.endX, y: laser.endY }
+            );
+
+            if (distToLine < padding) {
+              damagePlayer(20, now);
+            }
           }
         }
 
@@ -1299,7 +1407,26 @@ function App() {
       stats.score += earnedScore;
       stats.kills++;
 
-      audioSystem.playEnemyDeath();
+      // Play enemy-specific death sound
+      switch (enemy.type) {
+        case EnemyType.FAST:
+          audioSystem.playFastDeath();
+          break;
+        case EnemyType.TANK:
+          audioSystem.playTankDeath();
+          break;
+        case EnemyType.SPLITTER:
+          audioSystem.playSplitterDeath();
+          break;
+        case EnemyType.SHOOTER:
+          audioSystem.playShooterDeath();
+          break;
+        case EnemyType.BUFFER:
+          audioSystem.playBufferDeath();
+          break;
+        default:
+          audioSystem.playEnemyDeath();
+      }
 
       // Enhanced death particles
       particlesRef.current.push(
@@ -1365,6 +1492,102 @@ function App() {
             active: true,
           };
           enemiesRef.current.push(split);
+        });
+      }
+
+      // Bomb enemy explodes on death
+      if (enemy.type === EnemyType.BOMB) {
+        const explosionRadius = 150;
+        const explosionDamage = 25;
+
+        // Play explosion sound
+        audioSystem.playExplosion();
+
+        // Massive explosion particles
+        particlesRef.current.push(
+          ...createParticles(enemy.position, 30, "#ff9800", 10, 800)
+        );
+        particlesRef.current.push(
+          ...createParticles(enemy.position, 20, "#ff5722", 8, 600)
+        );
+        particlesRef.current.push(
+          ...createParticles(enemy.position, 10, "#ffeb3b", 6, 400)
+        );
+
+        // Check if player is in explosion radius
+        const distToPlayer = distance(
+          enemy.position,
+          playerRef.current.position
+        );
+        if (distToPlayer < explosionRadius && !playerRef.current.invulnerable) {
+          damagePlayer(explosionDamage, now);
+
+          // Show explosion damage text
+          floatingTextsRef.current.push({
+            position: { ...playerRef.current.position },
+            text: "EXPLOSION!",
+            color: "#ff5722",
+            size: 24,
+            lifetime: 1000,
+            createdAt: now,
+            velocity: { x: 0, y: -3 },
+            alpha: 1,
+          });
+        }
+
+        // Extra screen shake for explosion
+        shakeRef.current.intensity = 15;
+      }
+
+      // Ice enemy freezes area on death
+      if (enemy.type === EnemyType.ICE) {
+        // Play ice shatter sound
+        audioSystem.playIceShatter();
+
+        // Create ice zone at death location
+        const iceZone = {
+          position: { ...enemy.position },
+          radius: 150,
+          createdAt: now,
+          duration: 5000, // 5 seconds
+          active: true,
+        };
+
+        // Store ice zone (we'll need to add this to refs)
+        if (
+          !floatingTextsRef.current.find((t) => t.text.includes("ICE_ZONE"))
+        ) {
+          // Use floating text as temporary storage marker
+          floatingTextsRef.current.push({
+            position: { ...enemy.position },
+            text: `ICE_ZONE_${now}`,
+            color: "#00bcd4",
+            size: 0, // Invisible
+            lifetime: 5000,
+            createdAt: now,
+            velocity: { x: 0, y: 0 },
+            alpha: 0,
+          });
+        }
+
+        // Ice particles
+        particlesRef.current.push(
+          ...createParticles(enemy.position, 25, "#00bcd4", 6, 1000)
+        );
+        particlesRef.current.push(
+          ...createParticles(enemy.position, 15, "#b3e5fc", 4, 800)
+        );
+
+        // Freeze effect visual
+        floatingTextsRef.current.push({
+          position: { ...enemy.position },
+          text: "❄️ FROZEN ZONE ❄️",
+          color: "#00bcd4",
+          size: 18,
+          lifetime: 5000,
+          createdAt: now,
+          velocity: { x: 0, y: 0.2 },
+          alpha: 0.8,
         });
       }
 

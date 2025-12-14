@@ -108,7 +108,7 @@ export function drawEnemyPattern(
   scale: number = 1
 ): void {
   const visual = ENEMY_VISUALS[type];
-  const r = radius * 0.5 * scale;
+  const r = radius * 0.8 * scale; // Increased from 0.5 to 0.8 for better visibility
 
   ctx.fillStyle = '#ffffff';
   ctx.strokeStyle = '#ffffff';

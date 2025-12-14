@@ -267,8 +267,14 @@ export const ENEMY_CARDS: Record<EnemyType, EnemyCard> = {
   [EnemyType.ICE]: {
     type: EnemyType.ICE,
     name: 'Ice Cell',
-    description: 'Freezes on death.',
-    abilities: ['Coming soon...'],
+    description: 'A glacial blue sphere marked with a snowflake. On death, it creates a frozen zone that slows your movement speed by 50% for 5 seconds.',
+    abilities: [
+      'Creates ice zone on death (150 radius)',
+      'Ice lasts 5 seconds',
+      'Slows player movement by 50% inside zone',
+      'Visual ice particles mark the danger area',
+      'Strategic death placement can trap you'
+    ],
     stats: {
       health: ENEMY_CONFIGS[EnemyType.ICE].health,
       speed: ENEMY_CONFIGS[EnemyType.ICE].speed,
@@ -279,15 +285,22 @@ export const ENEMY_CARDS: Record<EnemyType, EnemyCard> = {
     discovered: false,
     color: ENEMY_CONFIGS[EnemyType.ICE].color,
     icon: '❄️',
-    tips: ['Not yet implemented'],
-    implemented: false,
+    tips: ['Kill them away from your position', 'Ice zones deny space effectively', 'Multiple ice zones = death trap', 'Plan your kills carefully'],
+    implemented: true,
   },
 
   [EnemyType.BOMB]: {
     type: EnemyType.BOMB,
     name: 'Bomb Cell',
-    description: 'Explodes on death.',
-    abilities: ['Coming soon...'],
+    description: 'An orange sphere with a bomb icon. Explodes violently on death, dealing massive damage in a large radius. Warning: starts beeping and flashing red when below 30% health!',
+    abilities: [
+      'Explodes on death (150 radius)',
+      'Explosion damage: 25 AoE',
+      'WARNING: Beeps when health < 30%',
+      'Beeping speeds up as health drops',
+      'Red flashing visual warning',
+      'Massive particle explosion'
+    ],
     stats: {
       health: ENEMY_CONFIGS[EnemyType.BOMB].health,
       speed: ENEMY_CONFIGS[EnemyType.BOMB].speed,
@@ -298,8 +311,8 @@ export const ENEMY_CARDS: Record<EnemyType, EnemyCard> = {
     discovered: false,
     color: ENEMY_CONFIGS[EnemyType.BOMB].color,
     icon: '💣',
-    tips: ['Not yet implemented'],
-    implemented: false,
+    tips: ['Back away when you hear beeping!', 'Kill from max range', 'Never finish them in close combat', 'Explosion ignores defense'],
+    implemented: true,
   },
 
   [EnemyType.EVIL_STORM]: {
@@ -324,8 +337,15 @@ export const ENEMY_CARDS: Record<EnemyType, EnemyCard> = {
   [EnemyType.LUFTI]: {
     type: EnemyType.LUFTI,
     name: 'Lufti',
-    description: 'A mystical entity shrouded in green energy. Fast and unpredictable.',
-    abilities: ['Coming soon...'],
+    description: 'A mystical green entity shrouded in wind energy. This unpredictable enemy can teleport-dash toward you, making it extremely difficult to maintain distance. Leaves a trail of wind particles.',
+    abilities: [
+      'Teleport-dash every 3 seconds',
+      'Dashes 150 units toward player',
+      'Brief invulnerability (0.2s) during teleport',
+      'Fast base movement (2.5 speed)',
+      'Wind trail effect while moving',
+      'Unpredictable positioning'
+    ],
     stats: {
       health: ENEMY_CONFIGS[EnemyType.LUFTI].health,
       speed: ENEMY_CONFIGS[EnemyType.LUFTI].speed,
@@ -335,9 +355,9 @@ export const ENEMY_CARDS: Record<EnemyType, EnemyCard> = {
     unlockRound: 40,
     discovered: false,
     color: ENEMY_CONFIGS[EnemyType.LUFTI].color,
-    icon: '❓',
-    tips: ['Not yet implemented'],
-    implemented: false,
+    icon: '🌪️',
+    tips: ['Don\'t stand still - it will teleport to you', 'Invulnerable during teleport flash', 'High mobility threat', 'Anticipate its dash direction'],
+    implemented: true,
   },
   [EnemyType.OVERSEER]: {
     type: EnemyType.OVERSEER,

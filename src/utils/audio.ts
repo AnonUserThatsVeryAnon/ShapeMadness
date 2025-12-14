@@ -402,6 +402,191 @@ class AudioSystem {
       this.musicGain.gain.value = Math.max(0, Math.min(1, volume));
     }
   }
+
+  // Enemy-specific death sounds
+  playFastDeath() {
+    if (!this.context || !this.sfxGain) return;
+    
+    // High-pitched zap sound for Fast enemies
+    const oscillator = this.context.createOscillator();
+    const gainNode = this.context.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(this.sfxGain);
+    
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(1200, this.context.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(200, this.context.currentTime + 0.15);
+    
+    gainNode.gain.setValueAtTime(0.4, this.context.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, this.context.currentTime + 0.15);
+    
+    oscillator.start(this.context.currentTime);
+    oscillator.stop(this.context.currentTime + 0.15);
+  }
+
+  playTankDeath() {
+    if (!this.context || !this.sfxGain) return;
+    
+    // Deep heavy thud for Tank enemies
+    const oscillator = this.context.createOscillator();
+    const gainNode = this.context.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(this.sfxGain);
+    
+    oscillator.type = 'sawtooth';
+    oscillator.frequency.setValueAtTime(80, this.context.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(30, this.context.currentTime + 0.4);
+    
+    gainNode.gain.setValueAtTime(0.7, this.context.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, this.context.currentTime + 0.4);
+    
+    oscillator.start(this.context.currentTime);
+    oscillator.stop(this.context.currentTime + 0.4);
+  }
+
+  playSplitterDeath() {
+    if (!this.context || !this.sfxGain) return;
+    
+    // Splitting sound - two quick pops
+    for (let i = 0; i < 2; i++) {
+      const oscillator = this.context.createOscillator();
+      const gainNode = this.context.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(this.sfxGain);
+      
+      oscillator.type = 'square';
+      oscillator.frequency.setValueAtTime(400 + i * 100, this.context.currentTime + i * 0.05);
+      oscillator.frequency.exponentialRampToValueAtTime(100, this.context.currentTime + 0.1 + i * 0.05);
+      
+      gainNode.gain.setValueAtTime(0.35, this.context.currentTime + i * 0.05);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, this.context.currentTime + 0.1 + i * 0.05);
+      
+      oscillator.start(this.context.currentTime + i * 0.05);
+      oscillator.stop(this.context.currentTime + 0.1 + i * 0.05);
+    }
+  }
+
+  playShooterDeath() {
+    if (!this.context || !this.sfxGain) return;
+    
+    // Electric discharge sound for Shooter enemies
+    const oscillator = this.context.createOscillator();
+    const gainNode = this.context.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(this.sfxGain);
+    
+    oscillator.type = 'square';
+    oscillator.frequency.setValueAtTime(800, this.context.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(150, this.context.currentTime + 0.25);
+    
+    gainNode.gain.setValueAtTime(0.4, this.context.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, this.context.currentTime + 0.25);
+    
+    oscillator.start(this.context.currentTime);
+    oscillator.stop(this.context.currentTime + 0.25);
+  }
+
+  playBufferDeath() {
+    if (!this.context || !this.sfxGain) return;
+    
+    // Magical dispersion sound for Buffer
+    [400, 500, 600].forEach((freq, i) => {
+      const oscillator = this.context!.createOscillator();
+      const gainNode = this.context!.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(this.sfxGain!);
+      
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(freq, this.context!.currentTime + i * 0.04);
+      oscillator.frequency.exponentialRampToValueAtTime(100, this.context!.currentTime + 0.3 + i * 0.04);
+      
+      gainNode.gain.setValueAtTime(0.3, this.context!.currentTime + i * 0.04);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, this.context!.currentTime + 0.3 + i * 0.04);
+      
+      oscillator.start(this.context!.currentTime + i * 0.04);
+      oscillator.stop(this.context!.currentTime + 0.3 + i * 0.04);
+    });
+  }
+
+  playExplosion() {
+    if (!this.context || !this.sfxGain) return;
+    
+    // Bomb explosion sound - loud boom
+    const oscillator1 = this.context.createOscillator();
+    const oscillator2 = this.context.createOscillator();
+    const gainNode = this.context.createGain();
+    
+    oscillator1.connect(gainNode);
+    oscillator2.connect(gainNode);
+    gainNode.connect(this.sfxGain);
+    
+    oscillator1.type = 'sawtooth';
+    oscillator2.type = 'triangle';
+    
+    oscillator1.frequency.setValueAtTime(100, this.context.currentTime);
+    oscillator1.frequency.exponentialRampToValueAtTime(20, this.context.currentTime + 0.5);
+    
+    oscillator2.frequency.setValueAtTime(200, this.context.currentTime);
+    oscillator2.frequency.exponentialRampToValueAtTime(30, this.context.currentTime + 0.5);
+    
+    gainNode.gain.setValueAtTime(0.8, this.context.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, this.context.currentTime + 0.5);
+    
+    oscillator1.start(this.context.currentTime);
+    oscillator1.stop(this.context.currentTime + 0.5);
+    oscillator2.start(this.context.currentTime);
+    oscillator2.stop(this.context.currentTime + 0.5);
+  }
+
+  playIceShatter() {
+    if (!this.context || !this.sfxGain) return;
+    
+    // Ice shattering sound - crystalline break
+    for (let i = 0; i < 4; i++) {
+      const oscillator = this.context.createOscillator();
+      const gainNode = this.context.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(this.sfxGain);
+      
+      oscillator.type = 'triangle';
+      oscillator.frequency.setValueAtTime(1800 - i * 200, this.context.currentTime + i * 0.02);
+      oscillator.frequency.exponentialRampToValueAtTime(400, this.context.currentTime + 0.12 + i * 0.02);
+      
+      gainNode.gain.setValueAtTime(0.3, this.context.currentTime + i * 0.02);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, this.context.currentTime + 0.12 + i * 0.02);
+      
+      oscillator.start(this.context.currentTime + i * 0.02);
+      oscillator.stop(this.context.currentTime + 0.12 + i * 0.02);
+    }
+  }
+
+  playTeleport() {
+    if (!this.context || !this.sfxGain) return;
+    
+    // Whoosh teleport sound for Lufti
+    const oscillator = this.context.createOscillator();
+    const gainNode = this.context.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(this.sfxGain);
+    
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(600, this.context.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(1200, this.context.currentTime + 0.08);
+    oscillator.frequency.exponentialRampToValueAtTime(300, this.context.currentTime + 0.16);
+    
+    gainNode.gain.setValueAtTime(0.4, this.context.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, this.context.currentTime + 0.16);
+    
+    oscillator.start(this.context.currentTime);
+    oscillator.stop(this.context.currentTime + 0.16);
+  }
 }
 
 export const audioSystem = new AudioSystem();

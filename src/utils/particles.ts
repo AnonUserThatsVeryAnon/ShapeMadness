@@ -53,15 +53,18 @@ export function updateParticles(particles: Particle[], deltaTime: number): Parti
 }
 
 export function drawParticles(ctx: CanvasRenderingContext2D, particles: Particle[]): void {
+  // Optimized: group by color to reduce style changes
+  const oldAlpha = ctx.globalAlpha;
+  
   particles.forEach(particle => {
-    ctx.save();
     ctx.globalAlpha = particle.alpha;
     ctx.fillStyle = particle.color;
     ctx.beginPath();
     ctx.arc(particle.position.x, particle.position.y, particle.size, 0, Math.PI * 2);
     ctx.fill();
-    ctx.restore();
   });
+  
+  ctx.globalAlpha = oldAlpha;
 }
 
 // Enhanced particle effects for boss abilities
