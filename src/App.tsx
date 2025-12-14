@@ -61,6 +61,8 @@ import { GameHUD } from "./components/GameHUD";
 import { GameMenu } from "./components/GameMenu";
 import { PauseMenu } from "./components/PauseMenu";
 import { GameOver } from "./components/GameOver";
+import { NameInputScreen } from "./components/NameInputScreen";
+import { submitScore } from "./config/supabase";
 import "./App.css";
 
 // Dynamic canvas size - uses full window
@@ -81,6 +83,9 @@ function App() {
   const [shopTab, setShopTab] = useState<"core" | "special">("core");
   const [waveTimer, setWaveTimer] = useState(20); // 20 second countdown
   const waveTimerRef = useRef<number | null>(null);
+
+  // Leaderboard states
+  const [showNameInput, setShowNameInput] = useState(false);
 
   // Codex state for enemy discovery system
   const [showingCard, setShowingCard] = useState<EnemyType | null>(null);
@@ -1394,6 +1399,8 @@ function App() {
         stats.highScore = stats.score;
         saveToLocalStorage("highScore", stats.highScore);
       }
+      // Show name input screen before game over
+      setShowNameInput(true);
       setGameState(GameState.GAME_OVER);
     }
   };
@@ -2063,6 +2070,20 @@ function App() {
     };
   }, [gameState, isTestMode]);
 
+  // Leaderboard handlers
+  const handleSubmitScore = async (playerName: string) => {
+    await submitScore(
+      playerName,
+      statsRef.current.score,
+      statsRef.current.round
+    );
+    setShowNameInput(false);
+  };
+
+  const handleSkipScore = () => {
+    setShowNameInput(false);
+  };
+
   return (
     <div className="game-container">
       <canvas
@@ -2083,9 +2104,7 @@ function App() {
           onShowCodex={() => setShowCodex(true)}
           onDebugMode={() => setShowDebugMenu(true)}
         />
-      )}
-
-      {/* Game HUD - Modular Component */}
+      )}      {/* Game HUD - Modular Component */}
       {gameState === GameState.PLAYING && (
         <GameHUD
           aimMode={aimMode}
@@ -2113,8 +2132,18 @@ function App() {
         />
       )}
 
+      {/* Name Input Screen - Before Game Over */}
+      {gameState === GameState.GAME_OVER && showNameInput && (
+        <NameInputScreen
+          score={statsRef.current.score}
+          wave={statsRef.current.round}
+          onSubmit={handleSubmitScore}
+          onSkip={handleSkipScore}
+        />
+      )}
+
       {/* Game Over - Modular Component */}
-      {gameState === GameState.GAME_OVER && (
+      {gameState === GameState.GAME_OVER && !showNameInput && (
         <GameOver
           score={statsRef.current.score}
           round={statsRef.current.round}
