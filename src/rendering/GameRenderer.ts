@@ -102,7 +102,17 @@ export class GameRenderer {
   }
 
   private drawRedZones(zone: PlayZone) {
-    this.ctx.fillStyle = "rgba(255, 0, 0, 0.2)";
+    // Different opacity/color based on whether zone is expanding or shrinking
+    if (zone.isTransitioning && zone.isExpanding) {
+      // Expanding: Lighter, less threatening (green tint)
+      this.ctx.fillStyle = "rgba(255, 100, 0, 0.15)";
+    } else if (zone.isTransitioning && !zone.isExpanding) {
+      // Shrinking: More intense, threatening (red)
+      this.ctx.fillStyle = "rgba(255, 0, 0, 0.3)";
+    } else {
+      // Static: Normal danger zone
+      this.ctx.fillStyle = "rgba(255, 0, 0, 0.2)";
+    }
 
     // Top red zone
     if (zone.y > 0) {
@@ -141,19 +151,42 @@ export class GameRenderer {
   }
 
   private drawZoneBorder(zone: PlayZone, now: number) {
-    this.ctx.strokeStyle = zone.isTransitioning ? "#ffaa00" : "#ff4444";
-    this.ctx.lineWidth = 4;
-    this.ctx.setLineDash(zone.isTransitioning ? [10, 5] : []);
+    // Different colors for expansion vs shrinking
+    if (zone.isTransitioning) {
+      // Transitioning: Green for expansion, Orange/Red for shrinking
+      this.ctx.strokeStyle = zone.isExpanding ? "#00ff88" : "#ff4400";
+      this.ctx.lineWidth = 5;
+      this.ctx.setLineDash([15, 8]);
+      
+      // Animated dash offset for moving effect
+      const dashOffset = zone.isExpanding 
+        ? -(now / 20) % 23  // Move outward (negative)
+        : (now / 15) % 23;  // Move inward (positive, faster)
+      this.ctx.lineDashOffset = dashOffset;
+    } else {
+      // Static: Red danger border
+      this.ctx.strokeStyle = "#ff4444";
+      this.ctx.lineWidth = 4;
+      this.ctx.setLineDash([]);
+    }
 
-    // Pulsing effect when not transitioning
+    // Pulsing effect
     if (!zone.isTransitioning) {
+      // Gentle pulse for static border
       const pulse = Math.sin(now / 200) * 0.5 + 0.5;
       this.ctx.globalAlpha = 0.5 + pulse * 0.5;
+    } else {
+      // More dramatic pulse during transition
+      const pulse = Math.sin(now / 150) * 0.5 + 0.5;
+      this.ctx.globalAlpha = zone.isExpanding 
+        ? 0.6 + pulse * 0.4  // Brighter for expansion
+        : 0.7 + pulse * 0.3; // More intense for shrinking
     }
 
     this.ctx.strokeRect(zone.x, zone.y, zone.width, zone.height);
     this.ctx.globalAlpha = 1;
     this.ctx.setLineDash([]);
+    this.ctx.lineDashOffset = 0;
   }
 
   private drawParticlesLayer(particles: Particle[], isBackground: boolean) {
@@ -364,6 +397,35 @@ export class GameRenderer {
   private drawEnemyEffects(enemy: Enemy, now: number) {
     const ctx = this.ctx;
 
+    // Healing in Shield visual effect
+    if (enemy.isHealingInShield) {
+      const pulse = Math.sin(now / 150) * 0.5 + 0.5;
+      ctx.strokeStyle = `rgba(76, 175, 80, ${0.4 + pulse * 0.3})`;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(
+        enemy.position.x,
+        enemy.position.y,
+        enemy.radius + 8,
+        0,
+        Math.PI * 2
+      );
+      ctx.stroke();
+      
+      // Inner healing glow
+      ctx.strokeStyle = `rgba(76, 175, 80, ${0.2 + pulse * 0.2})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(
+        enemy.position.x,
+        enemy.position.y,
+        enemy.radius + 12,
+        0,
+        Math.PI * 2
+      );
+      ctx.stroke();
+    }
+
     // Tank shield effect
     if (enemy.type === EnemyType.TANK && enemy.tankShield && enemy.tankShield > 0 && !enemy.tankShieldBroken) {
       this.drawTankShield(enemy, now);
@@ -519,9 +581,9 @@ export class GameRenderer {
       this.drawTimebombField(enemy, now);
     }
 
-    // Shooter aiming laser telegraph
-    if (enemy.type === EnemyType.SHOOTER && enemy.shooterCharging && enemy.shooterTarget) {
-      this.drawShooterAimingLaser(enemy, now);
+    // Turret Sniper aiming laser telegraph
+    if (enemy.type === EnemyType.TURRET_SNIPER && enemy.shooterCharging && enemy.shooterTarget) {
+      this.drawSniperAimingLaser(enemy, now);
     }
 
     // Buff indicators on buffed enemies
@@ -646,17 +708,17 @@ export class GameRenderer {
     ctx.stroke();
   }
 
-  private drawShooterAimingLaser(enemy: Enemy, now: number) {
+  private drawSniperAimingLaser(enemy: Enemy, now: number) {
     if (!enemy.shooterTarget) return;
     
     const ctx = this.ctx;
     const intensity = Math.sin(now / 50) * 0.3 + 0.7; // Fast pulse for urgency
     
-    // Draw warning laser line from enemy to target
+    // Draw warning laser line from enemy to target (RED for sniper)
     ctx.save();
-    ctx.strokeStyle = `rgba(170, 150, 218, ${0.6 * intensity})`; // Purple with pulse
-    ctx.lineWidth = 2;
-    ctx.setLineDash([5, 5]);
+    ctx.strokeStyle = `rgba(255, 87, 34, ${0.7 * intensity})`; // Orange-red with pulse
+    ctx.lineWidth = 3;
+    ctx.setLineDash([8, 4]);
     
     ctx.beginPath();
     ctx.moveTo(enemy.position.x, enemy.position.y);
@@ -664,16 +726,16 @@ export class GameRenderer {
     ctx.stroke();
     
     // Draw glowing outer laser
-    ctx.strokeStyle = `rgba(170, 150, 218, ${0.3 * intensity})`;
-    ctx.lineWidth = 6;
+    ctx.strokeStyle = `rgba(255, 87, 34, ${0.4 * intensity})`;
+    ctx.lineWidth = 8;
     ctx.stroke();
     
     ctx.setLineDash([]);
     
     // Draw target reticle at aim point
-    const reticleSize = 15;
-    ctx.strokeStyle = `rgba(255, 82, 82, ${intensity})`; // Red warning
-    ctx.lineWidth = 2;
+    const reticleSize = 20;
+    ctx.strokeStyle = `rgba(255, 0, 0, ${intensity})`; // Bright red warning
+    ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.arc(enemy.shooterTarget.x, enemy.shooterTarget.y, reticleSize, 0, Math.PI * 2);
     ctx.stroke();
@@ -873,14 +935,18 @@ export class GameRenderer {
     const alpha = 0.4 + shieldPercent * 0.5;
     const shieldRadius = enemy.tankShieldRadius || (enemy.radius * 6);
     
+    // Merged tanks have different visual effects
+    const isMerged = enemy.isMergedTank;
+    const baseColor = isMerged ? [0, 255, 136] : [78, 205, 196]; // Green for merged, cyan for normal
+    
     // Rotating hexagonal shield
     ctx.save();
     ctx.translate(enemy.position.x, enemy.position.y);
     ctx.rotate(rotation);
     
-    // Shield glow
-    ctx.strokeStyle = `rgba(78, 205, 196, ${alpha * pulse})`;
-    ctx.lineWidth = 4;
+    // Shield glow (thicker and more intense for merged tanks)
+    ctx.strokeStyle = `rgba(${baseColor[0]}, ${baseColor[1]}, ${baseColor[2]}, ${alpha * pulse})`;
+    ctx.lineWidth = isMerged ? 6 : 4;
     ctx.beginPath();
     for (let i = 0; i < 6; i++) {
       const angle = (i / 6) * Math.PI * 2;
@@ -896,8 +962,8 @@ export class GameRenderer {
     ctx.stroke();
     
     // Inner shield layer
-    ctx.strokeStyle = `rgba(78, 205, 196, ${alpha * 0.5})`;
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = `rgba(${baseColor[0]}, ${baseColor[1]}, ${baseColor[2]}, ${alpha * 0.5})`;
+    ctx.lineWidth = isMerged ? 3 : 2;
     ctx.beginPath();
     for (let i = 0; i < 6; i++) {
       const angle = (i / 6) * Math.PI * 2;
@@ -912,20 +978,40 @@ export class GameRenderer {
     ctx.closePath();
     ctx.stroke();
     
+    // Extra layer for merged tanks
+    if (isMerged) {
+      ctx.strokeStyle = `rgba(${baseColor[0]}, ${baseColor[1]}, ${baseColor[2]}, ${alpha * 0.3})`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const angle = (i / 6) * Math.PI * 2;
+        const x = Math.cos(angle) * (shieldRadius - 16);
+        const y = Math.sin(angle) * (shieldRadius - 16);
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      ctx.closePath();
+      ctx.stroke();
+    }
+    
     ctx.restore();
     
-    // Shield health bar above tank
-    const barWidth = 60;
-    const barHeight = 6;
+    // Shield health bar above tank (wider for merged tanks)
+    const barWidth = isMerged ? 80 : 60;
+    const barHeight = isMerged ? 8 : 6;
     const barX = enemy.position.x - barWidth / 2;
-    const barY = enemy.position.y - enemy.radius - 35;
+    const barY = enemy.position.y - enemy.radius - (isMerged ? 40 : 35);
     
     // Background
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
     ctx.fillRect(barX, barY, barWidth, barHeight);
     
     // Shield bar
-    ctx.fillStyle = '#4ecdc4';
+    const barColor = isMerged ? '#00ff88' : '#4ecdc4';
+    ctx.fillStyle = barColor;
     ctx.fillRect(barX, barY, barWidth * shieldPercent, barHeight);
     
     // Border
@@ -1066,10 +1152,26 @@ export class GameRenderer {
 
     this.ctx.shadowBlur = 0;
 
-    // Border for emphasis
-    this.ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
-    this.ctx.lineWidth = 2;
+    // Border for emphasis (thicker for merged tanks)
+    if (enemy.isMergedTank) {
+      this.ctx.strokeStyle = "rgba(0, 255, 136, 0.6)";
+      this.ctx.lineWidth = 3;
+    } else {
+      this.ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
+      this.ctx.lineWidth = 2;
+    }
     this.ctx.stroke();
+    
+    // Add merge indicator icon for merged tanks
+    if (enemy.isMergedTank && enemy.type === EnemyType.TANK) {
+      this.ctx.save();
+      this.ctx.fillStyle = '#00ff88';
+      this.ctx.font = 'bold 16px Arial';
+      this.ctx.textAlign = 'center';
+      this.ctx.textBaseline = 'middle';
+      this.ctx.fillText('⚡⚡', enemy.position.x, enemy.position.y);
+      this.ctx.restore();
+    }
   }
 
   private drawEnemyPattern(enemy: Enemy) {

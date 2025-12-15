@@ -31,6 +31,7 @@ export class ZoneSystem {
       targetY: (CANVAS_HEIGHT - INITIAL_ZONE_SIZE) / 2,
       isTransitioning: false,
       transitionProgress: 0,
+      isExpanding: true,
       cameraX: 0,
       cameraY: 0,
     };

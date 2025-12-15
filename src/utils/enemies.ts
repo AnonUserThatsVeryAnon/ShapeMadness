@@ -476,26 +476,63 @@ export function spawnSpecificEnemy(
   for (let i = 0; i < count; i++) {
     let spawnX: number, spawnY: number;
 
-    // Determine spawn position (outside play zone)
-    const side = Math.floor(Math.random() * 4);
-    switch (side) {
-      case 0: // Top
-        spawnX = playZone.x + Math.random() * playZone.width;
-        spawnY = playZone.y - spawnMargin;
-        break;
-      case 1: // Right
-        spawnX = playZone.x + playZone.width + spawnMargin;
-        spawnY = playZone.y + Math.random() * playZone.height;
-        break;
-      case 2: // Bottom
-        spawnX = playZone.x + Math.random() * playZone.width;
-        spawnY = playZone.y + playZone.height + spawnMargin;
-        break;
-      case 3: // Left
-      default:
-        spawnX = playZone.x - spawnMargin;
-        spawnY = playZone.y + Math.random() * playZone.height;
-        break;
+    // Turret Snipers spawn INSIDE the play zone near borders
+    if (enemyType === EnemyType.TURRET_SNIPER) {
+      const borderMargin = 50;
+      const edge = Math.floor(Math.random() * 4);
+      
+      const minX = playZone.x + borderMargin;
+      const maxX = playZone.x + playZone.width - borderMargin;
+      const minY = playZone.y + borderMargin;
+      const maxY = playZone.y + playZone.height - borderMargin;
+      
+      // Ensure valid ranges
+      if (maxX <= minX || maxY <= minY) {
+        spawnX = playZone.x + playZone.width / 2;
+        spawnY = playZone.y + playZone.height / 2;
+      } else {
+        switch (edge) {
+          case 0: // Top border
+            spawnX = randomRange(minX, maxX);
+            spawnY = minY;
+            break;
+          case 1: // Right border
+            spawnX = maxX;
+            spawnY = randomRange(minY, maxY);
+            break;
+          case 2: // Bottom border
+            spawnX = randomRange(minX, maxX);
+            spawnY = maxY;
+            break;
+          case 3: // Left border
+          default:
+            spawnX = minX;
+            spawnY = randomRange(minY, maxY);
+            break;
+        }
+      }
+    } else {
+      // Regular enemies spawn outside play zone
+      const side = Math.floor(Math.random() * 4);
+      switch (side) {
+        case 0: // Top
+          spawnX = playZone.x + Math.random() * playZone.width;
+          spawnY = playZone.y - spawnMargin;
+          break;
+        case 1: // Right
+          spawnX = playZone.x + playZone.width + spawnMargin;
+          spawnY = playZone.y + Math.random() * playZone.height;
+          break;
+        case 2: // Bottom
+          spawnX = playZone.x + Math.random() * playZone.width;
+          spawnY = playZone.y + playZone.height + spawnMargin;
+          break;
+        case 3: // Left
+        default:
+          spawnX = playZone.x - spawnMargin;
+          spawnY = playZone.y + Math.random() * playZone.height;
+          break;
+      }
     }
 
     const enemy = createEnemy(enemyType, { x: spawnX, y: spawnY });

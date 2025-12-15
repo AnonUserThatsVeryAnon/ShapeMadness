@@ -45,14 +45,18 @@ export const ENEMY_CARDS: Record<EnemyType, EnemyCard> = {
   [EnemyType.TANK]: {
     type: EnemyType.TANK,
     name: 'Tank Cell',
-    description: 'A large green sphere protected by a massive hexagonal energy shield. The shield must be destroyed before you can damage the tank itself.',
+    description: 'A large green sphere protected by a massive hexagonal energy shield. The shield must be destroyed before you can damage the tank itself. Two tanks within 120 pixels will MERGE into a stronger variant! Low HP enemies will seek refuge in tank shields to heal.',
     abilities: [
       '800 HP Energy Shield - MUST destroy first',
       'Shield reflects bullets back at you',
       'Loses 75% HP when shield breaks',
       'Slow movement (0.8 speed)',
       '25 contact damage',
-      'Large shield radius (6x body size)'
+      'Large shield radius (6x body size)',
+      '⚡ MERGE MECHANIC: Tanks combine when near each other',
+      'Merged tanks have 2x shield HP and 30% larger shield radius',
+      '💚 HEALING SANCTUARY: Low HP enemies (<40%) heal inside shield',
+      'Healing rate: 10 HP/second while inside shield'
     ],
     stats: {
       health: ENEMY_CONFIGS[EnemyType.TANK].health,
@@ -69,7 +73,11 @@ export const ENEMY_CARDS: Record<EnemyType, EnemyCard> = {
       'Bullets reflect when hitting shield',
       'Shield breaks after 800 damage',
       'Tank loses most HP when shield breaks',
-      'Avoid getting too close - high contact damage'
+      'Avoid getting too close - high contact damage',
+      'PRIORITY: Kill tanks before they can merge!',
+      'Merged tanks (green shields) are MUCH tougher',
+      'Break shields FAST - enemies heal inside them!',
+      'Low HP enemies flee INTO shields for safety'
     ],
     implemented: true,
   },

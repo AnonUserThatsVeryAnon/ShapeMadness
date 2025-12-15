@@ -112,7 +112,7 @@ function App() {
     damage: 20,
     fireRate: 300, // ms between shots
     lastShot: 0,
-    money: 0,
+    money: 150,
     defense: 0,
     active: true,
     invulnerable: false,
@@ -149,6 +149,7 @@ function App() {
     targetY: (CANVAS_HEIGHT - INITIAL_ZONE_SIZE) / 2,
     isTransitioning: false,
     transitionProgress: 0,
+    isExpanding: true,
     cameraX: 0,
     cameraY: 0,
   });
@@ -189,7 +190,7 @@ function App() {
       damage: 20,
       fireRate: 300,
       lastShot: 0,
-      money: 0,
+      money: 150,
       defense: 0,
       active: true,
       invulnerable: false,
@@ -227,6 +228,7 @@ function App() {
       targetY: (CANVAS_HEIGHT - INITIAL_ZONE_SIZE) / 2,
       isTransitioning: false,
       transitionProgress: 0,
+      isExpanding: true,
       cameraX: 0,
       cameraY: 0,
     };
@@ -272,6 +274,7 @@ function App() {
     // - Rounds 1-10: Expand EVERY round to reach full screen
     // - Round 11+: Change EVERY round - dynamic red zones!
     // - Round 15 (Boss): Full screen arena
+    // IMPORTANT: Calculate zone changes BEFORE spawning enemies!
     if (currentRound === 15) {
       // Boss fight gets full screen
       const zone = playZoneRef.current;
@@ -281,6 +284,7 @@ function App() {
       zone.targetY = 0;
       zone.isTransitioning = true;
       zone.transitionProgress = 0;
+      zone.isExpanding = true;
 
       floatingTextsRef.current.push({
         position: { x: CANVAS_WIDTH / 2, y: 100 },
@@ -295,6 +299,7 @@ function App() {
       triggerZoneChange();
     }
 
+    // Spawn enemies AFTER zone calculation so turrets spawn in correct positions
     enemiesRef.current = spawnEnemiesForRound(
       statsRef.current.round,
       CANVAS_WIDTH,
@@ -474,6 +479,7 @@ function App() {
       playZone.targetHeight = zoneSize;
       playZone.targetX = playZone.x;
       playZone.targetY = playZone.y;
+      playZone.isExpanding = true; // Rounds 1-10 always expand
     } else {
       // Round 11+: Set to full canvas (will be randomized on first round start)
       playZone.width = CANVAS_WIDTH;
@@ -484,6 +490,7 @@ function App() {
       playZone.targetHeight = CANVAS_HEIGHT;
       playZone.targetX = 0;
       playZone.targetY = 0;
+      playZone.isExpanding = false; // Default to shrinking for round 11+
     }
     playZone.isTransitioning = false;
     playZone.transitionProgress = 0;
@@ -540,6 +547,7 @@ function App() {
     playZone.targetHeight = CANVAS_HEIGHT;
     playZone.targetX = 0;
     playZone.targetY = 0;
+    playZone.isExpanding = true;
 
     setIsTestMode(true);
     setGameState(GameState.PLAYING);
@@ -626,13 +634,236 @@ function App() {
         }
       }
 
-      // Boss entrance animation - descend dramatically into play area
+      // Enemy Healing in Tank Shield Mechanic
+      // Low HP enemies seek nearby tank shields for healing
+      let seekingShield = false;
+      let targetTank: Enemy | undefined;
+
+      if (
+        enemy.type !== EnemyType.TANK &&
+        enemy.active &&
+        enemy.health < enemy.maxHealth * 0.4
+      ) {
+        // Find the nearest tank with active shield
+        let nearestTank: Enemy | undefined;
+        let nearestDist = Infinity;
+
+        enemies.forEach((tank) => {
+          if (
+            tank !== enemy &&
+            tank.type === EnemyType.TANK &&
+            tank.active &&
+            !tank.tankShieldBroken &&
+            tank.tankShield !== undefined &&
+            tank.tankShield > 0
+          ) {
+            const dist = distance(enemy.position, tank.position);
+            if (dist < nearestDist) {
+              nearestDist = dist;
+              nearestTank = tank;
+            }
+          }
+        });
+
+        if (nearestTank) {
+          const shieldRadius = nearestTank.tankShieldRadius || 0;
+          const distToTank = distance(enemy.position, nearestTank.position);
+
+          // If inside shield, heal
+          if (distToTank < shieldRadius) {
+            targetTank = nearestTank;
+            // Enemy is inside shield - heal them
+            if (!enemy.isHealingInShield) {
+              enemy.isHealingInShield = true;
+              enemy.healingShield = nearestTank;
+              enemy.lastHealTime = now;
+
+              // Visual feedback - enemy enters shield
+              floatingTextsRef.current.push({
+                position: { ...enemy.position },
+                text: "💚 HEALING",
+                color: "#4caf50",
+                size: 16,
+                lifetime: 1000,
+                createdAt: now,
+                velocity: { x: 0, y: -1 },
+                alpha: 1,
+              });
+            }
+
+            // Heal over time (10 HP per second)
+            if (now - (enemy.lastHealTime || 0) > 100) {
+              enemy.health = Math.min(enemy.health + 1, enemy.maxHealth);
+              enemy.lastHealTime = now;
+
+              // Small healing particle
+              if (Math.random() < 0.4) {
+                particlesRef.current.push(
+                  ...createParticles(enemy.position, 2, "#4caf50", 2, 400)
+                );
+              }
+            }
+
+            // Check if fully healed
+            if (enemy.health >= enemy.maxHealth) {
+              enemy.isHealingInShield = false;
+              enemy.healingShield = undefined;
+
+              // Visual feedback - healed
+              floatingTextsRef.current.push({
+                position: { ...enemy.position },
+                text: "✨ HEALED!",
+                color: "#00ff88",
+                size: 20,
+                lifetime: 1500,
+                createdAt: now,
+                velocity: { x: 0, y: -2 },
+                alpha: 1,
+              });
+
+              particlesRef.current.push(
+                ...createParticles(enemy.position, 15, "#4caf50", 6, 600)
+              );
+            }
+          } else if (distToTank < shieldRadius * 2) {
+            // Close to shield but not inside - seek it!
+            seekingShield = true;
+            targetTank = nearestTank;
+          }
+        }
+      }
+
+      // Handle movement - Boss entrance, seeking shield, or normal behavior
       if (enemy.isBoss && enemy.position.y < 150) {
         // Override normal movement during entrance
         enemy.position.y += 2 * deltaTime * 60; // Slow descent
         enemy.velocity = { x: 0, y: 0 }; // No movement toward player yet
+      } else if (seekingShield && targetTank) {
+        // Move towards shield center
+        const toShield = {
+          x: targetTank.position.x - enemy.position.x,
+          y: targetTank.position.y - enemy.position.y,
+        };
+        const distToShield = Math.sqrt(
+          toShield.x * toShield.x + toShield.y * toShield.y
+        );
+        const direction = {
+          x: toShield.x / distToShield,
+          y: toShield.y / distToShield,
+        };
+        enemy.velocity = {
+          x: direction.x * enemy.speed * 1.2,
+          y: direction.y * enemy.speed * 1.2,
+        }; // Move 20% faster to shield
+      } else if (enemy.isHealingInShield && targetTank) {
+        // Stay near shield center while healing
+        const toShieldCenter = {
+          x: targetTank.position.x - enemy.position.x,
+          y: targetTank.position.y - enemy.position.y,
+        };
+        const distToCenter = Math.sqrt(
+          toShieldCenter.x * toShieldCenter.x +
+            toShieldCenter.y * toShieldCenter.y
+        );
+
+        if (distToCenter > (targetTank.tankShieldRadius || 0) * 0.5) {
+          const direction = {
+            x: toShieldCenter.x / distToCenter,
+            y: toShieldCenter.y / distToCenter,
+          };
+          enemy.velocity = {
+            x: direction.x * enemy.speed * 0.5,
+            y: direction.y * enemy.speed * 0.5,
+          };
+        } else {
+          // Stay relatively still when near center
+          enemy.velocity = {
+            x: enemy.velocity.x * 0.95,
+            y: enemy.velocity.y * 0.95,
+          };
+        }
       } else {
         updateEnemyPosition(enemy, player, deltaTime);
+      }
+
+      // Reset healing state if conditions no longer met
+      if (
+        enemy.isHealingInShield &&
+        (!targetTank || enemy.health >= enemy.maxHealth * 0.4)
+      ) {
+        enemy.isHealingInShield = false;
+        enemy.healingShield = undefined;
+      }
+
+      // Tank Merge Mechanic: Check if two tanks are close enough to merge
+      if (enemy.type === EnemyType.TANK && !enemy.hasMerged && enemy.active) {
+        // Only check every 1 second to avoid performance issues
+        if (!enemy.mergeCheckTime || now - enemy.mergeCheckTime > 1000) {
+          enemy.mergeCheckTime = now;
+
+          // Find another nearby tank to merge with
+          const nearbyTank = enemies.find(
+            (other) =>
+              other !== enemy &&
+              other.type === EnemyType.TANK &&
+              other.active &&
+              !other.hasMerged &&
+              distance(enemy.position, other.position) < 120 // Within 120 pixels
+          );
+
+          if (nearbyTank) {
+            // Merge the tanks!
+            const combinedShield =
+              (enemy.tankShield || 0) + (nearbyTank.tankShield || 0);
+            const combinedMaxShield =
+              (enemy.tankMaxShield || 800) + (nearbyTank.tankMaxShield || 800);
+            const combinedHealth = enemy.health + nearbyTank.health;
+            const combinedMaxHealth = enemy.maxHealth + nearbyTank.maxHealth;
+
+            // Position the merged tank between the two
+            const mergedPosition = {
+              x: (enemy.position.x + nearbyTank.position.x) / 2,
+              y: (enemy.position.y + nearbyTank.position.y) / 2,
+            };
+
+            // Update the first tank to be the merged one
+            enemy.position = mergedPosition;
+            enemy.tankShield = combinedShield;
+            enemy.tankMaxShield = combinedMaxShield;
+            enemy.health = combinedHealth;
+            enemy.maxHealth = combinedMaxHealth;
+            enemy.tankShieldRadius = enemy.radius * 6 * 1.3; // 30% larger shield
+            enemy.isMergedTank = true;
+            enemy.hasMerged = true;
+            enemy.radius = enemy.radius * 1.15; // Slightly larger body
+
+            // Deactivate the second tank
+            nearbyTank.active = false;
+            nearbyTank.hasMerged = true;
+
+            // Visual feedback
+            floatingTextsRef.current.push({
+              position: { ...mergedPosition },
+              text: "⚡ TANKS MERGED! ⚡",
+              color: "#00ff88",
+              size: 28,
+              lifetime: 2000,
+              createdAt: now,
+              velocity: { x: 0, y: -2 },
+              alpha: 1,
+            });
+
+            // Merge particles
+            particlesRef.current.push(
+              ...createParticles(mergedPosition, 40, "#95e1d3", 8, 800)
+            );
+            particlesRef.current.push(
+              ...createParticles(mergedPosition, 20, "#4ecdc4", 6, 600)
+            );
+
+            audioSystem.playPowerUp();
+          }
+        }
       }
 
       // Bomb enemy warning when low health
@@ -849,30 +1080,14 @@ function App() {
         }
       }
 
-      // Shooter enemies fire projectiles with aiming telegraph
+      // Shooter enemies fire projectiles directly (no telegraph)
       if (enemy.type === EnemyType.SHOOTER) {
         if (!enemy.lastSpecialAbility) enemy.lastSpecialAbility = now;
 
         const timeSinceLastShot = now - enemy.lastSpecialAbility;
         const shootCooldown = 2000;
-        const chargeTime = 600; // 0.6s aiming telegraph
 
-        // Start charging at 1.4s (0.6s before firing at 2s)
-        if (
-          timeSinceLastShot >= shootCooldown - chargeTime &&
-          timeSinceLastShot < shootCooldown
-        ) {
-          // Store target position for aiming laser
-          if (!enemy.shooterCharging) {
-            enemy.shooterCharging = true;
-            enemy.shooterTarget = {
-              x: player.position.x,
-              y: player.position.y,
-            };
-          }
-        }
-
-        // Fire after full cooldown
+        // Fire after cooldown
         if (timeSinceLastShot >= shootCooldown) {
           const toPlayer = {
             x: player.position.x - enemy.position.x,
@@ -892,30 +1107,52 @@ function App() {
           });
 
           enemy.lastSpecialAbility = now;
-          enemy.shooterCharging = false;
-          enemy.shooterTarget = undefined;
+          audioSystem.playHit();
 
-          // Muzzle flash particles
+          // Shooter muzzle flash
           particlesRef.current.push(
             ...createParticles(enemy.position, 8, enemy.color, 2)
           );
         }
       }
 
-      // Turret Sniper fires powerful shots when shield is down
+      // Turret Sniper fires powerful shots with aiming telegraph when shield is down
       if (enemy.type === EnemyType.TURRET_SNIPER) {
-        if (!enemy.lastShot) enemy.lastShot = now;
+        // Initialize with random delay (0-1.5 seconds) so they don't fire in sync
+        if (!enemy.lastShot) {
+          enemy.lastShot = now - Math.random() * 1500;
+        }
 
         const shootCooldown = enemy.shootCooldown || 2000;
+        const chargeTime = 800; // 0.8s aiming telegraph for sniper
         const distToPlayer = distance(player.position, enemy.position);
         const destructionRange = 80; // Player must be within this range to destroy
+        const timeSinceLastShot = now - enemy.lastShot;
 
-        // Only fire when shield is down (player is close) but NOT in destruction range
-        // AND not being destroyed or in destruction animation
+        // Start charging when shield is down (player is close) but NOT in destruction range
         if (
           !enemy.shieldActive &&
           distToPlayer > destructionRange &&
-          now - enemy.lastShot > shootCooldown &&
+          timeSinceLastShot >= shootCooldown - chargeTime &&
+          timeSinceLastShot < shootCooldown &&
+          !enemy.isBeingDestroyed &&
+          !enemy.destructionAnimationStart
+        ) {
+          // Store target position for aiming laser
+          if (!enemy.shooterCharging) {
+            enemy.shooterCharging = true;
+            enemy.shooterTarget = {
+              x: player.position.x,
+              y: player.position.y,
+            };
+          }
+        }
+
+        // Fire after full cooldown
+        if (
+          !enemy.shieldActive &&
+          distToPlayer > destructionRange &&
+          timeSinceLastShot >= shootCooldown &&
           !enemy.isBeingDestroyed &&
           !enemy.destructionAnimationStart
         ) {
@@ -938,6 +1175,8 @@ function App() {
           });
 
           enemy.lastShot = now;
+          enemy.shooterCharging = false; // Reset charging state
+          enemy.shooterTarget = undefined; // Clear target
           audioSystem.playHit(); // Turret fire sound
 
           // Large muzzle flash
@@ -2035,6 +2274,7 @@ function App() {
     if (stats.round <= 10) {
       // First 10 rounds: Expand zone
       zoneSystemRef.current.expandZone(zone, stats.round);
+      zone.isExpanding = true;
       floatingTextsRef.current.push({
         position: { x: CANVAS_WIDTH / 2, y: 100 },
         text: `✨ ZONE EXPANDING! (Round ${stats.round}/10) ✨`,
@@ -2050,6 +2290,9 @@ function App() {
       zoneSystemRef.current.triggerDynamicZoneChange(zone);
       const newArea = zone.targetWidth * zone.targetHeight;
       const areaChange = newArea - oldArea;
+
+      // Set expansion state
+      zone.isExpanding = areaChange > 0;
 
       // Show message if significant change
       if (Math.abs(areaChange) > 5000) {

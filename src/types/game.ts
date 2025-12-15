@@ -86,6 +86,11 @@ export interface Enemy extends Entity {
   tankMaxShield?: number; // Maximum shield health
   tankShieldBroken?: boolean; // Whether shield is currently broken
   tankShieldRadius?: number; // Shield collision radius (separate from visual)
+  isMergedTank?: boolean; // Whether this tank is the result of a merge
+  mergeCheckTime?: number; // Last time we checked for merge opportunities
+  hasMerged?: boolean; // Prevent this tank from merging again
+  isHealingInShield?: boolean; // Whether enemy is currently healing inside a shield
+  healingShield?: Enemy; // Reference to the tank providing healing
 }
 
 export interface Bullet extends Entity {
@@ -165,6 +170,7 @@ export interface PlayZone {
   targetY: number;
   isTransitioning: boolean;
   transitionProgress: number;
+  isExpanding: boolean; // True if zone is growing, false if shrinking
   // Camera offset for viewing expanded zones
   cameraX: number;
   cameraY: number;
