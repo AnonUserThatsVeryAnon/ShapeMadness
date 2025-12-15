@@ -73,8 +73,6 @@ src/
 │
 ├── hooks/                   # React Hooks ✅
 │   ├── useGameEntities.ts   # Entity management
-│   ├── useGameState.ts      # Game state management
-│   ├── usePlayerState.ts    # Player state management
 │   └── useInputHandlers.ts  # Input handling
 │
 ├── utils/                   # Utilities ✅
