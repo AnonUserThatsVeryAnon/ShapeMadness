@@ -639,10 +639,11 @@ function App() {
       let seekingShield = false;
       let targetTank: Enemy | undefined;
 
+      // Check if enemy should seek healing (either low HP OR already healing)
       if (
         enemy.type !== EnemyType.TANK &&
         enemy.active &&
-        enemy.health < enemy.maxHealth * 0.4
+        (enemy.health < enemy.maxHealth * 0.4 || enemy.isHealingInShield)
       ) {
         // Find the nearest tank with active shield
         let nearestTank: Enemy | undefined;
@@ -668,6 +669,7 @@ function App() {
         if (nearestTank) {
           const shieldRadius = nearestTank.tankShieldRadius || 0;
           const distToTank = distance(enemy.position, nearestTank.position);
+          const seekRange = shieldRadius * 1.5; // Only seek shield if within 1.5x shield radius
 
           // If inside shield, heal
           if (distToTank < shieldRadius) {
@@ -725,11 +727,12 @@ function App() {
                 ...createParticles(enemy.position, 15, "#4caf50", 6, 600)
               );
             }
-          } else if (distToTank < shieldRadius * 2) {
-            // Close to shield but not inside - seek it!
+          } else if (distToTank < seekRange || enemy.isHealingInShield) {
+            // Close enough to shield OR already committed to healing - seek it!
             seekingShield = true;
             targetTank = nearestTank;
           }
+          // If shield is too far away, enemy will use normal behavior (attack player)
         }
       }
 
@@ -755,8 +758,12 @@ function App() {
           x: direction.x * enemy.speed * 1.2,
           y: direction.y * enemy.speed * 1.2,
         }; // Move 20% faster to shield
+
+        // Update position
+        enemy.position.x += enemy.velocity.x * deltaTime * 60;
+        enemy.position.y += enemy.velocity.y * deltaTime * 60;
       } else if (enemy.isHealingInShield && targetTank) {
-        // Stay near shield center while healing
+        // Move freely within the shield while healing
         const toShieldCenter = {
           x: targetTank.position.x - enemy.position.x,
           y: targetTank.position.y - enemy.position.y,
@@ -765,31 +772,45 @@ function App() {
           toShieldCenter.x * toShieldCenter.x +
             toShieldCenter.y * toShieldCenter.y
         );
+        const shieldRadius = targetTank.tankShieldRadius || 0;
 
-        if (distToCenter > (targetTank.tankShieldRadius || 0) * 0.5) {
+        // If near edge of shield, move back toward center
+        if (distToCenter > shieldRadius * 0.8) {
           const direction = {
             x: toShieldCenter.x / distToCenter,
             y: toShieldCenter.y / distToCenter,
           };
           enemy.velocity = {
-            x: direction.x * enemy.speed * 0.5,
-            y: direction.y * enemy.speed * 0.5,
+            x: direction.x * enemy.speed * 0.8,
+            y: direction.y * enemy.speed * 0.8,
           };
         } else {
-          // Stay relatively still when near center
-          enemy.velocity = {
-            x: enemy.velocity.x * 0.95,
-            y: enemy.velocity.y * 0.95,
-          };
+          // Move slowly and randomly within the shield
+          if (!enemy.lastHealTime || now - enemy.lastHealTime > 500) {
+            const randomAngle = Math.random() * Math.PI * 2;
+            enemy.velocity = {
+              x: Math.cos(randomAngle) * enemy.speed * 0.3,
+              y: Math.sin(randomAngle) * enemy.speed * 0.3,
+            };
+          }
         }
+
+        // Update position while staying in bounds
+        enemy.position.x += enemy.velocity.x * deltaTime * 60;
+        enemy.position.y += enemy.velocity.y * deltaTime * 60;
       } else {
         updateEnemyPosition(enemy, player, deltaTime);
       }
 
-      // Reset healing state if conditions no longer met
+      // Reset healing state only if fully healed, target tank lost, or shield broken
       if (
         enemy.isHealingInShield &&
-        (!targetTank || enemy.health >= enemy.maxHealth * 0.4)
+        (!targetTank ||
+          !targetTank.active ||
+          enemy.health >= enemy.maxHealth ||
+          targetTank.tankShieldBroken ||
+          !targetTank.tankShield ||
+          targetTank.tankShield <= 0)
       ) {
         enemy.isHealingInShield = false;
         enemy.healingShield = undefined;

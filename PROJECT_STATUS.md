@@ -23,12 +23,17 @@
 - Settings menu
 - Debug menu
 
-### Recently Fixed ✅
+### Recently Fixed/Added ✅
 
+- **Tank merge mechanic** - two tanks within 120px merge into bigger tank with 30% larger shield + combined HP
+- **Healing sanctuary** - enemies with <40% HP seek tank shields to heal (10 HP/sec)
 - **Tank shields** - bullets now correctly collide with shields, reflect, and damage shields
 - **Player shield collision** - player bounces off tank shields and cannot enter
 - **Shield break mechanics** - shield breaks at 0 HP, tank becomes vulnerable
 - **Visual effects** - shield health bar, particles, rotation animation
+- **Zone system** - calculation before spawning, visual distinction expansion vs shrinking
+- **Sniper fix** - no longer spawns outside map boundaries
+- **Economy** - starting money increased to 150 (from 100)
 
 ---
 
@@ -71,10 +76,6 @@ src/
 ├── rendering/               # Rendering ✅
 │   └── GameRenderer.ts      # Canvas rendering for all entities
 │
-├── hooks/                   # React Hooks ✅
-│   ├── useGameEntities.ts   # Entity management
-│   └── useInputHandlers.ts  # Input handling
-│
 ├── utils/                   # Utilities ✅
 │   ├── helpers.ts           # Math, collision helpers
 │   ├── enemies.ts           # Enemy spawn utilities
@@ -97,24 +98,28 @@ src/
 
 ### Architecture Notes
 
-**Monolithic Approach**: All game logic runs in `App.tsx`
+**Clean Modular Architecture**: Game logic is properly separated
 
-- **Pros**: Simple, straightforward, everything in one place
-- **Cons**: Large file, harder to test individual pieces
-- **Status**: Works perfectly fine, no performance issues
+- **App.tsx**: Main game loop and coordination (~800 lines of actual game logic)
+- **Systems/**: All specialized logic (Combat, AI, Collision, Zone, etc.)
+- **Rendering/**: GameRenderer.ts handles all canvas drawing
+- **Utils/**: Reusable helpers (enemies, particles, audio, upgrades, etc.)
+- **Components/**: All UI components (menus, HUD, etc.)
 
-**Why Not Refactored?**
+**Why This Works**:
 
-- Previous refactoring attempt (useGameUpdate, useGameLoop, gameStore) was started but never integrated
-- Those files existed but were NEVER actually used by App.tsx
-- Deleted them to prevent confusion
-- Current approach is stable and working
+- Each system is independent and testable
+- Game loop in App.tsx only coordinates systems
+- No duplicate code
+- No dead code (all unused files removed)
+- Clear separation of concerns
 
-**If You Want to Refactor**:
+**Dead Code Removed**:
 
-- See `REFACTORING_RECOMMENDATIONS.md` for detailed plan
-- Recommend waiting until there's a real problem
-- "If it ain't broke, don't fix it"
+- ✅ Deleted unused hooks (useGameUpdate.ts, useGameEntities.ts, useInputHandlers.ts)
+- ✅ Deleted empty folders (hooks/, store/)
+- ✅ Deleted outdated documentation files
+- ✅ Codebase is now lean and maintainable
 
 ---
 

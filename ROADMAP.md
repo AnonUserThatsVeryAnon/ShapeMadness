@@ -20,6 +20,13 @@ This roadmap reflects the **ACTUAL** current state after cleanup and tank shield
 
 ## ✅ RECENTLY COMPLETED (December 15, 2025)
 
+### Tank Mechanics Migration
+
+- ✅ Tank merge mechanic (2 tanks → bigger tank with 30% larger shield)
+- ✅ Healing sanctuary mechanic (low HP enemies heal in tank shields)
+- ✅ Migrated from dead code file to active game loop
+- ✅ Starting money increased to 150 (from 100)
+
 ### Tank Shield Fix
 
 - ✅ Bullets now collide with tank shields correctly
@@ -29,12 +36,18 @@ This roadmap reflects the **ACTUAL** current state after cleanup and tank shield
 - ✅ Shield contact damage working
 - ✅ Visual effects (particles, health bar, rotation)
 
-### Code Cleanup
+### Zone System Enhancement
 
-- ✅ Deleted unused hooks (useGameUpdate.ts, useGameLoop.ts)
-- ✅ Deleted unused store (gameStore.ts)
-- ✅ Deleted outdated documentation (~8 misleading files)
-- ✅ Codebase now matches reality
+- ✅ Zone calculation happens before enemy spawning
+- ✅ Visual distinction between expansion (green) and shrinking (red/orange)
+- ✅ Sniper enemies no longer spawn outside the map
+
+### Code Cleanup (Complete)
+
+- ✅ Deleted ALL unused hooks (useGameUpdate.ts, useGameEntities.ts, useInputHandlers.ts)
+- ✅ Deleted empty folders (hooks/, store/)
+- ✅ Deleted outdated documentation (CRITICAL_ISSUES_FOUND.md, CLEANUP_COMPLETE.md, etc.)
+- ✅ Codebase is now clean and modular - everything in App.tsx or proper systems/
 
 ---
 
