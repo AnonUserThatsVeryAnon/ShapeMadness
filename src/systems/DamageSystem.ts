@@ -2,6 +2,7 @@
 import type { Enemy, Player, FloatingText, Particle } from '../types/game';
 import { audioSystem } from '../utils/audio';
 import { createParticles, createBossDeathExplosion } from '../utils/particles';
+import { getUpgradeLevel } from '../utils/upgrades';
 
 export interface DamageResult {
   actualDamage: number;
@@ -9,6 +10,7 @@ export interface DamageResult {
   particles: Particle[];
   floatingTexts: FloatingText[];
   screenShake: number;
+  wasCrit?: boolean;
 }
 
 export class DamageSystem {
@@ -21,7 +23,13 @@ export class DamageSystem {
     now: number,
     comboMultiplier: number = 1
   ): DamageResult {
-    const actualDamage = damage;
+    // Check for critical hit
+    const critLevel = getUpgradeLevel('crit');
+    const critChance = critLevel * 0.01; // 1% per level
+    const isCrit = Math.random() < critChance;
+    
+    const critMultiplier = isCrit ? 2.0 : 1.0;
+    const actualDamage = damage * critMultiplier;
     enemy.health -= actualDamage;
     
     const particles: Particle[] = [];
@@ -30,16 +38,27 @@ export class DamageSystem {
     
     audioSystem.playHit();
 
-    // Damage number
+    // Damage number - scales with damage amount for better feedback
+    const baseDamageSize = isCrit ? 24 : 16; // Bigger size for crits
+    const damageSize = Math.min(50, baseDamageSize + Math.floor(actualDamage / 10)); // +1 size per 10 damage
+    const damageColor = isCrit ? '#ff4444' : '#ffeb3b'; // Red for crits, yellow for normal
+    
     floatingTexts.push({
       position: { ...enemy.position },
-      text: `-${Math.floor(actualDamage)}`,
-      color: '#ffeb3b',
-      size: 16,
+      text: isCrit ? `CRIT! -${Math.floor(actualDamage)}` : `-${Math.floor(actualDamage)}`,
+      color: damageColor,
+      size: damageSize,
       lifetime: 800,
       createdAt: now,
       velocity: { x: (Math.random() - 0.5) * 2, y: -3 },
     });
+    
+    // Extra crit particles - explosive red/orange effect
+    if (isCrit) {
+      particles.push(...createParticles(enemy.position, 20, '#ff4444', 8, 600));
+      particles.push(...createParticles(enemy.position, 10, '#ff9800', 6, 400));
+      screenShake += 3; // Extra screen shake for crits
+    }
 
     const killed = enemy.health <= 0;
 
@@ -103,6 +122,7 @@ export class DamageSystem {
       particles,
       floatingTexts,
       screenShake,
+      wasCrit: isCrit,
     };
   }
 

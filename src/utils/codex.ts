@@ -45,8 +45,15 @@ export const ENEMY_CARDS: Record<EnemyType, EnemyCard> = {
   [EnemyType.TANK]: {
     type: EnemyType.TANK,
     name: 'Tank Cell',
-    description: 'A large green sphere with a shield emblem. Heavily fortified with triple the standard health. Slow but devastating on contact.',
-    abilities: ['300 HP - highest base health', '20 damage on contact', 'Slow movement (1.0)', 'Larger hitbox'],
+    description: 'A large green sphere protected by a massive hexagonal energy shield. The shield must be destroyed before you can damage the tank itself.',
+    abilities: [
+      '800 HP Energy Shield - MUST destroy first',
+      'Shield reflects bullets back at you',
+      'Loses 75% HP when shield breaks',
+      'Slow movement (0.8 speed)',
+      '25 contact damage',
+      'Large shield radius (6x body size)'
+    ],
     stats: {
       health: ENEMY_CONFIGS[EnemyType.TANK].health,
       speed: ENEMY_CONFIGS[EnemyType.TANK].speed,
@@ -57,7 +64,13 @@ export const ENEMY_CARDS: Record<EnemyType, EnemyCard> = {
     discovered: false,
     color: ENEMY_CONFIGS[EnemyType.TANK].color,
     icon: '🛡️',
-    tips: ['Focus sustained fire - takes many hits', 'Avoid contact at ALL costs', 'Worth good money when killed', 'Upgrade damage to handle them better'],
+    tips: [
+      'Target the SHIELD first - cyan hexagon',
+      'Bullets reflect when hitting shield',
+      'Shield breaks after 800 damage',
+      'Tank loses most HP when shield breaks',
+      'Avoid getting too close - high contact damage'
+    ],
     implemented: true,
   },
 

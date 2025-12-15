@@ -10,6 +10,10 @@ interface GameHUDProps {
   onToggleAimMode: () => void;
   isTestMode?: boolean;
   powerUpInventory: (PowerUpType | null)[];
+  currentRound: number;
+  lastDash?: number;
+  dashCooldown: number;
+  now: number;
 }
 
 // Powerup icons and names
@@ -29,7 +33,19 @@ export function GameHUD({
   onToggleAimMode,
   isTestMode,
   powerUpInventory,
+  currentRound,
+  lastDash,
+  dashCooldown,
+  now,
 }: GameHUDProps) {
+  // Calculate dash cooldown progress
+  const isDashUnlocked = currentRound >= 15;
+  const timeSinceLastDash = lastDash ? now - lastDash : Infinity;
+  const isDashReady = timeSinceLastDash >= dashCooldown;
+  const dashCooldownPercent = isDashReady
+    ? 100
+    : Math.min(100, (timeSinceLastDash / dashCooldown) * 100);
+
   return (
     <>
       <div
@@ -41,6 +57,57 @@ export function GameHUD({
       >
         {aimMode === AimMode.MANUAL ? "🎯 Manual" : "🤖 Auto"}
       </div>
+
+      {/* Dash Cooldown Indicator (only if unlocked) */}
+      {isDashUnlocked && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: "20px",
+            right: "20px",
+            width: "60px",
+            height: "60px",
+            backgroundColor: isDashReady
+              ? "rgba(78, 205, 203, 0.9)"
+              : "rgba(50, 50, 50, 0.7)",
+            borderRadius: "50%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "24px",
+            fontWeight: "bold",
+            color: isDashReady ? "#fff" : "#666",
+            border: `3px solid ${isDashReady ? "#4ecdc4" : "#333"}`,
+            boxShadow: isDashReady
+              ? "0 0 20px rgba(78, 205, 203, 0.5)"
+              : "none",
+            zIndex: 50,
+          }}
+          title={
+            isDashReady
+              ? "Dash Ready (Space)"
+              : `Dash Cooldown: ${Math.ceil(
+                  (dashCooldown - timeSinceLastDash) / 1000
+                )}s`
+          }
+        >
+          {/* Cooldown overlay */}
+          {!isDashReady && (
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
+                borderRadius: "50%",
+                background: `conic-gradient(transparent ${dashCooldownPercent}%, rgba(0, 0, 0, 0.6) ${dashCooldownPercent}%)`,
+              }}
+            />
+          )}
+          <span style={{ position: "relative", zIndex: 1 }}>⚡</span>
+        </div>
+      )}
 
       {/* Powerup Inventory Display - Minimalistic */}
       <div className="powerup-inventory-hud">

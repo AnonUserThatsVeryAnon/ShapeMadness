@@ -31,6 +31,13 @@ export interface Player extends Entity {
   slowedUntil?: number;
   activePowerUps: ActivePowerUpEffect[];
   powerUpInventory: (PowerUpType | null)[]; // Inventory slots for stored powerups (max 3)
+  // Dash ability (unlocked at level 15)
+  lastDash?: number;
+  dashCooldown: number;
+  dashDistance: number;
+  dashDuration: number;
+  isDashing?: boolean;
+  dashEndTime?: number;
 }
 
 export interface Enemy extends Entity {
@@ -74,6 +81,11 @@ export interface Enemy extends Entity {
   abilityTimers?: Record<string, number>; // Tracks when abilities were last used
   bossConfig?: import('../systems/spawning/BossConfig').BossConfig; // Reference to boss configuration
   shieldActive?: boolean; // For Overseer boss shield
+  // Tank properties
+  tankShield?: number; // Current shield health
+  tankMaxShield?: number; // Maximum shield health
+  tankShieldBroken?: boolean; // Whether shield is currently broken
+  tankShieldRadius?: number; // Shield collision radius (separate from visual)
 }
 
 export interface Bullet extends Entity {
@@ -82,6 +94,7 @@ export interface Bullet extends Entity {
   lifetime: number;
   createdAt: number;
   hitCount?: number; // Track pierce hits for damage reduction
+  hitEnemies?: Set<Enemy>; // Track which enemies have already been hit by this bullet
 }
 
 export interface EnemyProjectile extends Entity {

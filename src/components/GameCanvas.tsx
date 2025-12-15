@@ -29,6 +29,7 @@ interface GameCanvasProps {
   stats: GameStats;
   playZone: PlayZone;
   screenShakeIntensity: number;
+  currentRound: number;
 }
 
 /**
@@ -50,6 +51,7 @@ export function GameCanvas({
   stats,
   playZone,
   screenShakeIntensity,
+  currentRound,
 }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<GameRenderer | null>(null);
@@ -82,7 +84,8 @@ export function GameCanvas({
       stats,
       playZone,
       screenShakeIntensity,
-      now
+      now,
+      currentRound
     );
 
     // Draw active power-ups HUD

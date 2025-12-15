@@ -12,7 +12,70 @@ export class PlayerSystem {
   /**
    * Update player position based on input
    */
-  updateMovement(player: Player, keys: Set<string>, deltaTime: number = 1/60, now: number = Date.now()) {
+  updateMovement(player: Player, keys: Set<string>, deltaTime: number = 1/60, now: number = Date.now(), currentRound: number = 1) {
+    // Handle dash state
+    if (player.isDashing && player.dashEndTime && now < player.dashEndTime) {
+      // Continue dash movement - maintain dash velocity
+      player.position.x += player.velocity.x * deltaTime * 60;
+      player.position.y += player.velocity.y * deltaTime * 60;
+
+      // Keep in bounds
+      player.position.x = clamp(
+        player.position.x,
+        player.radius,
+        CANVAS_WIDTH - player.radius
+      );
+      player.position.y = clamp(
+        player.position.y,
+        player.radius,
+        CANVAS_HEIGHT - player.radius
+      );
+      return; // Skip normal movement during dash
+    } else if (player.isDashing) {
+      // Dash finished
+      player.isDashing = false;
+      player.velocity.x = 0;
+      player.velocity.y = 0;
+    }
+
+    // Check for dash input (Space key, unlocked at level 15)
+    if (keys.has("space") && currentRound >= 15) {
+      const timeSinceLastDash = player.lastDash ? now - player.lastDash : Infinity;
+      if (timeSinceLastDash >= player.dashCooldown) {
+        // Get movement direction
+        let dashDirX = 0;
+        let dashDirY = 0;
+        if (keys.has("w") || keys.has("arrowup")) dashDirY -= 1;
+        if (keys.has("s") || keys.has("arrowdown")) dashDirY += 1;
+        if (keys.has("a") || keys.has("arrowleft")) dashDirX -= 1;
+        if (keys.has("d") || keys.has("arrowright")) dashDirX += 1;
+
+        // Normalize direction
+        const dirLength = Math.sqrt(dashDirX * dashDirX + dashDirY * dashDirY);
+        if (dirLength > 0) {
+          dashDirX /= dirLength;
+          dashDirY /= dirLength;
+
+          // Start dash
+          player.isDashing = true;
+          player.lastDash = now;
+          player.dashEndTime = now + player.dashDuration;
+          
+          // Set dash velocity
+          const dashSpeed = player.dashDistance / (player.dashDuration / 1000);
+          player.velocity.x = dashDirX * dashSpeed;
+          player.velocity.y = dashDirY * dashSpeed;
+
+          // Make player invulnerable during dash
+          player.invulnerable = true;
+          player.invulnerableUntil = now + player.dashDuration;
+
+          keys.delete("space"); // Consume space key
+          return; // Skip normal movement this frame
+        }
+      }
+    }
+
     const acceleration = { x: 0, y: 0 };
 
     // WASD + Arrow keys
@@ -151,7 +214,7 @@ export class PlayerSystem {
   /**
    * Use powerup from inventory slot
    */
-  usePowerUpFromInventory(player: Player, slotIndex: number, now: number): boolean {
+  usePowerUpFromInventory(player: Player, slotIndex: number, now: number, onInventoryChange?: () => void): boolean {
     if (slotIndex < 0 || slotIndex >= player.powerUpInventory.length) {
       return false;
     }
@@ -166,6 +229,9 @@ export class PlayerSystem {
 
     // Remove from inventory
     player.powerUpInventory[slotIndex] = null;
+
+    // Notify about inventory change
+    if (onInventoryChange) onInventoryChange();
 
     return true;
   }

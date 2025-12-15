@@ -7,7 +7,7 @@ import type {
   GameStats,
   Vector2,
 } from "../types/game";
-import { PowerUpType } from "../types/game";
+import { PowerUpType, EnemyType } from "../types/game";
 import { checkCollision, distance } from "../utils/helpers";
 import { audioSystem } from "../utils/audio";
 import { createParticles } from "../utils/particles";
@@ -332,7 +332,8 @@ export class CombatSystem {
   }
 
   /**
-   * Check bullet-enemy collisions and apply damage
+   * Check bullet-enemy collisions and apply damage with all edge cases
+   * Handles: Tank shields, Turret immunity, piercing, explosive damage
    */
   handleBulletEnemyCollisions(
     bullets: Bullet[],
@@ -340,8 +341,10 @@ export class CombatSystem {
     particles: Particle[],
     floatingTexts: FloatingText[],
     now: number,
-    onEnemyKilled: (enemy: Enemy) => void,
-    getUpgradeLevel: (upgradeId: string) => number
+    player: Player,
+    damageEnemy: (enemy: Enemy, damage: number, now: number) => void,
+    getUpgradeLevel: (upgradeId: string) => number,
+    shakeRef: { current: { x: number; y: number; intensity: number } | null }
   ) {
     const piercing = getUpgradeLevel("pierce") > 0;
     const explosiveLevel = getUpgradeLevel("explosive");
@@ -349,81 +352,171 @@ export class CombatSystem {
     bullets.forEach((bullet) => {
       if (!bullet.active) return;
 
-      let hit = false;
+      // Initialize hit count for piercing damage reduction
+      if (!bullet.hitCount) bullet.hitCount = 0;
 
       enemies.forEach((enemy) => {
         if (!enemy.active) return;
 
-        if (checkCollision(bullet, enemy)) {
-          // Apply damage
-          const actualDamage = Math.min(bullet.damage, enemy.health);
-          enemy.health -= bullet.damage;
+        // ==================== TANK SHIELD SYSTEM ====================
+        if (enemy.type === EnemyType.TANK) {
+          // Initialize shield properties on first encounter
+          if (enemy.tankShield === undefined) {
+            enemy.tankMaxShield = 800;
+            enemy.tankShield = 800;
+            enemy.tankShieldBroken = false;
+            enemy.tankShieldRadius = enemy.radius * 6; // 6x larger shield
+          }
 
-          // Hit effects
-          particles.push(
-            ...createParticles(bullet.position, 8, "#ffeb3b", 3, 500)
-          );
-          floatingTexts.push({
-            position: { ...enemy.position },
-            text: `-${Math.ceil(actualDamage)}`,
-            color: "#ffffff",
-            size: 16,
-            lifetime: 800,
-            createdAt: now,
-            velocity: { x: 0, y: -2 },
-          });
+          // Calculate distance from bullet to tank center
+          const dx = bullet.position.x - enemy.position.x;
+          const dy = bullet.position.y - enemy.position.y;
+          const distToTankCenter = Math.sqrt(dx * dx + dy * dy);
 
-          // Explosive damage
-          if (explosiveLevel > 0) {
-            const explosionRadius = 50 + explosiveLevel * 20;
-            enemies.forEach((e) => {
-              if (!e.active || e === enemy) return;
-              if (distance(bullet.position, e.position) < explosionRadius) {
-                const splashDamage = Math.min(bullet.damage * 0.5, e.health);
-                e.health -= bullet.damage * 0.5;
+          // Check if shield is active
+          if (!enemy.tankShieldBroken && enemy.tankShield !== undefined && enemy.tankShield > 0) {
+            // Check if bullet is within shield radius (accounting for bullet size)
+            const shieldCollisionDist = (enemy.tankShieldRadius || 0) + bullet.radius;
+            if (distToTankCenter <= shieldCollisionDist) {
+              // Bullet hit the shield!
+              const hitCount = bullet.hitCount || 0;
+              const damageMultiplier = hitCount === 0 ? 1.0 : 0.5;
+              const damage = bullet.damage * damageMultiplier;
 
+              // Damage the shield
+              enemy.tankShield -= damage;
+
+              // Shield broken?
+              if (enemy.tankShield <= 0) {
+                enemy.tankShieldBroken = true;
+                enemy.tankShield = 0;
+                enemy.health = enemy.maxHealth * 0.25; // Lose 75% HP on shield break
+
+                // Visual feedback
+                if (shakeRef.current) shakeRef.current.intensity = 12;
+                particles.push(...createParticles(enemy.position, 50, '#4ecdc4', 12, 900));
+                particles.push(...createParticles(enemy.position, 25, '#ffffff', 10, 700));
                 floatingTexts.push({
-                  position: { ...e.position },
-                  text: `-${Math.ceil(splashDamage)}`,
-                  color: "#ff6b00",
-                  size: 14,
-                  lifetime: 800,
+                  position: { ...enemy.position },
+                  text: 'SHIELD DESTROYED!',
+                  color: '#ff4444',
+                  size: 32,
+                  lifetime: 1500,
                   createdAt: now,
-                  velocity: { x: 0, y: -2 },
+                  velocity: { x: 0, y: -3 },
+                  alpha: 1,
                 });
-
-                if (e.health <= 0) {
-                  e.active = false;
-                  onEnemyKilled(e);
-                }
+                audioSystem.playHit();
+              } else {
+                // Shield absorbed hit - show damage
+                particles.push(...createParticles(bullet.position, 15, '#4ecdc4', 5, 500));
+                floatingTexts.push({
+                  position: { ...bullet.position },
+                  text: `-${Math.floor(damage)}`,
+                  color: '#4ecdc4',
+                  size: 18,
+                  lifetime: 700,
+                  createdAt: now,
+                  velocity: { x: (Math.random() - 0.5) * 3, y: -2.5 },
+                  alpha: 1,
+                });
               }
-            });
-            particles.push(
-              ...createParticles(bullet.position, 20, "#ff6b00", 5, 800)
-            );
+
+              // Reflect bullet back toward player
+              const reflectDx = player.position.x - bullet.position.x;
+              const reflectDy = player.position.y - bullet.position.y;
+              const reflectDist = Math.sqrt(reflectDx * reflectDx + reflectDy * reflectDy);
+              if (reflectDist > 0) {
+                bullet.velocity.x = (reflectDx / reflectDist) * 9;
+                bullet.velocity.y = (reflectDy / reflectDist) * 9;
+              }
+
+              // Deactivate bullet if not piercing
+              if (!piercing) {
+                bullet.active = false;
+              }
+              bullet.hitCount = (bullet.hitCount || 0) + 1;
+
+              // CRITICAL: Skip all other processing for this bullet-enemy pair
+              return;
+            }
+            // If shield is active but bullet is outside shield radius, skip this tank entirely
+            // (bullet can't reach the body while shield is up)
+            return;
           }
 
-          audioSystem.playHit();
-          hit = true;
+          // Shield is broken - check body collision normally
+          if (!checkCollision(bullet, enemy)) return;
 
-          // Check if enemy died
-          if (enemy.health <= 0) {
-            enemy.active = false;
-            onEnemyKilled(enemy);
-          }
+          // Damage tank body (shield is broken)
+          const hitCount = bullet.hitCount || 0;
+          const damageMultiplier = hitCount === 0 ? 1.0 : 0.5;
+          bullet.hitCount = hitCount + 1;
 
-          // Deactivate bullet if not piercing
+          damageEnemy(enemy, bullet.damage * damageMultiplier, now);
+
+          particles.push(...createParticles(bullet.position, 8, '#ffeb3b', 3, 500));
+
           if (!piercing) {
             bullet.active = false;
           }
+          return; // Done processing tank
+        }
+
+        // ==================== TURRET SNIPER IMMUNITY ====================
+        if (enemy.type === EnemyType.TURRET_SNIPER) {
+          // Check if shield is active (player too far away)
+          if (enemy.shieldActive) {
+            if (checkCollision(bullet, enemy)) {
+              bullet.active = false;
+              particles.push(...createParticles(bullet.position, 8, '#ff9800', 3, 300));
+              floatingTexts.push({
+                position: { x: bullet.position.x, y: bullet.position.y },
+                text: 'IMMUNE',
+                color: '#ff9800',
+                size: 12,
+                lifetime: 600,
+                createdAt: now,
+                velocity: { x: 0, y: -1 },
+                alpha: 1,
+              });
+              return;
+            }
+            return; // Shield active, skip
+          }
+          // Fall through to regular collision if shield not active
+        }
+
+        // ==================== REGULAR ENEMY COLLISION ====================
+        if (!checkCollision(bullet, enemy)) return;
+
+        // Apply damage with piercing reduction
+        const hitCount = bullet.hitCount || 0;
+        const damageMultiplier = hitCount === 0 ? 1.0 : 0.5;
+        bullet.hitCount = hitCount + 1;
+
+        damageEnemy(enemy, bullet.damage * damageMultiplier, now);
+
+        // Hit particles
+        particles.push(...createParticles(bullet.position, 8, '#ffeb3b', 3, 500));
+
+        // ==================== EXPLOSIVE DAMAGE ====================
+        if (explosiveLevel > 0) {
+          const explosionRadius = 50 + explosiveLevel * 10;
+          enemies.forEach((e) => {
+            if (!e.active || e === enemy) return;
+            if (distance(bullet.position, e.position) < explosionRadius) {
+              damageEnemy(e, bullet.damage * 0.2, now);
+            }
+          });
+          particles.push(...createParticles(bullet.position, 20, '#ff6b00', 5, 800));
+        }
+
+        // Deactivate bullet if not piercing
+        if (!piercing) {
+          bullet.active = false;
         }
       });
-
-      // If hit and not piercing, mark inactive (handled above already)
-      // This is for the filter later
-      if (hit && !piercing) {
-        bullet.active = false;
-      }
     });
   }
 

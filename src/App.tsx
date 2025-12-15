@@ -12,7 +12,7 @@ import type {
   PlayZone,
   IceZone,
 } from "./types/game";
-import { GameState, EnemyType } from "./types/game";
+import { GameState, EnemyType, PowerUpType } from "./types/game";
 import { audioSystem } from "./utils/audio";
 import {
   distance,
@@ -83,6 +83,9 @@ function App() {
   const [shopTab, setShopTab] = useState<"core" | "special">("core");
   const [waveTimer, setWaveTimer] = useState(20); // 20 second countdown
   const waveTimerRef = useRef<number | null>(null);
+  const [powerUpInventory, setPowerUpInventory] = useState<
+    (PowerUpType | null)[]
+  >([null, null, null]);
 
   // Leaderboard states
   const [showNameInput, setShowNameInput] = useState(false);
@@ -116,6 +119,11 @@ function App() {
     invulnerableUntil: 0,
     activePowerUps: [],
     powerUpInventory: [null, null, null],
+    lastDash: 0,
+    dashCooldown: 3000,
+    dashDistance: 200,
+    dashDuration: 150,
+    isDashing: false,
   });
 
   const enemiesRef = useRef<Enemy[]>([]);
@@ -188,9 +196,15 @@ function App() {
       invulnerableUntil: 0,
       activePowerUps: [],
       powerUpInventory: [null, null, null],
+      lastDash: 0,
+      dashCooldown: 3000,
+      dashDistance: 200,
+      dashDuration: 150,
+      isDashing: false,
     };
     // Clear power-ups to prevent persistence across restarts
     powerUpsRef.current = [];
+    setPowerUpInventory([null, null, null]);
     statsRef.current = {
       score: 0,
       kills: 0,
@@ -1080,14 +1094,65 @@ function App() {
             );
           }
         }
+      } else if (enemy.type === EnemyType.TANK) {
+        // ==================== TANK SHIELD COLLISION (PLAYER) ====================
+        // Initialize tank shield properties if not already set
+        if (enemy.tankShield === undefined) {
+          enemy.tankShield = 800;
+          enemy.tankMaxShield = 800;
+          enemy.tankShieldBroken = false;
+          enemy.tankShieldRadius = enemy.radius * 6;
+        }
+
+        const distToPlayer = distance(player.position, enemy.position);
+
+        // If shield is active, check shield collision
+        if (!enemy.tankShieldBroken && enemy.tankShield > 0) {
+          // Check if player collides with shield
+          const shieldCollisionDist =
+            (enemy.tankShieldRadius || 0) + player.radius;
+
+          if (distToPlayer <= shieldCollisionDist) {
+            // Player hits the shield - ALWAYS push back (regardless of invulnerability)
+            const pushDirection = normalize({
+              x: player.position.x - enemy.position.x,
+              y: player.position.y - enemy.position.y,
+            });
+            const pushStrength = 10; // Stronger pushback to ensure bounce
+            player.velocity.x = pushDirection.x * pushStrength;
+            player.velocity.y = pushDirection.y * pushStrength;
+
+            // Damage and particles only if not invulnerable
+            if (!player.invulnerable) {
+              damagePlayer(10, now); // Shield contact damage
+              // Create bounce particles
+              particlesRef.current.push(
+                ...createParticles(player.position, 8, "#4ecdc4", 3, 300)
+              );
+            }
+          }
+          // Don't check body collision if shield is active - can't reach body
+        } else {
+          // Shield is broken - check normal collision with tank body
+          if (!player.invulnerable && checkCollision(player, enemy)) {
+            damagePlayer(enemy.damage, now);
+            // Tank is a boss-like enemy, don't destroy on contact
+            particlesRef.current.push(
+              ...createParticles(enemy.position, 15, enemy.color, 4)
+            );
+          }
+        }
       } else {
         // Normal enemy collision with player
         if (!player.invulnerable && checkCollision(player, enemy)) {
           damagePlayer(enemy.damage, now);
-          enemy.active = false;
-          particlesRef.current.push(
-            ...createParticles(enemy.position, 15, enemy.color, 4)
-          );
+          // Bosses should NOT be destroyed on contact - only deal damage
+          if (!enemy.isBoss) {
+            enemy.active = false;
+            particlesRef.current.push(
+              ...createParticles(enemy.position, 15, enemy.color, 4)
+            );
+          }
         }
       }
     });
@@ -1104,9 +1169,136 @@ function App() {
 
       // Track how many enemies this bullet has hit (for pierce damage reduction)
       if (!bullet.hitCount) bullet.hitCount = 0;
+      // Track which enemies have been hit to prevent continuous damage
+      if (!bullet.hitEnemies) bullet.hitEnemies = new Set<Enemy>();
 
       enemies.forEach((enemy) => {
         if (!enemy.active) return;
+        // Skip if this enemy was already hit by this bullet
+        if (bullet.hitEnemies!.has(enemy)) return;
+
+        // ==================== TANK SHIELD SYSTEM ====================
+        if (enemy.type === EnemyType.TANK) {
+          // Initialize shield properties if needed
+          if (enemy.tankShield === undefined) {
+            enemy.tankMaxShield = 800;
+            enemy.tankShield = 800;
+            enemy.tankShieldBroken = false;
+            enemy.tankShieldRadius = enemy.radius * 6;
+          }
+
+          // Calculate distance from bullet to tank center
+          const dx = bullet.position.x - enemy.position.x;
+          const dy = bullet.position.y - enemy.position.y;
+          const distToTankCenter = Math.sqrt(dx * dx + dy * dy);
+
+          // Check if shield is active
+          if (!enemy.tankShieldBroken && enemy.tankShield > 0) {
+            // Check if bullet is within shield radius (accounting for bullet size)
+            const shieldCollisionDist =
+              (enemy.tankShieldRadius || 0) + bullet.radius;
+            if (distToTankCenter <= shieldCollisionDist) {
+              // Bullet hit the shield!
+              const hitCount = bullet.hitCount || 0;
+              const damageMultiplier = hitCount === 0 ? 1.0 : 0.5;
+              const damage = bullet.damage * damageMultiplier;
+
+              // Damage the shield
+              enemy.tankShield -= damage;
+
+              // Shield broken?
+              if (enemy.tankShield <= 0) {
+                enemy.tankShieldBroken = true;
+                enemy.tankShield = 0;
+                enemy.health = enemy.maxHealth * 0.25; // Lose 75% HP on shield break
+
+                // Visual feedback
+                shakeRef.current.intensity = 12;
+                particlesRef.current.push(
+                  ...createParticles(enemy.position, 50, "#4ecdc4", 12, 900)
+                );
+                particlesRef.current.push(
+                  ...createParticles(enemy.position, 25, "#ffffff", 10, 700)
+                );
+                floatingTextsRef.current.push({
+                  position: { ...enemy.position },
+                  text: "SHIELD DESTROYED!",
+                  color: "#ff4444",
+                  size: 32,
+                  lifetime: 1500,
+                  createdAt: now,
+                  velocity: { x: 0, y: -3 },
+                  alpha: 1,
+                });
+                audioSystem.playHit();
+              } else {
+                // Shield absorbed hit - show damage
+                particlesRef.current.push(
+                  ...createParticles(bullet.position, 15, "#4ecdc4", 5, 500)
+                );
+                floatingTextsRef.current.push({
+                  position: { ...bullet.position },
+                  text: `-${Math.floor(damage)}`,
+                  color: "#4ecdc4",
+                  size: 18,
+                  lifetime: 700,
+                  createdAt: now,
+                  velocity: { x: (Math.random() - 0.5) * 3, y: -2.5 },
+                  alpha: 1,
+                });
+              }
+
+              // Reflect bullet back toward player
+              const reflectDx =
+                playerRef.current.position.x - bullet.position.x;
+              const reflectDy =
+                playerRef.current.position.y - bullet.position.y;
+              const reflectDist = Math.sqrt(
+                reflectDx * reflectDx + reflectDy * reflectDy
+              );
+              if (reflectDist > 0) {
+                bullet.velocity.x = (reflectDx / reflectDist) * 9;
+                bullet.velocity.y = (reflectDy / reflectDist) * 9;
+              }
+
+              // Deactivate bullet if not piercing
+              if (!piercing) {
+                bullet.active = false;
+              }
+              bullet.hitCount = (bullet.hitCount || 0) + 1;
+
+              // CRITICAL: Skip all other processing for this bullet-enemy pair
+              return;
+            }
+            // If shield is active but bullet is outside shield radius, skip this tank entirely
+            // (bullet can't reach the body while shield is up)
+            return;
+          }
+
+          // Shield is broken - check body collision normally
+          if (!checkCollision(bullet, enemy)) return;
+
+          // Mark this enemy as hit by this bullet
+          bullet.hitEnemies!.add(enemy);
+
+          // Damage tank body (shield is broken)
+          const hitCount = bullet.hitCount || 0;
+          const damageMultiplier = hitCount === 0 ? 1.0 : 0.5;
+          bullet.hitCount = hitCount + 1;
+
+          damageEnemy(enemy, bullet.damage * damageMultiplier, now);
+
+          particlesRef.current.push(
+            ...createParticles(bullet.position, 8, "#ffeb3b", 3, 500)
+          );
+
+          if (!piercing) {
+            bullet.active = false;
+          }
+          return; // Done processing tank
+        }
+
+        // ==================== REGULAR ENEMY COLLISION ====================
         if (checkCollision(bullet, enemy)) {
           // Turret Sniper is invulnerable - bullets pass through
           // BUT becomes vulnerable once destruction starts
@@ -1132,6 +1324,9 @@ function App() {
             });
             return;
           }
+
+          // Mark this enemy as hit by this bullet
+          bullet.hitEnemies!.add(enemy);
 
           // Reduce damage on pierce hits (first hit 100%, subsequent 50%)
           const hitCount = bullet.hitCount || 0;
@@ -1222,7 +1417,8 @@ function App() {
       player,
       now,
       particlesRef.current,
-      stats.round
+      stats.round,
+      () => setPowerUpInventory([...player.powerUpInventory])
     );
 
     // Update particles
@@ -1951,6 +2147,7 @@ function App() {
       const now = Date.now();
       const deltaTime = Math.min((now - lastTimeRef.current) / 1000, 0.1); // Cap at 100ms
       lastTimeRef.current = now;
+      const currentRound = statsRef.current.round;
 
       updateGame(deltaTime, now);
 
@@ -1969,7 +2166,8 @@ function App() {
           statsRef.current,
           playZoneRef.current,
           shakeRef.current.intensity,
-          now
+          now,
+          currentRound
         );
       }
 
@@ -2041,7 +2239,8 @@ function App() {
           playerSystemRef.current.usePowerUpFromInventory(
             player,
             slotIndex,
-            Date.now()
+            Date.now(),
+            () => setPowerUpInventory([...player.powerUpInventory])
           )
         ) {
           audioSystem.playPowerUp();
@@ -2127,7 +2326,11 @@ function App() {
             setAimMode(newMode);
           }}
           isTestMode={isTestMode}
-          powerUpInventory={playerRef.current.powerUpInventory}
+          powerUpInventory={powerUpInventory}
+          currentRound={statsRef.current.round}
+          lastDash={playerRef.current.lastDash}
+          dashCooldown={playerRef.current.dashCooldown}
+          now={Date.now()}
         />
       )}
       {/* Shop Menu - Modular Component */}

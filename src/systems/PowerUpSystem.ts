@@ -62,7 +62,8 @@ export class PowerUpSystem {
     player: Player,
     _now: number,
     particles: Particle[],
-    currentRound: number
+    currentRound: number,
+    onInventoryChange?: () => void
   ): PowerUp[] {
     return powerUps.filter((powerUp) => {
       // Remove power-ups after 2 rounds (not time-based)
@@ -78,6 +79,9 @@ export class PowerUpSystem {
         if (emptySlotIndex !== -1) {
           // Add to inventory
           player.powerUpInventory[emptySlotIndex] = powerUp.type;
+          
+          // Notify about inventory change
+          if (onInventoryChange) onInventoryChange();
           
           // Visual and audio feedback
           audioSystem.playPowerUp();

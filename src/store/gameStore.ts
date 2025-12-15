@@ -89,6 +89,12 @@ const initialPlayer: Player = {
   invulnerableUntil: 0,
   activePowerUps: [],
   powerUpInventory: [null, null, null],
+  // Dash ability (unlocked at round 15)
+  lastDash: 0,
+  dashCooldown: 3000, // 3 second cooldown
+  dashDistance: 200, // 200 pixels dash distance
+  dashDuration: 150, // 150ms dash duration (fast)
+  isDashing: false,
 };
 
 const initialPlayZone: PlayZone = {

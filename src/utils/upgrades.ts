@@ -1,6 +1,24 @@
 // Upgrade Shop System
 import type { Upgrade, Player } from '../types/game';
 
+// Store initial costs for reset
+const INITIAL_COSTS: Record<string, number> = {
+  health: 30,
+  defense: 40,
+  damage: 25,
+  fire_rate: 45,
+  speed: 30,
+  regen: 50,
+  bullet_speed: 35,
+  pierce: 100,
+  homing: 120,
+  explosive: 150,
+  shield: 80,
+  lifesteal: 100,
+  crit: 90,
+  multishot: 200,
+};
+
 export const UPGRADES: Upgrade[] = [
   // CORE STATS - High max levels, small increments, cheaper costs
   {
@@ -123,11 +141,29 @@ export const UPGRADES: Upgrade[] = [
       // Applied in collision detection
     },
   },
+  {
+    id: 'crit',
+    name: 'Critical Strike',
+    description: 'Increase crit chance by 1% (2x damage on crit)',
+    cost: 90,
+    maxLevel: 15,
+    currentLevel: 0,
+    icon: '⚡',
+    category: 'special',
+    effect: () => {
+      // Applied in damage calculation
+    },
+  },
 ];
 
 export function resetUpgrades(): void {
   UPGRADES.forEach(upgrade => {
     upgrade.currentLevel = 0;
+    // Reset cost to initial value
+    const initialCost = INITIAL_COSTS[upgrade.id];
+    if (initialCost !== undefined) {
+      upgrade.cost = initialCost;
+    }
   });
 }
 

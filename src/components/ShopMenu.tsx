@@ -29,6 +29,8 @@ interface ShopMenuProps {
   onForceUpdate: () => void;
   isTestMode?: boolean;
   onCloseShop?: () => void;
+  canvasWidth?: number;
+  canvasHeight?: number;
 }
 
 export function ShopMenu({
@@ -49,6 +51,19 @@ export function ShopMenu({
       onForceUpdate();
     }
   };
+
+  // Calculate opacity based on player position
+  // Shop is on the left side (0-450px width)
+  const shopWidth = 450;
+  const fadeDistance = 200; // Distance from shop edge where fade starts
+  const playerX = player.position.x;
+
+  let opacity = 1;
+  if (playerX < shopWidth + fadeDistance) {
+    // Player is near the shop - calculate opacity
+    const distanceFromShop = Math.max(0, playerX - shopWidth);
+    opacity = Math.max(0.2, Math.min(1, distanceFromShop / fadeDistance));
+  }
 
   const getStatPreview = (upgrade: Upgrade): string => {
     if (upgrade.currentLevel >= upgrade.maxLevel) return "";
@@ -106,7 +121,7 @@ export function ShopMenu({
       )}
 
       {/* Shop Menu */}
-      <div className="menu-overlay shop-overlay">
+      <div className="menu-overlay shop-overlay" style={{ opacity }}>
         <h1 className="shop-title">
           {isTestMode ? "🧪 SANDBOX SHOP" : `🛒 ROUND ${round} SHOP`}
         </h1>
@@ -138,11 +153,6 @@ export function ShopMenu({
             ✕ Close Shop (Press B)
           </button>
         )}
-        <p className="shop-tip">
-          {isTestMode
-            ? "💡 Unlimited upgrades! Press B to return to gameplay."
-            : "💡 Tip: Skip early for bonus cash, or take time to upgrade wisely!"}
-        </p>
 
         <div className="shop-tabs">
           <button

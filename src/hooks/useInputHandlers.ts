@@ -50,6 +50,13 @@ export function useInputHandlers({
         return;
       }
 
+      // Dash ability with Space key (handled in PlayerSystem)
+      if (key === ' ' || e.code === 'Space') {
+        e.preventDefault();
+        keysRef.current.add('space');
+        return;
+      }
+
       // Debug: Spawn Turret Sniper with 'T' key
       if (
         (key === 't' || e.code === 'KeyT') &&
@@ -67,6 +74,9 @@ export function useInputHandlers({
         let spawnY = player.position.y + Math.sin(angle) * spawnDistance;
 
         const margin = 50;
+        const turretRadius = ENEMY_CONFIGS[EnemyType.TURRET_SNIPER].radius;
+        
+        // Clamp to play zone
         spawnX = Math.max(
           playZone.x + margin,
           Math.min(playZone.x + playZone.width - margin, spawnX)
@@ -74,6 +84,16 @@ export function useInputHandlers({
         spawnY = Math.max(
           playZone.y + margin,
           Math.min(playZone.y + playZone.height - margin, spawnY)
+        );
+        
+        // Also clamp to canvas bounds to prevent spawning outside visible area
+        spawnX = Math.max(
+          turretRadius + margin,
+          Math.min(CANVAS_WIDTH - turretRadius - margin, spawnX)
+        );
+        spawnY = Math.max(
+          turretRadius + margin,
+          Math.min(CANVAS_HEIGHT - turretRadius - margin, spawnY)
         );
 
         const turret = {
@@ -110,7 +130,11 @@ export function useInputHandlers({
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
-      keysRef.current.delete(e.key.toLowerCase());
+      const key = e.key.toLowerCase();
+      keysRef.current.delete(key);
+      if (key === ' ' || e.code === 'Space') {
+        keysRef.current.delete('space');
+      }
     };
 
     const handleMouseMove = (e: MouseEvent) => {

@@ -21,12 +21,12 @@ export const ENEMY_CONFIGS = {
     radius: 12,
   },
   [EnemyType.TANK]: {
-    health: 300,
-    speed: 1,
-    damage: 20,
-    value: 20,
+    health: 400, // Base HP (reduced to 100 when shield breaks)
+    speed: 0.8, // Slow movement
+    damage: 25, // High contact damage
+    value: 50, // Good reward
     color: '#95e1d3',
-    radius: 25,
+    radius: 28, // Bigger
   },
   [EnemyType.SPLITTER]: {
     health: 80,
@@ -161,6 +161,14 @@ export function createEnemy(type: EnemyType, position: Vector2): Enemy {
   // Timebomb gets randomized slow field radius (150-250px)
   if (type === EnemyType.TIME_DISTORTION) {
     enemy.slowFieldRadius = 150 + Math.random() * 100; // Random between 150-250
+  }
+
+  // Initialize Tank properties with strong shield
+  if (type === EnemyType.TANK) {
+    enemy.tankMaxShield = 800; // Strong shield HP
+    enemy.tankShield = 800;
+    enemy.tankShieldBroken = false;
+    enemy.tankShieldRadius = config.radius * 6; // Shield radius (6x tank body = ~150px)
   }
 
   // Initialize Turret Sniper properties

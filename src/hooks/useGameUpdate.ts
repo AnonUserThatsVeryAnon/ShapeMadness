@@ -19,7 +19,6 @@ import type {
 import { GameState, EnemyType } from '../types/game';
 import type { CodexState } from '../types/codex';
 import {
-  distance,
   checkCollision,
   screenShake,
   add,
@@ -41,6 +40,7 @@ import { CombatSystem } from '../systems/CombatSystem';
 import { AimingSystem, AimMode } from '../systems/AimingSystem';
 import { ZoneSystem } from '../systems/ZoneSystem';
 import { PowerUpSystem } from '../systems/PowerUpSystem';
+import { DamageSystem } from '../systems/DamageSystem';
 
 
 const CANVAS_WIDTH = window.innerWidth;
@@ -142,8 +142,20 @@ export function useGameUpdate(props: UseGameUpdateProps) {
 
   const damageEnemy = useCallback((enemy: Enemy, damage: number, now: number) => {
     const previousHealth = enemy.health;
-    enemy.health -= damage;
-    audioSystem.playHit();
+    
+    // Use DamageSystem for damage calculation (includes crit chance)
+    const result = DamageSystem.damageEnemy(enemy, damage, now, statsRef.current.comboMultiplier);
+    
+    // Apply results
+    if (particlesRef.current) {
+      particlesRef.current.push(...result.particles);
+    }
+    if (floatingTextsRef.current) {
+      floatingTextsRef.current.push(...result.floatingTexts);
+    }
+    if (shakeRef.current && result.screenShake > 0) {
+      shakeRef.current.intensity = Math.max(shakeRef.current.intensity, result.screenShake);
+    }
 
     // Boss phase transitions
     if (enemy.isBoss && enemy.type === EnemyType.OVERSEER) {
@@ -240,22 +252,10 @@ export function useGameUpdate(props: UseGameUpdateProps) {
       }
     }
 
-    // Show damage number
-    if (floatingTextsRef.current) {
-      floatingTextsRef.current.push({
-        position: { ...enemy.position },
-        text: `-${Math.floor(damage)}`,
-        color: '#ffeb3b',
-        size: 16,
-        lifetime: 800,
-        createdAt: now,
-        velocity: { x: (Math.random() - 0.5) * 2, y: -3 },
-      });
-    }
+    // Note: Damage numbers, death particles, and sounds are now handled by DamageSystem (includes crit effects)
 
-    // Enemy death
-    if (enemy.health <= 0) {
-      enemy.active = false;
+    // Enemy death - handle game logic (combo, score, money)
+    if (result.killed) {
       const stats = statsRef.current;
       const player = playerRef.current;
       if (!stats || !player) return;
@@ -315,38 +315,7 @@ export function useGameUpdate(props: UseGameUpdateProps) {
       stats.score += earnedScore;
       stats.kills++;
 
-      audioSystem.playEnemyDeath();
-
-      if (particlesRef.current) {
-        particlesRef.current.push(
-          ...createParticles(enemy.position, 15, enemy.color, 8)
-        );
-        particlesRef.current.push(
-          ...createParticles(enemy.position, 5, '#ffffff', 6, 300)
-        );
-      }
-
-      if (floatingTextsRef.current) {
-        floatingTextsRef.current.push({
-          position: { ...enemy.position },
-          text: 'KILL!',
-          color: '#ff4444',
-          size: 20,
-          lifetime: 1000,
-          createdAt: now,
-          velocity: { x: 0, y: -2 },
-        });
-
-        floatingTextsRef.current.push({
-          position: { x: enemy.position.x, y: enemy.position.y + 20 },
-          text: `+$${earnedMoney}`,
-          color: '#00ff88',
-          size: 18,
-          lifetime: 1200,
-          createdAt: now,
-          velocity: { x: 0, y: -1.5 },
-        });
-      }
+      // Note: Death particles, sounds, KILL text, and money text are now handled by DamageSystem
 
       // Power-up chance
       if (Math.random() < 0.08 && powerUpSystemRef.current && powerUpsRef.current) {
@@ -402,8 +371,8 @@ export function useGameUpdate(props: UseGameUpdateProps) {
     damagePlayer,
   ]);
 
-  const updateGame = useCallback(
-    (deltaTime: number, now: number) => {
+  const updateGame: (deltaTime: number, now: number, currentRound: number) => void = useCallback(
+    (deltaTime: number, now: number, currentRound: number) => {
       const player = playerRef.current;
       const enemies = enemiesRef.current;
       const bullets = bulletsRef.current;
@@ -424,7 +393,7 @@ export function useGameUpdate(props: UseGameUpdateProps) {
       if (playerSystemRef.current) {
         playerSystemRef.current.updateInvulnerability(player, now);
         playerSystemRef.current.updatePowerUps(player, now);
-        playerSystemRef.current.updateMovement(player, keys, deltaTime);
+        playerSystemRef.current.updateMovement(player, keys, deltaTime, now, currentRound);
       }
 
       // Player shooting
@@ -481,7 +450,31 @@ export function useGameUpdate(props: UseGameUpdateProps) {
 
         // Collision with player
         if (enemy.type !== EnemyType.TURRET_SNIPER) {
-          if (!player.invulnerable && checkCollision(player, enemy)) {
+          // Special handling for TANK - check shield first
+          if (enemy.type === EnemyType.TANK && !enemy.tankShieldBroken && enemy.tankShield !== undefined && enemy.tankShield > 0) {
+            // Check if player hits the shield
+            const dx = player.position.x - enemy.position.x;
+            const dy = player.position.y - enemy.position.y;
+            const distToTank = Math.sqrt(dx * dx + dy * dy);
+            
+            if (!player.invulnerable && distToTank <= player.radius + (enemy.tankShieldRadius || 0)) {
+              // Player bounces off shield
+              const pushForce = 5;
+              const angle = Math.atan2(dy, dx);
+              player.velocity.x = Math.cos(angle) * pushForce;
+              player.velocity.y = Math.sin(angle) * pushForce;
+              
+              // Small damage to player from contact
+              damagePlayer(10, now);
+              
+              if (particlesRef.current) {
+                particlesRef.current.push(
+                  ...createParticles(player.position, 8, '#4ecdc4', 3, 400)
+                );
+              }
+            }
+          } else if (!player.invulnerable && checkCollision(player, enemy)) {
+            // Normal collision for non-tank or tank with broken shield
             damagePlayer(enemy.damage, now);
             enemy.active = false;
             if (particlesRef.current) {
@@ -498,74 +491,20 @@ export function useGameUpdate(props: UseGameUpdateProps) {
         combatSystemRef.current.updateBullets(bullets, deltaTime, now);
       }
 
-      // Bullet collisions
-      bullets.forEach((bullet) => {
-        if (!bullet.active) return;
-
-        const piercing = getUpgradeLevel('pierce') > 0;
-        const explosiveLevel = getUpgradeLevel('explosive');
-
-        if (!bullet.hitCount) bullet.hitCount = 0;
-
-        enemies.forEach((enemy) => {
-          if (!enemy.active || !checkCollision(bullet, enemy)) return;
-
-          // Turret immunity
-          if (enemy.type === EnemyType.TURRET_SNIPER) {
-            bullet.active = false;
-            if (particlesRef.current) {
-              particlesRef.current.push(
-                ...createParticles(bullet.position, 8, '#ff9800', 3, 300)
-              );
-            }
-            if (floatingTextsRef.current) {
-              floatingTextsRef.current.push({
-                position: { x: bullet.position.x, y: bullet.position.y },
-                text: 'IMMUNE',
-                color: '#ff9800',
-                size: 12,
-                lifetime: 600,
-                createdAt: now,
-                velocity: { x: 0, y: -1 },
-                alpha: 1,
-              });
-            }
-            return;
-          }
-
-          const hitCount = bullet.hitCount || 0;
-          const damageMultiplier = hitCount === 0 ? 1.0 : 0.5;
-          bullet.hitCount = hitCount + 1;
-
-          damageEnemy(enemy, bullet.damage * damageMultiplier, now);
-
-          if (particlesRef.current) {
-            particlesRef.current.push(
-              ...createParticles(bullet.position, 8, '#ffeb3b', 3, 500)
-            );
-          }
-
-          // Explosive damage
-          if (explosiveLevel > 0) {
-            const explosionRadius = 50 + explosiveLevel * 10;
-            enemies.forEach((e) => {
-              if (!e.active || e === enemy) return;
-              if (distance(bullet.position, e.position) < explosionRadius) {
-                damageEnemy(e, bullet.damage * 0.2, now);
-              }
-            });
-            if (particlesRef.current) {
-              particlesRef.current.push(
-                ...createParticles(bullet.position, 20, '#ff6b00', 5, 800)
-              );
-            }
-          }
-
-          if (!piercing) {
-            bullet.active = false;
-          }
-        });
-      });
+      // Bullet collisions - now handled by unified CombatSystem
+      if (combatSystemRef.current && particlesRef.current && floatingTextsRef.current) {
+        combatSystemRef.current.handleBulletEnemyCollisions(
+          bullets,
+          enemies,
+          particlesRef.current,
+          floatingTextsRef.current,
+          now,
+          playerRef.current,
+          damageEnemy,
+          getUpgradeLevel,
+          shakeRef
+        );
+      }
 
       // Filter bullets
       bulletsRef.current = bullets.filter((bullet) => {

@@ -51,7 +51,8 @@ export class GameRenderer {
     stats: GameStats,
     playZone: PlayZone,
     screenShakeIntensity: number,
-    now: number
+    now: number,
+    currentRound: number
   ) {
     // Clear canvas
     this.clearCanvas();
@@ -72,7 +73,7 @@ export class GameRenderer {
     // Draw game entities in layers (back to front)
     this.drawParticlesLayer(particles, true); // Background particles
     this.drawIceZones(iceZones, now); // Ice zones behind everything
-    this.drawPowerUps(powerUps, now);
+    this.drawPowerUps(powerUps, now, currentRound);
     this.drawPlayer(player, now);
     this.drawChainConnections(enemies);
     this.drawEnemies(enemies, now);
@@ -162,9 +163,20 @@ export class GameRenderer {
     drawParticles(this.ctx, filtered);
   }
 
-  private drawPowerUps(powerUps: PowerUp[], now: number) {
+  private drawPowerUps(powerUps: PowerUp[], now: number, currentRound: number) {
     powerUps.forEach((powerUp) => {
-      const pulse = Math.sin(now / 200) * 2;
+      const age = currentRound - powerUp.spawnedRound;
+      const isExpiringSoon = age >= 1; // Blinks in the last round (round 1 of 2 total rounds)
+      
+      // Blink effect: flashing when about to expire
+      const blinkSpeed = 300; // milliseconds per blink - slower, less hectic
+      const shouldShow = !isExpiringSoon || Math.floor(now / blinkSpeed) % 2 === 0;
+      
+      if (!shouldShow) return; // Skip drawing during blink-off phase
+      
+      // Stronger pulse effect when expiring
+      const pulseAmount = isExpiringSoon ? 4 : 2;
+      const pulse = Math.sin(now / 200) * pulseAmount;
       this.ctx.fillStyle = this.getPowerUpColor(powerUp.type);
       this.ctx.beginPath();
       this.ctx.arc(
@@ -176,9 +188,9 @@ export class GameRenderer {
       );
       this.ctx.fill();
 
-      // Subtle outline
-      this.ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
-      this.ctx.lineWidth = 1;
+      // Subtle outline - bright red when expiring soon
+      this.ctx.strokeStyle = isExpiringSoon ? "rgba(255, 80, 80, 1.0)" : "rgba(255, 255, 255, 0.5)";
+      this.ctx.lineWidth = isExpiringSoon ? 3 : 1;
       this.ctx.stroke();
 
       // Draw icon with outline for visibility
@@ -221,8 +233,37 @@ export class GameRenderer {
   }
 
   private drawPlayer(player: Player, now: number) {
+    // Dash trail effect
+    if (player.isDashing && player.dashEndTime) {
+      const dashProgress = (now - (player.dashEndTime - player.dashDuration)) / player.dashDuration;
+      
+      // Draw multiple trail positions
+      for (let i = 1; i <= 5; i++) {
+        const trailAlpha = (1 - dashProgress) * (1 - i / 6) * 0.4;
+        const trailSize = player.radius * (1 - i / 8);
+        const trailX = player.position.x - player.velocity.x * (i / 60) * 0.5;
+        const trailY = player.position.y - player.velocity.y * (i / 60) * 0.5;
+        
+        this.ctx.globalAlpha = trailAlpha;
+        this.ctx.fillStyle = "#4ecdc4";
+        this.ctx.beginPath();
+        
+        const angle = -Math.PI / 2;
+        for (let j = 0; j < 3; j++) {
+          const a = angle + (j * Math.PI * 2) / 3;
+          const px = trailX + Math.cos(a) * trailSize;
+          const py = trailY + Math.sin(a) * trailSize;
+          if (j === 0) this.ctx.moveTo(px, py);
+          else this.ctx.lineTo(px, py);
+        }
+        this.ctx.closePath();
+        this.ctx.fill();
+      }
+      this.ctx.globalAlpha = 1;
+    }
+
     // Invulnerability flashing
-    if (player.invulnerable && Math.floor(now / 100) % 2 === 0) {
+    if (player.invulnerable && !player.isDashing && Math.floor(now / 100) % 2 === 0) {
       this.ctx.globalAlpha = 0.5;
     }
 
@@ -245,9 +286,10 @@ export class GameRenderer {
     this.ctx.stroke();
 
     // Draw triangle (player is distinct from circular enemies)
-    this.ctx.fillStyle = "#00ff88";
-    this.ctx.strokeStyle = "#ffffff";
-    this.ctx.lineWidth = 3;
+    // Cyan glow when dashing
+    this.ctx.fillStyle = player.isDashing ? "#4ecdc4" : "#00ff88";
+    this.ctx.strokeStyle = player.isDashing ? "#4ecdc4" : "#ffffff";
+    this.ctx.lineWidth = player.isDashing ? 4 : 3;
     this.ctx.beginPath();
 
     // Triangle pointing up
@@ -321,6 +363,11 @@ export class GameRenderer {
 
   private drawEnemyEffects(enemy: Enemy, now: number) {
     const ctx = this.ctx;
+
+    // Tank shield effect
+    if (enemy.type === EnemyType.TANK && enemy.tankShield && enemy.tankShield > 0 && !enemy.tankShieldBroken) {
+      this.drawTankShield(enemy, now);
+    }
 
     // Turret Sniper shield effect
     if (enemy.type === EnemyType.TURRET_SNIPER) {
@@ -816,6 +863,77 @@ export class GameRenderer {
     ctx.stroke();
   }
 
+  private drawTankShield(enemy: Enemy, now: number) {
+    const ctx = this.ctx;
+    const shieldPercent = enemy.tankShield! / enemy.tankMaxShield!;
+    const pulse = Math.sin(now / 200) * 0.2 + 0.8;
+    const rotation = (now / 1000) % (Math.PI * 2);
+    
+    // Shield strength determines color intensity and glow
+    const alpha = 0.4 + shieldPercent * 0.5;
+    const shieldRadius = enemy.tankShieldRadius || (enemy.radius * 6);
+    
+    // Rotating hexagonal shield
+    ctx.save();
+    ctx.translate(enemy.position.x, enemy.position.y);
+    ctx.rotate(rotation);
+    
+    // Shield glow
+    ctx.strokeStyle = `rgba(78, 205, 196, ${alpha * pulse})`;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const angle = (i / 6) * Math.PI * 2;
+      const x = Math.cos(angle) * shieldRadius;
+      const y = Math.sin(angle) * shieldRadius;
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+    ctx.closePath();
+    ctx.stroke();
+    
+    // Inner shield layer
+    ctx.strokeStyle = `rgba(78, 205, 196, ${alpha * 0.5})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const angle = (i / 6) * Math.PI * 2;
+      const x = Math.cos(angle) * (shieldRadius - 8);
+      const y = Math.sin(angle) * (shieldRadius - 8);
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+    ctx.closePath();
+    ctx.stroke();
+    
+    ctx.restore();
+    
+    // Shield health bar above tank
+    const barWidth = 60;
+    const barHeight = 6;
+    const barX = enemy.position.x - barWidth / 2;
+    const barY = enemy.position.y - enemy.radius - 35;
+    
+    // Background
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillRect(barX, barY, barWidth, barHeight);
+    
+    // Shield bar
+    ctx.fillStyle = '#4ecdc4';
+    ctx.fillRect(barX, barY, barWidth * shieldPercent, barHeight);
+    
+    // Border
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(barX, barY, barWidth, barHeight);
+  }
+
   private drawTurretSniperEffects(enemy: Enemy, now: number) {
     const ctx = this.ctx;
     
@@ -996,23 +1114,27 @@ export class GameRenderer {
 
   private drawBullets(bullets: Bullet[]) {
     bullets.forEach((bullet) => {
+      // Scale bullet size based on damage - base radius 3, +0.5 per 10 damage, max 8
+      const visualRadius = Math.min(8, bullet.radius + (bullet.damage / 20));
+      const glowIntensity = Math.min(10, 3 + (bullet.damage / 30));
+      
       this.ctx.fillStyle = "#ffeb3b";
-      this.ctx.shadowBlur = 3;
+      this.ctx.shadowBlur = glowIntensity;
       this.ctx.shadowColor = "#ffeb3b";
       this.ctx.beginPath();
       this.ctx.arc(
         bullet.position.x,
         bullet.position.y,
-        bullet.radius,
+        visualRadius,
         0,
         Math.PI * 2
       );
       this.ctx.fill();
       this.ctx.shadowBlur = 0;
 
-      // Bullet trail
+      // Bullet trail - scales with bullet size
       this.ctx.strokeStyle = "rgba(255, 235, 59, 0.3)";
-      this.ctx.lineWidth = bullet.radius;
+      this.ctx.lineWidth = visualRadius;
       this.ctx.beginPath();
       this.ctx.moveTo(bullet.position.x, bullet.position.y);
       this.ctx.lineTo(

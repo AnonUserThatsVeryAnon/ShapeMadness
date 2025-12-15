@@ -39,63 +39,63 @@ export const WAVE_PATTERNS = {
 
   TANK_ASSAULT: {
     types: [EnemyType.BASIC, EnemyType.FAST, EnemyType.SPLITTER, EnemyType.TANK],
-    weights: [10, 15, 12, 18],
+    weights: [10, 15, 12, 3],
     countFormula: (round: number) => 5 + round * 2,
     description: 'Heavy tank presence',
   },
 
   RANGED_SIEGE: {
     types: [EnemyType.BASIC, EnemyType.FAST, EnemyType.SPLITTER, EnemyType.TANK, EnemyType.SHOOTER],
-    weights: [10, 15, 12, 18, 14],
+    weights: [10, 15, 12, 3, 14],
     countFormula: (round: number) => 5 + round * 2,
     description: 'Shooters added for ranged pressure',
   },
 
   TURRET_DEFENSE: {
     types: [EnemyType.BASIC, EnemyType.FAST, EnemyType.SPLITTER, EnemyType.TANK, EnemyType.SHOOTER, EnemyType.TURRET_SNIPER],
-    weights: [10, 15, 12, 18, 14, 6],
+    weights: [10, 15, 12, 3, 14, 6],
     countFormula: (round: number) => 5 + round * 2,
     description: 'Stationary turrets force close combat',
   },
 
   SUPPORT_ENHANCED: {
     types: [EnemyType.BASIC, EnemyType.FAST, EnemyType.SPLITTER, EnemyType.TANK, EnemyType.SHOOTER, EnemyType.TURRET_SNIPER, EnemyType.BUFFER],
-    weights: [10, 15, 12, 18, 14, 6, 8],
+    weights: [10, 15, 12, 3, 14, 6, 8],
     countFormula: (round: number) => 5 + round * 2,
     description: 'Buffers make other enemies stronger',
   },
 
   CHAIN_COORDINATION: {
     types: [EnemyType.BASIC, EnemyType.FAST, EnemyType.SPLITTER, EnemyType.TANK, EnemyType.SHOOTER, EnemyType.TURRET_SNIPER, EnemyType.BUFFER, EnemyType.CHAIN_PARTNER],
-    weights: [10, 15, 12, 18, 14, 6, 8, 8],
+    weights: [10, 15, 12, 3, 14, 6, 8, 8],
     countFormula: (round: number) => 5 + round * 2,
     description: 'Chain Partners coordinate attacks',
   },
 
   TEMPORAL_NIGHTMARE: {
     types: [EnemyType.BASIC, EnemyType.FAST, EnemyType.SPLITTER, EnemyType.TANK, EnemyType.SHOOTER, EnemyType.TURRET_SNIPER, EnemyType.BUFFER, EnemyType.CHAIN_PARTNER, EnemyType.TIME_DISTORTION],
-    weights: [10, 15, 12, 18, 14, 6, 8, 8, 8],
+    weights: [10, 15, 12, 3, 14, 6, 8, 8, 8],
     countFormula: (round: number) => 5 + round * 2,
     description: 'Time Distortion enemies slow the arena',
   },
 
   FROST_ASSAULT: {
     types: [EnemyType.BASIC, EnemyType.FAST, EnemyType.SPLITTER, EnemyType.TANK, EnemyType.SHOOTER, EnemyType.TURRET_SNIPER, EnemyType.BUFFER, EnemyType.CHAIN_PARTNER, EnemyType.TIME_DISTORTION, EnemyType.ICE],
-    weights: [10, 15, 12, 18, 14, 6, 8, 8, 8, 9],
+    weights: [10, 15, 12, 3, 14, 6, 8, 8, 8, 9],
     countFormula: (round: number) => 5 + round * 2,
     description: 'Ice enemies leave freezing zones on death',
   },
 
   EXPLOSIVE_CHAOS: {
     types: [EnemyType.BASIC, EnemyType.FAST, EnemyType.SPLITTER, EnemyType.TANK, EnemyType.SHOOTER, EnemyType.TURRET_SNIPER, EnemyType.BUFFER, EnemyType.CHAIN_PARTNER, EnemyType.TIME_DISTORTION, EnemyType.ICE, EnemyType.BOMB],
-    weights: [10, 15, 12, 18, 14, 6, 8, 8, 8, 9, 10],
+    weights: [10, 15, 12, 3, 14, 6, 8, 8, 8, 9, 10],
     countFormula: (round: number) => 5 + round * 2,
     description: 'Bombs explode on death dealing area damage',
   },
 
   AERIAL_SWARM: {
     types: [EnemyType.BASIC, EnemyType.FAST, EnemyType.SPLITTER, EnemyType.TANK, EnemyType.SHOOTER, EnemyType.TURRET_SNIPER, EnemyType.BUFFER, EnemyType.CHAIN_PARTNER, EnemyType.TIME_DISTORTION, EnemyType.ICE, EnemyType.BOMB, EnemyType.LUFTI],
-    weights: [10, 15, 12, 18, 14, 6, 8, 8, 8, 9, 10, 12],
+    weights: [10, 15, 12, 3, 14, 6, 8, 8, 8, 9, 10, 12],
     countFormula: (round: number) => 5 + round * 2,
     description: 'Lufti teleport-dashes toward player',
   },
