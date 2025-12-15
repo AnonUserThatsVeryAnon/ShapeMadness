@@ -1,75 +1,115 @@
 # 🗺️ Mouse Defense - Development Roadmap
 
-**Last Updated**: December 11, 2025
+**Last Updated**: December 15, 2025
 
 ## 📋 Overview
 
-This roadmap consolidates all identified issues, improvements, and features based on comprehensive code review. Items are prioritized by impact and urgency.
+This roadmap reflects the **ACTUAL** current state after cleanup and tank shield fixes.
 
-**Current Project Status**: B+ (Very Good)
+**Current Project Status**: B+ (Very Good, Stable)
 
 - ✅ Fully playable and polished
-- ⚠️ Needs architectural refactoring
+- ✅ Tank shields working correctly
+- ✅ Dead code removed (useGameUpdate, useGameLoop, gameStore)
+- ✅ Outdated documentation deleted
+- ⚠️ App.tsx still large (2,444 lines) but stable
 - ⚠️ Missing test coverage
 - ⚠️ 7 incomplete enemy types
 
 ---
 
-## 🔴 CRITICAL PRIORITY (Do First)
+## ✅ RECENTLY COMPLETED (December 15, 2025)
 
-### 1. Refactor App.tsx (2,510 lines → ~500 lines)
+### Tank Shield Fix
 
-**Problem**: Monolithic component, unmaintainable, violates best practices  
-**Impact**: High - Blocks future development  
-**Effort**: 2-3 days
+- ✅ Bullets now collide with tank shields correctly
+- ✅ Shields take damage and break at 0 HP
+- ✅ Bullets reflect off shields
+- ✅ Player bounces off shields and cannot enter
+- ✅ Shield contact damage working
+- ✅ Visual effects (particles, health bar, rotation)
 
-**Tasks**:
+### Code Cleanup
 
-- [ ] Extract rendering logic to `GameCanvas.tsx` component
-- [ ] Migrate to existing `useGameLoop` hook (already implemented but unused)
-- [ ] Move game state to Zustand store (already created but unused)
-  - Keep refs for high-frequency updates (position, velocity)
-  - Use Zustand for UI state, game state, upgrades, stats
-- [ ] Split `updateGame()` into smaller functions:
-  - `updatePlayerMovement()`
-  - `handlePlayerShooting()`
-  - `updateAllEnemies()`
-  - `checkCollisions()`
-  - `updateParticles()`
-  - `handleZoneDamage()`
-  - `checkRoundCompletion()`
-- [ ] Extract collision detection to `CollisionSystem` (exists but not used)
-- [ ] Extract damage calculation to `DamageSystem` (exists but not used)
-
-**Files to Create/Modify**:
-
-- `src/components/GameCanvas.tsx` (new)
-- `src/hooks/useGameState.ts` (new - wraps Zustand)
-- `src/App.tsx` (reduce to orchestration only)
+- ✅ Deleted unused hooks (useGameUpdate.ts, useGameLoop.ts)
+- ✅ Deleted unused store (gameStore.ts)
+- ✅ Deleted outdated documentation (~8 misleading files)
+- ✅ Codebase now matches reality
 
 ---
 
-### 2. Fix State Management Inconsistency
+## 🔴 CRITICAL PRIORITY (Do First)
 
-**Problem**: Zustand store exists but all state uses refs (confusing hybrid)  
-**Impact**: Medium - Causes confusion, makes debugging hard  
-**Effort**: 1 day
+### 1. Fix Confirmed Bugs
 
-**Decision Required**: Choose ONE approach:
+**Impact**: Medium - Affects player experience  
+**Effort**: 2-3 hours
 
-**Option A - Keep Refs (Recommended)**:
+#### Bug #1: Power-Ups Persist Across Restarts
 
-- [ ] Delete `src/store/gameStore.ts`
-- [ ] Document why refs are used (performance)
-- [ ] Create proper ref management utilities
+```typescript
+// In initializePlayer():
+powerUpsRef.current = []; // ADD THIS LINE
+```
 
-**Option B - Use Zustand**:
+#### Bug #2: Splitter Children Spawn Inside Player
 
-- [ ] Migrate UI state to Zustand (game state, paused, shop tab)
-- [ ] Keep refs only for 60 FPS updates (positions, velocities)
-- [ ] Update all components to use hooks
+```typescript
+// In splitter death logic:
+const offset = 30; // Spawn distance
+const angle1 = Math.random() * Math.PI * 2;
+const angle2 = angle1 + Math.PI;
 
-**Recommendation**: Option A (refs are fine for game loops)
+const child1Pos = {
+  x: enemy.position.x + Math.cos(angle1) * offset,
+  y: enemy.position.y + Math.sin(angle1) * offset,
+};
+const child2Pos = {
+  x: enemy.position.x + Math.cos(angle2) * offset,
+  y: enemy.position.y + Math.sin(angle2) * offset,
+};
+```
+
+#### Bug #3: Combo Multiplier Not Displayed
+
+```typescript
+// In HUD rendering:
+ctx.fillText(
+  `Combo: ${stats.combo}x (${stats.comboMultiplier.toFixed(1)}x)`,
+  x,
+  y
+);
+```
+
+#### Bug #4: Audio Context Suspended
+
+```typescript
+// In audioSystem.init():
+document.addEventListener(
+  "click",
+  () => {
+    if (this.context?.state === "suspended") {
+      this.context.resume();
+    }
+  },
+  { once: true }
+);
+```
+
+---
+
+## 🟡 MEDIUM PRIORITY (Optional Future Work)
+
+### 2. Refactor App.tsx Architecture (OPTIONAL)
+
+**Status**: App.tsx works fine, but could be cleaner  
+**Impact**: Low - Current code is stable  
+**Effort**: 1-2 weeks  
+**Risk**: High - Could introduce bugs
+
+**Note**: Only do this if you want cleaner architecture. Current monolithic approach works.
+
+**See**: `REFACTORING_RECOMMENDATIONS.md` for detailed plan
 
 ---
 
