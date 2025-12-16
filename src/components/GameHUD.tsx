@@ -10,10 +10,6 @@ interface GameHUDProps {
   onToggleAimMode: () => void;
   isTestMode?: boolean;
   powerUpInventory: (PowerUpType | null)[];
-  currentRound: number;
-  lastDash?: number;
-  dashCooldown: number;
-  now: number;
 }
 
 // Powerup icons and names
@@ -33,10 +29,6 @@ export function GameHUD({
   onToggleAimMode,
   isTestMode,
   powerUpInventory,
-  currentRound,
-  lastDash,
-  dashCooldown,
-  now,
 }: GameHUDProps) {
   return (
     <>

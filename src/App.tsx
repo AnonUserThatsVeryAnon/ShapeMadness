@@ -2636,10 +2636,6 @@ function App() {
           }}
           isTestMode={isTestMode}
           powerUpInventory={powerUpInventory}
-          currentRound={statsRef.current.round}
-          lastDash={playerRef.current.lastDash}
-          dashCooldown={playerRef.current.dashCooldown}
-          now={Date.now()}
         />
       )}
       {/* Shop Menu - Modular Component */}
