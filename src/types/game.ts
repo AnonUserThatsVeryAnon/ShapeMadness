@@ -73,6 +73,7 @@ export interface Enemy extends Entity {
   destructionStartTime?: number; // When player started being close
   isBeingDestroyed?: boolean; // Player is currently in range
   destructionAnimationStart?: number; // When destruction animation started
+  leftDestructionRangeAt?: number; // When player left the destruction range (for shoot delay)
   // Boss properties
   isBoss?: boolean;
   bossPhase?: number; // Current phase (1, 2, or 3)

@@ -1162,11 +1162,27 @@ function App() {
         const distToPlayer = distance(player.position, enemy.position);
         const destructionRange = 80; // Player must be within this range to destroy
         const timeSinceLastShot = now - enemy.lastShot;
+        const shootDelayAfterLeaving = 3000; // 3 second delay after leaving destruction range
+
+        // Track when player leaves destruction range
+        if (distToPlayer > destructionRange && !enemy.leftDestructionRangeAt) {
+          enemy.leftDestructionRangeAt = now;
+        } else if (distToPlayer <= destructionRange) {
+          // Player is back in range, reset the timer
+          enemy.leftDestructionRangeAt = undefined;
+        }
+
+        // Check if enough time has passed since leaving destruction range
+        const canShootAfterLeaving =
+          !enemy.leftDestructionRangeAt ||
+          now - enemy.leftDestructionRangeAt >= shootDelayAfterLeaving;
 
         // Start charging when shield is down (player is close) but NOT in destruction range
+        // AND enough time has passed since leaving destruction range
         if (
           !enemy.shieldActive &&
           distToPlayer > destructionRange &&
+          canShootAfterLeaving &&
           timeSinceLastShot >= shootCooldown - chargeTime &&
           timeSinceLastShot < shootCooldown &&
           !enemy.isBeingDestroyed &&
@@ -1182,10 +1198,11 @@ function App() {
           }
         }
 
-        // Fire after full cooldown
+        // Fire after full cooldown (with delay after leaving destruction range)
         if (
           !enemy.shieldActive &&
           distToPlayer > destructionRange &&
+          canShootAfterLeaving &&
           timeSinceLastShot >= shootCooldown &&
           !enemy.isBeingDestroyed &&
           !enemy.destructionAnimationStart
