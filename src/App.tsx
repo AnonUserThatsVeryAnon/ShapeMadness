@@ -100,6 +100,7 @@ function App() {
   const [showSpawnMenu, setShowSpawnMenu] = useState(false);
   const [isTestMode, setIsTestMode] = useState(false);
   const pendingDiscoveriesRef = useRef<EnemyType[]>([]); // Queue for end-of-round card display
+  const hasDashUnlockedRef = useRef(false); // Track if dash ability notification shown
 
   // Game state refs (for game loop access)
   const playerRef = useRef<Player>({
@@ -121,8 +122,8 @@ function App() {
     powerUpInventory: [null, null, null],
     lastDash: 0,
     dashCooldown: 3000,
-    dashDistance: 200,
-    dashDuration: 150,
+    dashDistance: 180,
+    dashDuration: 180,
     isDashing: false,
   });
 
@@ -199,8 +200,8 @@ function App() {
       powerUpInventory: [null, null, null],
       lastDash: 0,
       dashCooldown: 3000,
-      dashDistance: 200,
-      dashDuration: 150,
+      dashDistance: 180,
+      dashDuration: 180,
       isDashing: false,
     };
     // Clear power-ups to prevent persistence across restarts
@@ -594,7 +595,19 @@ function App() {
       player,
       keysRef.current,
       deltaTime,
-      now
+      now,
+      stats.round,
+      () => {
+        // Dash start effects - particle burst and screen shake
+        particlesRef.current.push(
+          ...createParticles(player.position, 25, "#00ffff", 8, 500)
+        );
+        particlesRef.current.push(
+          ...createParticles(player.position, 15, "#4ecdc4", 6, 400)
+        );
+        shakeRef.current.intensity = 8;
+        audioSystem.playPowerUp(); // Dash sound feedback
+      }
     );
 
     // Shoot based on aim mode (auto or manual) - only during active gameplay
@@ -1996,6 +2009,34 @@ function App() {
           alpha: 1,
         });
 
+        // Dash unlock notification (only show once)
+        if (!hasDashUnlockedRef.current) {
+          hasDashUnlockedRef.current = true;
+
+          setTimeout(() => {
+            floatingTextsRef.current.push({
+              position: { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 + 80 },
+              text: "✨ DASH UNLOCKED ✨",
+              color: "#00ffff",
+              size: 45,
+              lifetime: 4500,
+              createdAt: Date.now(),
+              velocity: { x: 0, y: -0.3 },
+              alpha: 1,
+            });
+            floatingTextsRef.current.push({
+              position: { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 + 130 },
+              text: "Press SPACE + WASD to dash",
+              color: "#ffffff",
+              size: 28,
+              lifetime: 4500,
+              createdAt: Date.now(),
+              velocity: { x: 0, y: -0.2 },
+              alpha: 1,
+            });
+          }, 1500); // Delay to show after boss defeated messages
+        }
+
         // Massive particle explosion
         particlesRef.current.push(
           ...createParticles(enemy.position, 100, "#ffd700", 15)
@@ -2451,7 +2492,9 @@ function App() {
   // Event handlers
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const key = e.key.toLowerCase();
+      // Normalize key names for consistency
+      let key = e.key.toLowerCase();
+      if (key === " ") key = "space"; // Normalize spacebar
 
       if (e.key === "Escape") {
         setIsPaused((prev) => !prev);
@@ -2522,7 +2565,9 @@ function App() {
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
-      keysRef.current.delete(e.key.toLowerCase());
+      let key = e.key.toLowerCase();
+      if (key === " ") key = "space"; // Normalize spacebar
+      keysRef.current.delete(key);
     };
 
     const handleMouseMove = (e: MouseEvent) => {

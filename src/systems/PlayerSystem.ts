@@ -12,12 +12,20 @@ export class PlayerSystem {
   /**
    * Update player position based on input
    */
-  updateMovement(player: Player, keys: Set<string>, deltaTime: number = 1/60, now: number = Date.now(), currentRound: number = 1) {
+  updateMovement(
+    player: Player, 
+    keys: Set<string>, 
+    deltaTime: number = 1/60, 
+    now: number = Date.now(), 
+    currentRound: number = 1,
+    onDashStart?: () => void
+  ) {
     // Handle dash state
     if (player.isDashing && player.dashEndTime && now < player.dashEndTime) {
-      // Continue dash movement - maintain dash velocity
-      player.position.x += player.velocity.x * deltaTime * 60;
-      player.position.y += player.velocity.y * deltaTime * 60;
+      // Continue dash movement - apply velocity scaled by actual deltaTime
+      const timeScale = deltaTime * 60; // normalize to 60fps
+      player.position.x += player.velocity.x * timeScale;
+      player.position.y += player.velocity.y * timeScale;
 
       // Keep in bounds
       player.position.x = clamp(
@@ -38,7 +46,8 @@ export class PlayerSystem {
       player.velocity.y = 0;
     }
 
-    // Check for dash input (Space key, unlocked at level 15)
+    // Check for dash input (Space key, unlocked after defeating round 15 boss)
+    // Available from round 15 onwards (unlocks when boss defeated)
     if (keys.has("space") && currentRound >= 15) {
       const timeSinceLastDash = player.lastDash ? now - player.lastDash : Infinity;
       if (timeSinceLastDash >= player.dashCooldown) {
@@ -61,14 +70,20 @@ export class PlayerSystem {
           player.lastDash = now;
           player.dashEndTime = now + player.dashDuration;
           
-          // Set dash velocity
-          const dashSpeed = player.dashDistance / (player.dashDuration / 1000);
-          player.velocity.x = dashDirX * dashSpeed;
-          player.velocity.y = dashDirY * dashSpeed;
+          // Set dash velocity - scales with player speed for progression!
+          // Base dash + bonus from speed stat
+          const speedMultiplier = Math.max(1, player.speed * 0.8); // Speed contributes 80% to dash
+          const framesInDash = (player.dashDuration / 1000) * 60;
+          const baseDashSpeed = (player.dashDistance * speedMultiplier) / framesInDash;
+          player.velocity.x = dashDirX * baseDashSpeed;
+          player.velocity.y = dashDirY * baseDashSpeed;
 
           // Make player invulnerable during dash
           player.invulnerable = true;
           player.invulnerableUntil = now + player.dashDuration;
+
+          // Trigger dash effects callback
+          if (onDashStart) onDashStart();
 
           keys.delete("space"); // Consume space key
           return; // Skip normal movement this frame

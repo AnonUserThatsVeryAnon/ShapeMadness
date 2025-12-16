@@ -266,19 +266,46 @@ export class GameRenderer {
   }
 
   private drawPlayer(player: Player, now: number) {
-    // Dash trail effect
+    // Dash trail effect - enhanced visibility and style
     if (player.isDashing && player.dashEndTime) {
       const dashProgress = (now - (player.dashEndTime - player.dashDuration)) / player.dashDuration;
       
-      // Draw multiple trail positions
-      for (let i = 1; i <= 5; i++) {
-        const trailAlpha = (1 - dashProgress) * (1 - i / 6) * 0.4;
-        const trailSize = player.radius * (1 - i / 8);
-        const trailX = player.position.x - player.velocity.x * (i / 60) * 0.5;
-        const trailY = player.position.y - player.velocity.y * (i / 60) * 0.5;
+      // Speed lines effect
+      for (let i = 0; i < 12; i++) {
+        const lineAlpha = (1 - i / 12) * 0.7;
+        const lineLength = 15 + i * 2;
+        const lineX = player.position.x - player.velocity.x * (i / 60) * 1.2;
+        const lineY = player.position.y - player.velocity.y * (i / 60) * 1.2;
+        
+        this.ctx.globalAlpha = lineAlpha;
+        this.ctx.strokeStyle = i % 2 === 0 ? "#00ffff" : "#4ecdc4";
+        this.ctx.lineWidth = 3;
+        this.ctx.beginPath();
+        this.ctx.moveTo(lineX, lineY);
+        this.ctx.lineTo(
+          lineX - (player.velocity.x / 60) * lineLength * 0.3,
+          lineY - (player.velocity.y / 60) * lineLength * 0.3
+        );
+        this.ctx.stroke();
+      }
+      
+      // Draw multiple trail positions with glow
+      for (let i = 1; i <= 10; i++) {
+        const trailAlpha = (1 - i / 11) * 0.7;
+        const trailSize = player.radius * (0.95 - i / 15);
+        const trailX = player.position.x - player.velocity.x * (i / 60) * 1.0;
+        const trailY = player.position.y - player.velocity.y * (i / 60) * 1.0;
         
         this.ctx.globalAlpha = trailAlpha;
+        
+        // Outer glow
+        this.ctx.shadowBlur = 15;
+        this.ctx.shadowColor = "#00ffff";
+        
+        // Cyan glow for trail
         this.ctx.fillStyle = "#4ecdc4";
+        this.ctx.strokeStyle = "#00ffff";
+        this.ctx.lineWidth = 2;
         this.ctx.beginPath();
         
         const angle = -Math.PI / 2;
@@ -291,7 +318,10 @@ export class GameRenderer {
         }
         this.ctx.closePath();
         this.ctx.fill();
+        this.ctx.stroke();
       }
+      
+      this.ctx.shadowBlur = 0;
       this.ctx.globalAlpha = 1;
     }
 
@@ -1384,44 +1414,111 @@ export class GameRenderer {
     this.ctx.save();
     this.ctx.shadowBlur = 0;
 
-    // Health bar
+    // Health bar with modern styling
     const healthBarWidth = 200;
     const healthPercent = player.health / player.maxHealth;
+    const barHeight = 20;
 
-    this.ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
-    this.ctx.fillRect(15, 15, healthBarWidth + 10, 30);
+    // Health bar container with rounded corners
+    this.ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
+    this.ctx.beginPath();
+    this.ctx.roundRect(15, 15, healthBarWidth + 10, barHeight + 10, 8);
+    this.ctx.fill();
 
-    this.ctx.fillStyle =
-      healthPercent > 0.5
-        ? "#4caf50"
-        : healthPercent > 0.25
-        ? "#ff9800"
-        : "#f44336";
-    this.ctx.fillRect(20, 20, healthBarWidth * healthPercent, 20);
+    // Health bar fill with gradient
+    const healthGradient = this.ctx.createLinearGradient(20, 20, 20 + healthBarWidth, 20);
+    if (healthPercent > 0.5) {
+      healthGradient.addColorStop(0, "#66bb6a");
+      healthGradient.addColorStop(1, "#4caf50");
+    } else if (healthPercent > 0.25) {
+      healthGradient.addColorStop(0, "#ffa726");
+      healthGradient.addColorStop(1, "#ff9800");
+    } else {
+      healthGradient.addColorStop(0, "#ef5350");
+      healthGradient.addColorStop(1, "#f44336");
+    }
+    this.ctx.fillStyle = healthGradient;
+    this.ctx.beginPath();
+    this.ctx.roundRect(20, 20, healthBarWidth * healthPercent, barHeight, 6);
+    this.ctx.fill();
 
-    this.ctx.strokeStyle = "#ffffff";
+    // Health bar border
+    this.ctx.strokeStyle = "rgba(255, 255, 255, 0.6)";
     this.ctx.lineWidth = 2;
-    this.ctx.strokeRect(20, 20, healthBarWidth, 20);
+    this.ctx.beginPath();
+    this.ctx.roundRect(20, 20, healthBarWidth, barHeight, 6);
+    this.ctx.stroke();
 
-    // Health text
+    // Health text with icon
     this.ctx.fillStyle = "#ffffff";
-    this.ctx.font = "bold 14px monospace";
+    this.ctx.font = "bold 14px Arial";
     this.ctx.textAlign = "center";
     this.ctx.fillText(
-      `${Math.ceil(player.health)} / ${player.maxHealth}`,
+      `❤️ ${Math.ceil(player.health)} / ${player.maxHealth}`,
       20 + healthBarWidth / 2,
-      40
+      35
     );
 
-    // Stats
+    // Stamina/Dash bar (only if unlocked - round 15+)
+    if (stats.round >= 15) {
+      const staminaY = 50;
+      const timeSinceLastDash = player.lastDash ? Date.now() - player.lastDash : Infinity;
+      const staminaPercent = Math.min(1, timeSinceLastDash / player.dashCooldown);
+      const isReady = staminaPercent >= 1;
+
+      // Stamina bar container
+      this.ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
+      this.ctx.beginPath();
+      this.ctx.roundRect(15, staminaY, healthBarWidth + 10, 18, 6);
+      this.ctx.fill();
+
+      // Stamina bar fill with cyan gradient
+      const staminaGradient = this.ctx.createLinearGradient(20, staminaY + 4, 20 + healthBarWidth, staminaY + 4);
+      if (isReady) {
+        staminaGradient.addColorStop(0, "#4ecdc4");
+        staminaGradient.addColorStop(0.5, "#00ffff");
+        staminaGradient.addColorStop(1, "#4ecdc4");
+        // Pulsing glow when ready
+        this.ctx.shadowBlur = 10 + Math.sin(Date.now() / 200) * 5;
+        this.ctx.shadowColor = "#00ffff";
+      } else {
+        staminaGradient.addColorStop(0, "#2d6a66");
+        staminaGradient.addColorStop(1, "#1a4440");
+      }
+      this.ctx.fillStyle = staminaGradient;
+      this.ctx.beginPath();
+      this.ctx.roundRect(20, staminaY + 4, healthBarWidth * staminaPercent, 10, 5);
+      this.ctx.fill();
+      this.ctx.shadowBlur = 0;
+
+      // Stamina bar border
+      this.ctx.strokeStyle = isReady ? "rgba(78, 205, 196, 0.8)" : "rgba(255, 255, 255, 0.4)";
+      this.ctx.lineWidth = 1.5;
+      this.ctx.beginPath();
+      this.ctx.roundRect(20, staminaY + 4, healthBarWidth, 10, 5);
+      this.ctx.stroke();
+
+      // Stamina text with icon
+      this.ctx.fillStyle = isReady ? "#00ffff" : "#888888";
+      this.ctx.font = "bold 11px Arial";
+      this.ctx.textAlign = "center";
+      this.ctx.fillText(
+        isReady ? "⚡ DASH READY" : `⚡ ${Math.ceil((player.dashCooldown - timeSinceLastDash) / 1000)}s`,
+        20 + healthBarWidth / 2,
+        staminaY + 11
+      );
+    }
+
+    // Stats (adjust position based on whether stamina bar is shown)
+    const statsStartY = stats.round >= 15 ? 90 : 70;
     this.ctx.textAlign = "left";
     this.ctx.fillStyle = "#ffffff";
     this.ctx.font = "bold 20px monospace";
     const roundText = stats.round === 0 ? "🧪 SANDBOX" : `Round: ${stats.round}`;
-    this.ctx.fillText(roundText, 20, 80);
-    this.ctx.fillText(`Score: ${formatNumber(stats.score)}`, 20, 110);
-    this.ctx.fillText(`Money: $${player.money}`, 20, 140);
-    this.ctx.fillText(`Kills: ${stats.kills}`, 20, 170);
+    this.ctx.fillText(roundText, 20, statsStartY);
+    this.ctx.fillText(`Score: ${formatNumber(stats.score)}`, 20, statsStartY + 30);
+    this.ctx.fillText(`Money: $${player.money}`, 20, statsStartY + 60);
+    this.ctx.fillText(`Kills: ${stats.kills}`, 20, statsStartY + 90);
 
     // Combo
     if (stats.combo > 1) {

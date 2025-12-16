@@ -31,7 +31,7 @@ export interface Player extends Entity {
   slowedUntil?: number;
   activePowerUps: ActivePowerUpEffect[];
   powerUpInventory: (PowerUpType | null)[]; // Inventory slots for stored powerups (max 3)
-  // Dash ability (unlocked at level 15)
+  // Dash ability (unlocked after defeating round 15 boss)
   lastDash?: number;
   dashCooldown: number;
   dashDistance: number;
