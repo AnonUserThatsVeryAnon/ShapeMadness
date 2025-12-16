@@ -59,7 +59,8 @@
   top: 0;
   left: 0;
   width: 450px;
-  height: 100%;
+  height: 100vh;
+  max-height: 100vh;
   display: flex;
   flex-direction: column;
   background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
@@ -68,11 +69,12 @@
   box-shadow: 10px 0 40px rgba(0, 0, 0, 0.5);
   z-index: 10;
   animation: slideInLeft 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  overflow-y: hidden;
-  overflow-x: hidden;
-  padding: 20px;
+  overflow: hidden;
+  padding: 15px;
+  padding-bottom: 10px;
   pointer-events: auto;
   user-select: none;
+  box-sizing: border-box;
 }
 
 @keyframes slideInLeft {
@@ -134,11 +136,12 @@
 }
 
 .shop-title {
-  font-size: 1.8rem;
+  font-size: 1.6rem;
   color: #ffaa00;
-  margin: 0 0 1rem;
+  margin: 0 0 0.8rem;
   text-align: center;
   text-shadow: 0 0 20px rgba(255, 170, 0, 0.5);
+  flex-shrink: 0;
 }
 
 /* Wave Timer Overlay - Compact Top Center */
@@ -283,7 +286,8 @@
 .shop-header {
   display: flex;
   justify-content: center;
-  margin-bottom: 0.8rem;
+  margin-bottom: 0.6rem;
+  flex-shrink: 0;
 }
 
 .shop-stats {
@@ -327,7 +331,8 @@
   display: flex;
   gap: 0.5rem;
   justify-content: stretch;
-  margin-bottom: 0.8rem;
+  margin-bottom: 0.6rem;
+  flex-shrink: 0;
 }
 
 .shop-tab {
@@ -450,7 +455,9 @@
   gap: 0.4rem;
   width: 100%;
   padding: 0;
+  padding-bottom: 10px;
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
   margin: 0;

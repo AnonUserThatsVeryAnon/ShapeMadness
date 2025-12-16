@@ -2,6 +2,7 @@
  * Shop Menu Component
  * Displays upgrade shop between rounds
  */
+import { useEffect, useRef } from "react";
 import type { Player } from "../types/game";
 import { UPGRADES, purchaseUpgrade } from "../utils/upgrades";
 import { audioSystem } from "../utils/audio";
@@ -45,6 +46,67 @@ export function ShopMenu({
   isTestMode = false,
   onCloseShop,
 }: ShopMenuProps) {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const isDraggingRef = useRef(false);
+  const startYRef = useRef(0);
+  const scrollTopRef = useRef(0);
+
+  // Drag-to-scroll functionality
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const handleMouseDown = (e: MouseEvent) => {
+      isDraggingRef.current = true;
+      startYRef.current = e.pageY - container.offsetTop;
+      scrollTopRef.current = container.scrollTop;
+      container.style.cursor = "grabbing";
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDraggingRef.current) return;
+      e.preventDefault();
+      const y = e.pageY - container.offsetTop;
+      const walk = (startYRef.current - y) * 2; // Scroll speed multiplier
+      container.scrollTop = scrollTopRef.current + walk;
+    };
+
+    const handleMouseUp = () => {
+      isDraggingRef.current = false;
+      container.style.cursor = "default";
+    };
+
+    const handleMouseLeave = () => {
+      isDraggingRef.current = false;
+      container.style.cursor = "default";
+    };
+
+    // Keyboard arrow support
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        container.scrollBy({ top: 100, behavior: "smooth" });
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        container.scrollBy({ top: -100, behavior: "smooth" });
+      }
+    };
+
+    container.addEventListener("mousedown", handleMouseDown);
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    container.addEventListener("mouseleave", handleMouseLeave);
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      container.removeEventListener("mousedown", handleMouseDown);
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+      container.removeEventListener("mouseleave", handleMouseLeave);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
   const handlePurchase = (upgrade: Upgrade) => {
     if (purchaseUpgrade(upgrade, player)) {
       audioSystem.playPurchase();
@@ -158,7 +220,7 @@ export function ShopMenu({
           </button>
         </div>
 
-        <div className="upgrades-grid">
+        <div className="upgrades-grid" ref={scrollContainerRef}>
           {UPGRADES.filter((u) => u.category === shopTab).map((upgrade) => {
             const progressPercent =
               (upgrade.currentLevel / upgrade.maxLevel) * 100;
