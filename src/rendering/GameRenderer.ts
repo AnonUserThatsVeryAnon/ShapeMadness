@@ -268,8 +268,6 @@ export class GameRenderer {
   private drawPlayer(player: Player, now: number) {
     // Dash trail effect - enhanced visibility and style
     if (player.isDashing && player.dashEndTime) {
-      const dashProgress = (now - (player.dashEndTime - player.dashDuration)) / player.dashDuration;
-      
       // Speed lines effect
       for (let i = 0; i < 12; i++) {
         const lineAlpha = (1 - i / 12) * 0.7;

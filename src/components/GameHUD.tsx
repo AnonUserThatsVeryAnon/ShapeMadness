@@ -38,14 +38,6 @@ export function GameHUD({
   dashCooldown,
   now,
 }: GameHUDProps) {
-  // Calculate dash cooldown progress (available from round 15 after boss defeat)
-  const isDashUnlocked = currentRound >= 15;
-  const timeSinceLastDash = lastDash ? now - lastDash : Infinity;
-  const isDashReady = timeSinceLastDash >= dashCooldown;
-  const dashCooldownPercent = isDashReady
-    ? 100
-    : Math.min(100, (timeSinceLastDash / dashCooldown) * 100);
-
   return (
     <>
       <div
