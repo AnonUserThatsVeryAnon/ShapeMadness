@@ -445,7 +445,7 @@
 .upgrades-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 0.6rem;
+  gap: 0.4rem;
   width: 100%;
   padding: 0;
   flex: 1;
@@ -469,15 +469,15 @@
 
 .upgrade-card {
   background: linear-gradient(135deg, rgba(30, 30, 50, 0.98) 0%, rgba(20, 20, 40, 0.98) 100%);
-  padding: 0.7rem;
+  padding: 0.5rem;
   border-radius: 8px;
   border: 2px solid #333;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 0.7rem;
-  min-height: 90px;
+  gap: 0.5rem;
+  min-height: 80px;
   position: relative;
   overflow: hidden;
   cursor: pointer;
@@ -526,9 +526,9 @@
 }
 
 .upgrade-icon {
-  font-size: 1.8rem;
-  width: 40px;
-  height: 40px;
+  font-size: 1.6rem;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -547,7 +547,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.15rem;
   text-align: left;
   min-width: 0;
 }
@@ -625,9 +625,9 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 0.4rem;
+  gap: 0.3rem;
   flex-shrink: 0;
-  min-width: 80px;
+  min-width: 75px;
 }
 
 .upgrade-cost {
@@ -655,7 +655,7 @@
 }
 
 .upgrade-button {
-  padding: 0.5rem 1rem;
+  padding: 0.4rem 0.8rem;
   background: linear-gradient(135deg, #ffaa00 0%, #ff8800 100%);
   color: #0a0a14;
   border: none;
