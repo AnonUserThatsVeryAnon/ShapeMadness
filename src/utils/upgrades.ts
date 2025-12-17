@@ -3,7 +3,7 @@ import type { Upgrade, Player } from '../types/game';
 
 // Store initial costs for reset
 const INITIAL_COSTS: Record<string, number> = {
-  health: 30,
+  health: 20,
   defense: 40,
   damage: 25,
   fire_rate: 45,
@@ -17,35 +17,24 @@ const INITIAL_COSTS: Record<string, number> = {
   lifesteal: 100,
   crit: 90,
   multishot: 200,
+  stamina: 70,
 };
 
 export const UPGRADES: Upgrade[] = [
   // CORE STATS - High max levels, small increments, cheaper costs
+  // Progressive unlocking: Speed (Round 1), Damage (Round 2), Fire Rate (Round 3)
   {
-    id: 'health',
-    name: 'Max Health',
-    description: 'Increase maximum health by 10',
+    id: 'speed',
+    name: 'Movement Speed',
+    description: 'Increase movement speed by 0.1',
     cost: 30,
-    maxLevel: 50,
+    maxLevel: 40,
     currentLevel: 0,
-    icon: '❤️',
+    icon: '🏃',
     category: 'core',
+    unlockRound: 1,
     effect: (player: Player) => {
-      player.maxHealth += 10;
-      player.health = player.maxHealth;
-    },
-  },
-  {
-    id: 'defense',
-    name: 'Defense',
-    description: 'Reduce damage taken by 0.1%',
-    cost: 40,
-    maxLevel: 200,
-    currentLevel: 0,
-    icon: '🛡️',
-    category: 'core',
-    effect: (player: Player) => {
-      player.defense = Math.min(20, player.defense + 0.1); // Cap at 20% reduction
+      player.speed += 0.1;
     },
   },
   {
@@ -57,6 +46,7 @@ export const UPGRADES: Upgrade[] = [
     currentLevel: 0,
     icon: '💥',
     category: 'core',
+    unlockRound: 2,
     effect: (player: Player) => {
       player.damage += 0.2;
     },
@@ -70,21 +60,38 @@ export const UPGRADES: Upgrade[] = [
     currentLevel: 0,
     icon: '⚡',
     category: 'core',
+    unlockRound: 3,
     effect: (player: Player) => {
       player.fireRate = Math.max(50, player.fireRate * 0.97); // Lower is faster, cap at 50ms
     },
   },
   {
-    id: 'speed',
-    name: 'Movement Speed',
-    description: 'Increase movement speed by 0.1',
-    cost: 30,
-    maxLevel: 40,
+    id: 'health',
+    name: 'Max Health',
+    description: 'Increase maximum health by 10',
+    cost: 20,
+    maxLevel: 50,
     currentLevel: 0,
-    icon: '🏃',
+    icon: '❤️',
     category: 'core',
+    unlockRound: 1,
     effect: (player: Player) => {
-      player.speed += 0.1;
+      player.maxHealth += 10;
+      player.health = player.maxHealth;
+    },
+  },
+  {
+    id: 'defense',
+    name: 'Defense',
+    description: 'Reduce damage taken by 0.3%',
+    cost: 40,
+    maxLevel: 67,
+    currentLevel: 0,
+    icon: '🛡️',
+    category: 'core',
+    unlockRound: 10,
+    effect: (player: Player) => {
+      player.defense = Math.min(20, player.defense + 0.3); // Cap at 20% reduction
     },
   },
   {
@@ -96,8 +103,23 @@ export const UPGRADES: Upgrade[] = [
     currentLevel: 0,
     icon: '💚',
     category: 'core',
+    unlockRound: 6,
     effect: () => {
       // Applied in game loop
+    },
+  },
+  {
+    id: 'stamina',
+    name: 'Dash Stamina',
+    description: 'Reduce dash cooldown by 100ms',
+    cost: 70,
+    maxLevel: 20,
+    currentLevel: 0,
+    icon: '⚡',
+    category: 'core',
+    unlockRound: 16, // Unlocks after defeating round 15 boss
+    effect: (player: Player) => {
+      player.dashCooldown = Math.max(500, player.dashCooldown - 100); // Cap at 0.5s cooldown
     },
   },
   
@@ -111,6 +133,7 @@ export const UPGRADES: Upgrade[] = [
     currentLevel: 0,
     icon: '🎯',
     category: 'special',
+    unlockRound: 1,
     effect: () => {
       // Applied in collision detection
     },
@@ -124,6 +147,7 @@ export const UPGRADES: Upgrade[] = [
     currentLevel: 0,
     icon: '🔥',
     category: 'special',
+    unlockRound: 1,
     effect: () => {
       // Applied in shooting logic
     },
@@ -137,6 +161,7 @@ export const UPGRADES: Upgrade[] = [
     currentLevel: 0,
     icon: '💣',
     category: 'special',
+    unlockRound: 1,
     effect: () => {
       // Applied in collision detection
     },
@@ -150,6 +175,7 @@ export const UPGRADES: Upgrade[] = [
     currentLevel: 0,
     icon: '⚡',
     category: 'special',
+    unlockRound: 1,
     effect: () => {
       // Applied in damage calculation
     },

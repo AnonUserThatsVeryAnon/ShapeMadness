@@ -38,6 +38,35 @@ export function checkCollision(a: Entity, b: Entity): boolean {
   return distance(a.position, b.position) < a.radius + b.radius;
 }
 
+/**
+ * Check if a circle (player/bullet) collides with a rotated rectangle (wall)
+ */
+export function checkWallCollision(
+  circleX: number,
+  circleY: number,
+  circleRadius: number,
+  wall: { x: number; y: number; width: number; height: number; rotation: number }
+): boolean {
+  // Transform circle position to wall's local space (unrotate)
+  const cos = Math.cos(-wall.rotation);
+  const sin = Math.sin(-wall.rotation);
+  const dx = circleX - wall.x;
+  const dy = circleY - wall.y;
+  const localX = dx * cos - dy * sin;
+  const localY = dx * sin + dy * cos;
+  
+  // Find closest point on rectangle to circle center (in local space)
+  const halfWidth = wall.width / 2;
+  const halfHeight = wall.height / 2;
+  const closestX = Math.max(-halfWidth, Math.min(halfWidth, localX));
+  const closestY = Math.max(-halfHeight, Math.min(halfHeight, localY));
+  
+  // Check if closest point is within circle radius
+  const distX = localX - closestX;
+  const distY = localY - closestY;
+  return (distX * distX + distY * distY) < (circleRadius * circleRadius);
+}
+
 export function getRandomColor(): string {
   const hue = Math.random() * 360;
   return `hsl(${hue}, 70%, 60%)`;

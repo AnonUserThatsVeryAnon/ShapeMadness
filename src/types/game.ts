@@ -82,6 +82,15 @@ export interface Enemy extends Entity {
   abilityTimers?: Record<string, number>; // Tracks when abilities were last used
   bossConfig?: import('../systems/spawning/BossConfig').BossConfig; // Reference to boss configuration
   shieldActive?: boolean; // For Overseer boss shield
+  invulnerable?: boolean; // For boss invulnerability phases
+  lastTeleport?: number; // For Architect teleport cooldown
+  teleportCooldown?: number; // Time between teleports
+  isTeleporting?: boolean; // Currently in teleport animation
+  teleportStartTime?: number; // When teleport animation started
+  entranceAnimationEnd?: number; // When boss entrance animation completes
+  entranceStartTime?: number; // When entrance animation started (separate from teleport timing)
+  isEntrancing?: boolean; // Currently in cinematic entrance animation
+  entranceCompleted?: boolean; // Whether entrance animation has completed
   // Tank properties
   tankShield?: number; // Current shield health
   tankMaxShield?: number; // Maximum shield health
@@ -177,6 +186,22 @@ export interface PlayZone {
   cameraY: number;
 }
 
+export interface Wall {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number; // In radians
+  createdAt: number;
+  color: string;
+  rotationSpeed?: number; // For rotating walls in phase 2
+  movementSpeed?: number; // For moving walls
+  targetX?: number;
+  targetY?: number;
+  health?: number; // Walls can be destroyed
+  maxHealth?: number;
+}
+
 export const GameState = {
   MENU: 'MENU',
   PLAYING: 'PLAYING',
@@ -203,7 +228,8 @@ export const EnemyType = {
   CHAIN_PARTNER: 'CHAIN_PARTNER',
   EVIL_STORM: 'EVIL_STORM',
   LUFTI: 'LUFTI',
-  OVERSEER: 'OVERSEER', // BOSS
+  OVERSEER: 'OVERSEER', // BOSS - Round 15
+  ARCHITECT: 'ARCHITECT', // BOSS - Round 30
 } as const;
 export type EnemyType = typeof EnemyType[keyof typeof EnemyType];
 
@@ -226,6 +252,7 @@ export interface Upgrade {
   effect: (player: Player) => void;
   icon: string;
   category: 'core' | 'special';
+  unlockRound?: number; // Round when this upgrade becomes available
 }
 
 export interface GameStats {

@@ -3,6 +3,7 @@ import type { Enemy } from '../../types/game';
 import type { BossConfig, BossPhase, GameContext } from './BossConfig';
 import { getCurrentPhase, shouldExecuteAbility, markAbilityExecuted } from './BossConfig';
 import { OVERSEER_CONFIG } from './OverseerConfig';
+import { ARCHITECT_CONFIG } from './ArchitectConfig';
 import { distance } from '../../utils/helpers';
 import { audioSystem } from '../../utils/audio';
 import { createBossSpawnParticles, createPhaseTransitionParticles } from '../../utils/particles';
@@ -10,6 +11,7 @@ import { createBossSpawnParticles, createPhaseTransitionParticles } from '../../
 // Registry of all boss configurations
 const BOSS_REGISTRY = new Map<string, BossConfig>([
   [OVERSEER_CONFIG.enemyType, OVERSEER_CONFIG],
+  [ARCHITECT_CONFIG.enemyType, ARCHITECT_CONFIG],
 ]);
 
 /**
@@ -46,6 +48,28 @@ export function initializeBoss(boss: Enemy, context?: GameContext): void {
   boss.abilityTimers = {};
   boss.bossConfig = config;
   
+  // Architect gets special cinematic entrance
+  if (boss.type === 'ARCHITECT') {
+    const now = Date.now();
+    const entranceDuration = 7000; // 7 second dramatic entrance (slow zoom, pause, reveal)
+    boss.teleportCooldown = 4000;
+    boss.entranceAnimationEnd = now + entranceDuration;
+    
+    // Store final entrance position
+    boss.sniperTarget = {
+      x: boss.position.x,
+      y: boss.position.y
+    };
+    
+    // Start from above, will descend slowly
+    boss.position.y -= 200; // Descend from top of screen (visible)
+    
+    // Mark as in entrance (not teleporting)
+    boss.isEntrancing = true;
+    boss.teleportStartTime = now; // Used for entrance animation timing
+    // Don't set lastTeleport here - it will be set when entrance completes
+  }
+  
   // Play boss spawn sound and effects
   audioSystem.playBossSpawn();
   audioSystem.startBossMusic();
@@ -67,6 +91,11 @@ export function updateBossAbilities(
   
   const config = boss.bossConfig || getBossConfig(boss.type);
   if (!config) return;
+  
+  // Don't execute abilities during entrance animation
+  if (boss.entranceAnimationEnd && currentTime < boss.entranceAnimationEnd) {
+    return;
+  }
   
   // Check for phase transition
   checkPhaseTransition(boss, config, context);
@@ -138,6 +167,28 @@ function transitionToPhase(
   // Play phase transition sound and effects
   audioSystem.playBossPhaseChange();
   context.addParticles(createPhaseTransitionParticles(boss.position, newPhase.color));
+  
+  // Add phase change announcement
+  if (context.addFloatingText) {
+    let phaseName = `PHASE ${boss.bossPhase}`;
+    if (boss.type === 'OVERSEER') {
+      const overseerPhases = ['THE SUMMONER', 'THE SNIPER', 'THE BERSERKER'];
+      phaseName = overseerPhases[boss.bossPhase - 1] || phaseName;
+    } else if (boss.type === 'ARCHITECT') {
+      const architectPhases = ['CONSTRUCTION', 'DECONSTRUCTION', 'RECONSTRUCTION'];
+      phaseName = architectPhases[boss.bossPhase - 1] || phaseName;
+    }
+    
+    context.addFloatingText({
+      position: { x: context.canvasWidth / 2, y: context.canvasHeight / 2 - 50 },
+      text: `⚡ ${phaseName} ⚡`,
+      color: newPhase.color,
+      size: 48,
+      lifetime: 2500,
+      createdAt: Date.now(),
+      velocity: { x: 0, y: -1 },
+    });
+  }
   
   // Execute onEnter callback
   if (newPhase.onEnter) {

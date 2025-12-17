@@ -93,6 +93,11 @@ export const ENEMY_VISUALS: Record<EnemyType, EnemyVisualInfo> = {
     pattern: 'eye',
     description: 'Massive purple sphere with glowing eye',
   },
+  [EnemyType.ARCHITECT]: {
+    icon: '🏗️',
+    pattern: 'geometric',
+    description: 'Reality manipulator with geometric patterns',
+  },
 };
 
 /**
@@ -297,6 +302,50 @@ export function drawEnemyPattern(
       ctx.beginPath();
       ctx.arc(x - r * 0.08, y - r * 0.08, r * 0.08, 0, Math.PI * 2);
       ctx.fill();
+      break;
+
+    case 'geometric':
+      // Architect - geometric shapes forming a complex pattern
+      ctx.strokeStyle = '#ffffff';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+      ctx.lineWidth = 2 * scale;
+      
+      // Central hexagon
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const angle = (i * Math.PI * 2) / 6;
+        const px = x + Math.cos(angle) * r * 0.4;
+        const py = y + Math.sin(angle) * r * 0.4;
+        if (i === 0) {
+          ctx.moveTo(px, py);
+        } else {
+          ctx.lineTo(px, py);
+        }
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      
+      // Outer triangles
+      for (let i = 0; i < 3; i++) {
+        const angle = (i * Math.PI * 2) / 3;
+        const tx = x + Math.cos(angle) * r * 0.6;
+        const ty = y + Math.sin(angle) * r * 0.6;
+        
+        ctx.beginPath();
+        ctx.moveTo(tx, ty - r * 0.15);
+        ctx.lineTo(tx + r * 0.13, ty + r * 0.15);
+        ctx.lineTo(tx - r * 0.13, ty + r * 0.15);
+        ctx.closePath();
+        ctx.stroke();
+      }
+      
+      // Central square rotated
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(Math.PI / 4);
+      ctx.strokeRect(-r * 0.15, -r * 0.15, r * 0.3, r * 0.3);
+      ctx.restore();
       break;
   }
 }

@@ -125,7 +125,7 @@ export function ShopMenu({
       case "defense":
         return `${player.defense.toFixed(1)}% → ${Math.min(
           20,
-          player.defense + 0.1
+          player.defense + 0.3
         ).toFixed(1)}%`;
       case "damage":
         return `${player.damage.toFixed(1)} → ${(player.damage + 0.2).toFixed(
@@ -145,6 +145,29 @@ export function ShopMenu({
           (upgrade.currentLevel + 1) *
           0.05
         ).toFixed(2)} HP/s`;
+      case "stamina": {
+        const currentCooldown = (player.dashCooldown / 1000).toFixed(1);
+        const newCooldown = (
+          Math.max(500, player.dashCooldown - 100) / 1000
+        ).toFixed(1);
+        return `${currentCooldown}s → ${newCooldown}s cooldown`;
+      }
+      case "pierce":
+        return upgrade.currentLevel === 0 ? "Unlocks piercing" : "Active";
+      case "multi_shot":
+        return upgrade.currentLevel === 0
+          ? "Fire 1 extra bullet"
+          : upgrade.currentLevel === 1
+          ? "Fire 2 extra bullets"
+          : "Max bullets";
+      case "explosive":
+        return `${upgrade.currentLevel} → ${
+          upgrade.currentLevel + 1
+        } explosion radius`;
+      case "crit":
+        return `${upgrade.currentLevel}% → ${
+          upgrade.currentLevel + 1
+        }% crit chance`;
       default:
         return "";
     }
@@ -225,6 +248,9 @@ export function ShopMenu({
             const progressPercent =
               (upgrade.currentLevel / upgrade.maxLevel) * 100;
             const isMaxLevel = upgrade.currentLevel >= upgrade.maxLevel;
+            const isLocked = !!(
+              upgrade.unlockRound && round < upgrade.unlockRound
+            );
             const canAfford = player.money >= upgrade.cost;
             const statPreview = getStatPreview(upgrade);
 
@@ -232,16 +258,20 @@ export function ShopMenu({
               <div
                 key={upgrade.id}
                 className={`upgrade-card ${
-                  canAfford && !isMaxLevel ? "affordable" : ""
-                } ${isMaxLevel ? "max-level" : ""}`}
+                  canAfford && !isMaxLevel && !isLocked ? "affordable" : ""
+                } ${isMaxLevel ? "max-level" : ""} ${isLocked ? "locked" : ""}`}
               >
                 <div className="upgrade-icon">{upgrade.icon}</div>
                 <div className="upgrade-info">
                   <h3>{upgrade.name}</h3>
                   <p className="upgrade-desc">{upgrade.description}</p>
-                  {statPreview && (
+                  {isLocked ? (
+                    <p className="upgrade-preview unlock-requirement">
+                      🔒 Unlocks in Round {upgrade.unlockRound}
+                    </p>
+                  ) : statPreview ? (
                     <p className="upgrade-preview">{statPreview}</p>
-                  )}
+                  ) : null}
                   <p className="upgrade-level">
                     Level {upgrade.currentLevel}/{upgrade.maxLevel}
                   </p>
@@ -255,7 +285,7 @@ export function ShopMenu({
                   </div>
                 </div>
                 <div className="upgrade-action">
-                  {!isMaxLevel && (
+                  {!isMaxLevel && !isLocked && (
                     <div
                       className={`upgrade-cost ${
                         canAfford ? "affordable" : ""
@@ -265,11 +295,13 @@ export function ShopMenu({
                     </div>
                   )}
                   <button
-                    className={`upgrade-button ${isMaxLevel ? "max" : ""}`}
-                    disabled={!canAfford || isMaxLevel}
+                    className={`upgrade-button ${isMaxLevel ? "max" : ""} ${
+                      isLocked ? "locked" : ""
+                    }`}
+                    disabled={!canAfford || isMaxLevel || isLocked}
                     onClick={() => handlePurchase(upgrade)}
                   >
-                    {isMaxLevel ? "MAXED" : "UPGRADE"}
+                    {isLocked ? "LOCKED" : isMaxLevel ? "MAXED" : "UPGRADE"}
                   </button>
                 </div>
               </div>

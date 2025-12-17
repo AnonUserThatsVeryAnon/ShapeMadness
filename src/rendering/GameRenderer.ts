@@ -10,6 +10,7 @@ import type {
   LaserBeam,
   IceZone,
   PlayZone,
+  Wall,
 } from "../types/game";
 import { EnemyType } from "../types/game";
 import { distance, screenShake, formatNumber } from "../utils/helpers";
@@ -48,6 +49,7 @@ export class GameRenderer {
     floatingTexts: FloatingText[],
     lasers: LaserBeam[],
     iceZones: IceZone[],
+    walls: Wall[],
     stats: GameStats,
     playZone: PlayZone,
     screenShakeIntensity: number,
@@ -73,6 +75,7 @@ export class GameRenderer {
     // Draw game entities in layers (back to front)
     this.drawParticlesLayer(particles, true); // Background particles
     this.drawIceZones(iceZones, now); // Ice zones behind everything
+    this.drawWalls(walls, now); // Walls behind entities
     this.drawPowerUps(powerUps, now, currentRound);
     this.drawPlayer(player, now);
     this.drawChainConnections(enemies);
@@ -89,9 +92,9 @@ export class GameRenderer {
     this.drawHUD(player, stats, enemies);
     this.drawActivePowerUpsHUD(player, now);
     
-    // Draw boss health bar if boss is present
+    // Draw boss health bar if boss is present (but not during entrance)
     const boss = enemies.find((e) => e.isBoss && e.active);
-    if (boss) {
+    if (boss && !boss.isEntrancing) {
       this.drawBossHealthBar(boss);
     }
   }
@@ -475,6 +478,11 @@ export class GameRenderer {
           this.drawShockwaveRing(enemy, timeSinceShockwave);
         }
       }
+    }
+    
+    // Architect boss effects
+    if (enemy.isBoss && enemy.type === EnemyType.ARCHITECT) {
+      this.drawArchitectEffects(enemy, now);
     }
 
     // Fast enemy speed trail
@@ -923,6 +931,259 @@ export class GameRenderer {
     }
     
     ctx.shadowBlur = 0;
+  }
+
+  private drawArchitectEffects(enemy: Enemy, now: number) {
+    const ctx = this.ctx;
+    
+    // Handle entrance animation (cinematic - inspired by God of War boss reveals)
+    if (enemy.entranceAnimationEnd && now < enemy.entranceAnimationEnd) {
+      const entranceStart = enemy.teleportStartTime || now;
+      const entranceDuration = enemy.entranceAnimationEnd - entranceStart;
+      const elapsed = now - entranceStart;
+      const progress = Math.min(elapsed / entranceDuration, 1);
+      
+      // Three phases: Fade in (0-0.3), Dramatic pause (0.3-0.5), Power reveal (0.5-1.0)
+      let alpha = 0;
+      let scale = 0.5;
+      let intensity = 0;
+      
+      if (progress < 0.3) {
+        // Phase 1: Slow fade-in and descent
+        const phase1 = progress / 0.3;
+        alpha = Math.pow(phase1, 0.7);
+        scale = 0.5 + phase1 * 0.3;
+        intensity = phase1 * 0.5;
+      } else if (progress < 0.5) {
+        // Phase 2: Dramatic pause - hold the moment
+        alpha = 0.8;
+        scale = 0.8;
+        intensity = 0.5 + Math.sin((progress - 0.3) * Math.PI * 10) * 0.2; // Pulse
+      } else {
+        // Phase 3: Power reveal - surge to full presence
+        const phase3 = (progress - 0.5) / 0.5;
+        alpha = 0.8 + phase3 * 0.2;
+        scale = 0.8 + phase3 * 0.2;
+        intensity = 0.5 + phase3 * 0.5;
+      }
+      
+      ctx.globalAlpha = alpha;
+      
+      // Screen vignette effect during entrance
+      const vignetteStrength = (1 - progress) * 0.6;
+      const gradient = ctx.createRadialGradient(
+        enemy.position.x, enemy.position.y, 0,
+        enemy.position.x, enemy.position.y, 600
+      );
+      gradient.addColorStop(0, `rgba(0, 0, 0, 0)`);
+      gradient.addColorStop(1, `rgba(0, 0, 0, ${vignetteStrength})`);
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+      
+      // Expanding shockwave rings (staggered)
+      for (let i = 0; i < 3; i++) {
+        const ringProgress = Math.max(0, (progress - i * 0.15) / 0.85);
+        if (ringProgress > 0) {
+          const ringRadius = enemy.radius * (2 + ringProgress * 4);
+          const ringAlpha = (1 - ringProgress) * intensity;
+          ctx.strokeStyle = `rgba(0, 212, 255, ${ringAlpha * 0.6})`;
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(enemy.position.x, enemy.position.y, ringRadius, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
+      
+      // Energy converging from edges (more dramatic in phase 3)
+      const convergeCount = progress > 0.5 ? 24 : 12;
+      const convergeIntensity = progress < 0.5 ? intensity : intensity * 1.5;
+      for (let i = 0; i < convergeCount; i++) {
+        const angle = (i / convergeCount) * Math.PI * 2;
+        const startDist = enemy.radius * (10 - progress * 8);
+        const endDist = enemy.radius * scale;
+        const x1 = enemy.position.x + Math.cos(angle) * startDist;
+        const y1 = enemy.position.y + Math.sin(angle) * startDist;
+        const x2 = enemy.position.x + Math.cos(angle) * endDist;
+        const y2 = enemy.position.y + Math.sin(angle) * endDist;
+        
+        ctx.strokeStyle = `rgba(0, 255, 255, ${convergeIntensity * 0.6})`;
+        ctx.lineWidth = progress > 0.5 ? 3 : 2;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+      }
+      
+      // Glowing geometric formation (faster spin during power reveal)
+      ctx.save();
+      ctx.translate(enemy.position.x, enemy.position.y);
+      const spinSpeed = progress > 0.5 ? 3 : 1;
+      ctx.rotate(progress * Math.PI * 2 * spinSpeed);
+      ctx.strokeStyle = `rgba(255, 255, 255, ${intensity * 0.8})`;
+      ctx.lineWidth = 4;
+      const size = enemy.radius * scale * 1.8;
+      ctx.strokeRect(-size/2, -size/2, size, size);
+      
+      // Inner rotating square (counter-rotation)
+      ctx.rotate(-progress * Math.PI * 4 * spinSpeed);
+      ctx.strokeStyle = `rgba(0, 212, 255, ${intensity * 0.7})`;
+      ctx.lineWidth = 3;
+      const innerSize = size * 0.6;
+      ctx.strokeRect(-innerSize/2, -innerSize/2, innerSize, innerSize);
+      ctx.restore();
+      
+      // "Title card" moment at 50% - brief intense glow
+      if (progress >= 0.48 && progress <= 0.52) {
+        ctx.shadowBlur = 60;
+        ctx.shadowColor = '#00d4ff';
+        ctx.fillStyle = 'rgba(0, 212, 255, 0.3)';
+        ctx.beginPath();
+        ctx.arc(enemy.position.x, enemy.position.y, enemy.radius * 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+      
+      ctx.globalAlpha = 1;
+      return;
+    }
+    
+    // Handle teleport effect
+    if (enemy.isTeleporting && enemy.teleportStartTime) {
+      const teleportDuration = 400;
+      const elapsed = now - enemy.teleportStartTime;
+      const progress = Math.min(elapsed / teleportDuration, 1);
+      
+      // Fade out and shrink during first half, fade in and grow during second half
+      const alpha = progress < 0.5 ? (1 - progress * 2) : ((progress - 0.5) * 2);
+      const scale = progress < 0.5 ? (1 - progress * 2) : ((progress - 0.5) * 2);
+      
+      // Apply teleport visual
+      ctx.globalAlpha = alpha * 0.8;
+      
+      // Teleport particles spiral
+      const particleCount = 12;
+      for (let i = 0; i < particleCount; i++) {
+        const angle = (now / 200 + i * Math.PI * 2 / particleCount) % (Math.PI * 2);
+        const radius = enemy.radius * (2 - scale) * (1 + Math.sin(now / 100 + i) * 0.3);
+        const x = enemy.position.x + Math.cos(angle) * radius;
+        const y = enemy.position.y + Math.sin(angle) * radius;
+        
+        ctx.fillStyle = '#00d4ff';
+        ctx.beginPath();
+        ctx.arc(x, y, 4 * scale, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      
+      // Geometric distortion effect
+      ctx.strokeStyle = `rgba(0, 212, 255, ${alpha * 0.8})`;
+      ctx.lineWidth = 3;
+      for (let i = 0; i < 4; i++) {
+        const offset = i * 10 * (1 - scale);
+        ctx.strokeRect(
+          enemy.position.x - enemy.radius * scale - offset,
+          enemy.position.y - enemy.radius * scale - offset,
+          enemy.radius * 2 * scale + offset * 2,
+          enemy.radius * 2 * scale + offset * 2
+        );
+      }
+      
+      ctx.globalAlpha = 1;
+      return; // Don't draw normal effects during teleport
+    }
+    
+    // Normal phase effects
+    const pulse = Math.sin(now / 200) * 0.3 + 0.7;
+    const fastPulse = Math.sin(now / 100) * 0.5 + 0.5;
+    
+    // Phase-based color and effects
+    let phaseColor = '#00d4ff'; // Cyan for phase 1
+    if (enemy.bossPhase === 2) phaseColor = '#ff6b1a'; // Orange for phase 2
+    if (enemy.bossPhase === 3) phaseColor = '#ff1a1a'; // Red for phase 3
+    
+    // Geometric aura rings
+    ctx.strokeStyle = `${phaseColor}60`;
+    ctx.lineWidth = 4;
+    for (let i = 0; i < 3; i++) {
+      const ringSize = enemy.radius * (1.5 + i * 0.4) * pulse;
+      const rotation = (now / 1000 + i * Math.PI / 3) % (Math.PI * 2);
+      
+      ctx.save();
+      ctx.translate(enemy.position.x, enemy.position.y);
+      ctx.rotate(rotation);
+      ctx.strokeRect(-ringSize / 2, -ringSize / 2, ringSize, ringSize);
+      ctx.restore();
+    }
+    
+    // Floating geometric shapes
+    const shapeCount = enemy.bossPhase === 1 ? 6 : enemy.bossPhase === 2 ? 8 : 12;
+    for (let i = 0; i < shapeCount; i++) {
+      const angle = (now / 2000 + i * Math.PI * 2 / shapeCount) % (Math.PI * 2);
+      const radius = enemy.radius * (2 + Math.sin(now / 500 + i) * 0.5);
+      const x = enemy.position.x + Math.cos(angle) * radius;
+      const y = enemy.position.y + Math.sin(angle) * radius;
+      
+      ctx.fillStyle = `rgba(0, 212, 255, ${0.6 * fastPulse})`;
+      if (enemy.bossPhase === 2) ctx.fillStyle = `rgba(255, 107, 26, ${0.6 * fastPulse})`;
+      if (enemy.bossPhase === 3) ctx.fillStyle = `rgba(255, 26, 26, ${0.7 * fastPulse})`;
+      
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(now / 500 + i);
+      
+      // Draw triangle
+      ctx.beginPath();
+      ctx.moveTo(0, -4);
+      ctx.lineTo(3.5, 2);
+      ctx.lineTo(-3.5, 2);
+      ctx.closePath();
+      ctx.fill();
+      
+      ctx.restore();
+    }
+    
+    // Phase-specific unique effects
+    if (enemy.bossPhase === 1) {
+      // Construction: Blueprint lines
+      ctx.strokeStyle = `rgba(0, 212, 255, ${0.3 * pulse})`;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([10, 5]);
+      
+      const gridSize = enemy.radius * 3;
+      for (let i = -1; i <= 1; i++) {
+        ctx.beginPath();
+        ctx.moveTo(enemy.position.x - gridSize, enemy.position.y + i * gridSize / 2);
+        ctx.lineTo(enemy.position.x + gridSize, enemy.position.y + i * gridSize / 2);
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.moveTo(enemy.position.x + i * gridSize / 2, enemy.position.y - gridSize);
+        ctx.lineTo(enemy.position.x + i * gridSize / 2, enemy.position.y + gridSize);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+    } else if (enemy.bossPhase === 3) {
+      // Reconstruction: Chaos energy
+      ctx.shadowBlur = 40 * pulse;
+      ctx.shadowColor = phaseColor;
+      
+      // Intense pulsing
+      for (let i = 0; i < 4; i++) {
+        const ringPulse = Math.sin(now / 80 + i * Math.PI / 2) * 0.5 + 0.5;
+        ctx.strokeStyle = `rgba(255, 26, 26, ${0.5 * ringPulse})`;
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.arc(
+          enemy.position.x,
+          enemy.position.y,
+          enemy.radius * (1.5 + i * 0.5) * ringPulse,
+          0,
+          Math.PI * 2
+        );
+        ctx.stroke();
+      }
+      
+      ctx.shadowBlur = 0;
+    }
   }
 
   private drawShockwaveRing(enemy: Enemy, age: number) {
@@ -1386,6 +1647,63 @@ export class GameRenderer {
     });
   }
 
+  private drawWalls(walls: Wall[], now: number) {
+    walls.forEach((wall) => {
+      const age = now - wall.createdAt;
+      const pulse = Math.sin(now / 100) * 0.2 + 0.8;
+      
+      this.ctx.save();
+      this.ctx.translate(wall.x, wall.y);
+      this.ctx.rotate(wall.rotation);
+
+      // Draw wall shadow
+      this.ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+      this.ctx.fillRect(-wall.width / 2 + 4, -wall.height / 2 + 4, wall.width, wall.height);
+
+      // Draw main wall body
+      const baseColor = wall.color;
+      this.ctx.fillStyle = baseColor;
+      this.ctx.fillRect(-wall.width / 2, -wall.height / 2, wall.width, wall.height);
+
+      // Draw wall border with glow
+      this.ctx.strokeStyle = `rgba(255, 255, 255, ${pulse * 0.6})`;
+      this.ctx.lineWidth = 3;
+      this.ctx.strokeRect(-wall.width / 2, -wall.height / 2, wall.width, wall.height);
+
+      // Draw health bar if wall has health
+      if (wall.health !== undefined && wall.maxHealth !== undefined) {
+        const healthPercent = wall.health / wall.maxHealth;
+        const barWidth = Math.min(wall.width, 100);
+        const barHeight = 6;
+        const barY = -wall.height / 2 - 15;
+
+        // Background
+        this.ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+        this.ctx.fillRect(-barWidth / 2, barY, barWidth, barHeight);
+
+        // Health
+        this.ctx.fillStyle = healthPercent > 0.5 ? "#00ff88" : healthPercent > 0.25 ? "#ffaa00" : "#ff1a1a";
+        this.ctx.fillRect(-barWidth / 2, barY, barWidth * healthPercent, barHeight);
+      }
+
+      // Energy lines for visual flair
+      if (age < 500) {
+        const spawnAlpha = (500 - age) / 500;
+        this.ctx.strokeStyle = `rgba(255, 255, 255, ${spawnAlpha * 0.8})`;
+        this.ctx.lineWidth = 2;
+        for (let i = 0; i < 3; i++) {
+          const offset = (i - 1) * 10;
+          this.ctx.beginPath();
+          this.ctx.moveTo(-wall.width / 2, offset);
+          this.ctx.lineTo(wall.width / 2, offset);
+          this.ctx.stroke();
+        }
+      }
+
+      this.ctx.restore();
+    });
+  }
+
   private drawFloatingTexts(floatingTexts: FloatingText[], now: number) {
     floatingTexts.forEach((text) => {
       const age = now - text.createdAt;
@@ -1556,15 +1874,19 @@ export class GameRenderer {
     
     const healthPercent = boss.health / boss.maxHealth;
     
-    // Get phase color
-    let phaseColor = '#5a1d7a'; // Phase 1 - Purple
-    let phaseName = 'THE SUMMONER';
-    if (boss.bossPhase === 2) {
-      phaseColor = '#ff6b1a'; // Phase 2 - Orange
-      phaseName = 'THE SNIPER';
-    } else if (boss.bossPhase === 3) {
-      phaseColor = '#ff1a1a'; // Phase 3 - Red
-      phaseName = 'THE BERSERKER';
+    // Get boss config for phase info
+    const bossConfig = boss.bossConfig;
+    const currentPhase = bossConfig?.phases[boss.bossPhase - 1];
+    const phaseColor = currentPhase?.color || '#5a1d7a';
+    
+    // Get phase name based on boss type
+    let phaseName = `PHASE ${boss.bossPhase}`;
+    if (boss.type === 'OVERSEER') {
+      const overseerPhases = ['THE SUMMONER', 'THE SNIPER', 'THE BERSERKER'];
+      phaseName = overseerPhases[boss.bossPhase - 1] || phaseName;
+    } else if (boss.type === 'ARCHITECT') {
+      const architectPhases = ['CONSTRUCTION', 'DECONSTRUCTION', 'RECONSTRUCTION'];
+      phaseName = architectPhases[boss.bossPhase - 1] || phaseName;
     }
     
     // Background
@@ -1575,7 +1897,8 @@ export class GameRenderer {
     this.ctx.fillStyle = '#ffffff';
     this.ctx.font = 'bold 16px monospace';
     this.ctx.textAlign = 'center';
-    this.ctx.fillText('⚠️ THE OVERSEER ⚠️', this.canvasWidth / 2, barY + 12);
+    const bossName = bossConfig?.name.toUpperCase() || 'BOSS';
+    this.ctx.fillText(`⚠️ ${bossName} ⚠️`, this.canvasWidth / 2, barY + 12);
     
     // Phase indicator
     this.ctx.fillStyle = phaseColor;

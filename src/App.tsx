@@ -11,12 +11,14 @@ import type {
   LaserBeam,
   PlayZone,
   IceZone,
+  Wall,
 } from "./types/game";
 import { GameState, EnemyType, PowerUpType } from "./types/game";
 import { audioSystem } from "./utils/audio";
 import {
   distance,
   checkCollision,
+  checkWallCollision,
   screenShake,
   loadFromLocalStorage,
   saveToLocalStorage,
@@ -135,6 +137,7 @@ function App() {
   const floatingTextsRef = useRef<FloatingText[]>([]);
   const lasersRef = useRef<LaserBeam[]>([]);
   const iceZonesRef = useRef<IceZone[]>([]);
+  const wallsRef = useRef<Wall[]>([]);
   const lastLaserTimeRef = useRef<number>(0);
   // lastZoneDamageRef moved to ZoneSystem
 
@@ -340,6 +343,7 @@ function App() {
     bulletsRef.current = [];
     enemyProjectilesRef.current = [];
     powerUpsRef.current = []; // Clear power-ups when starting new round
+    wallsRef.current = []; // Clear walls from previous boss fights
     setGameState(GameState.PLAYING);
   }, [aimMode]);
 
@@ -597,6 +601,7 @@ function App() {
       deltaTime,
       now,
       stats.round,
+      wallsRef.current,
       () => {
         // Dash start effects - particle burst and screen shake
         particlesRef.current.push(
@@ -749,12 +754,8 @@ function App() {
         }
       }
 
-      // Handle movement - Boss entrance, seeking shield, or normal behavior
-      if (enemy.isBoss && enemy.position.y < 150) {
-        // Override normal movement during entrance
-        enemy.position.y += 2 * deltaTime * 60; // Slow descent
-        enemy.velocity = { x: 0, y: 0 }; // No movement toward player yet
-      } else if (seekingShield && targetTank) {
+      // Handle movement - seeking shield or normal behavior (includes boss entrance logic in updateEnemyPosition)
+      if (seekingShield && targetTank) {
         // Move towards shield center
         const toShield = {
           x: targetTank.position.x - enemy.position.x,
@@ -1244,6 +1245,7 @@ function App() {
           canvasWidth: CANVAS_WIDTH,
           canvasHeight: CANVAS_HEIGHT,
           currentEnemies: enemiesRef.current,
+          walls: wallsRef.current,
           addEnemies: (newEnemies: Enemy[]) => {
             enemiesRef.current.push(...newEnemies);
           },
@@ -1259,11 +1261,20 @@ function App() {
           clearLasers: () => {
             lasersRef.current = [];
           },
+          addWalls: (newWalls: Wall[]) => {
+            wallsRef.current.push(...newWalls);
+          },
+          clearWalls: () => {
+            wallsRef.current = [];
+          },
           triggerScreenShake: (intensity: number) => {
             shakeRef.current.intensity = Math.max(
               shakeRef.current.intensity,
               intensity
             );
+          },
+          addFloatingText: (text) => {
+            floatingTextsRef.current.push(text);
           },
         };
 
@@ -1449,6 +1460,58 @@ function App() {
 
     // Update bullets - use CombatSystem
     combatSystemRef.current.updateBullets(bullets, deltaTime, now);
+
+    // Check bullet-wall collisions
+    bullets.forEach((bullet) => {
+      if (!bullet.active) return;
+
+      for (const wall of wallsRef.current) {
+        if (
+          checkWallCollision(
+            bullet.position.x,
+            bullet.position.y,
+            bullet.radius,
+            wall
+          )
+        ) {
+          bullet.active = false;
+          // Create impact particles
+          particlesRef.current.push(
+            ...createParticles(
+              bullet.position,
+              6,
+              bullet.color || "#ffffff",
+              2,
+              300
+            )
+          );
+
+          // Damage wall if it has health
+          if (wall.health !== undefined && wall.maxHealth !== undefined) {
+            wall.health -= bullet.damage * 0.5; // Bullets do 50% damage to walls
+            if (wall.health <= 0) {
+              // Remove wall
+              const wallIndex = wallsRef.current.indexOf(wall);
+              if (wallIndex > -1) {
+                wallsRef.current.splice(wallIndex, 1);
+                // Create destruction particles
+                particlesRef.current.push(
+                  ...createParticles(
+                    { x: wall.x, y: wall.y },
+                    20,
+                    wall.color,
+                    8,
+                    600
+                  )
+                );
+                shakeRef.current.intensity = 5;
+              }
+            }
+          }
+          break;
+        }
+      }
+    });
 
     // Handle bullet-enemy collisions
     bullets.forEach((bullet) => {
@@ -2485,6 +2548,7 @@ function App() {
           floatingTextsRef.current,
           lasersRef.current,
           iceZonesRef.current,
+          wallsRef.current,
           statsRef.current,
           playZoneRef.current,
           shakeRef.current.intensity,

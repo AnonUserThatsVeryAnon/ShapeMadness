@@ -140,6 +140,14 @@ export const ENEMY_CONFIGS = {
     color: '#5a1d7a',
     radius: 40,
   },
+  [EnemyType.ARCHITECT]: {
+    health: 12000, // Epic endgame boss
+    speed: 1.2,
+    damage: 40,
+    value: 500, // Massive reward
+    color: '#00d4ff',
+    radius: 45,
+  },
 };
 
 export function createEnemy(type: EnemyType, position: Vector2): Enemy {
@@ -314,6 +322,171 @@ export function updateEnemyPosition(enemy: Enemy, player: Player, deltaTime: num
       break;
     }
     
+    case EnemyType.ARCHITECT: {
+      // BOSS: The Architect - Reality Manipulator
+      if (!enemy.isBoss) {
+        // If it's a fragment (phase 2), orbit around a point
+        if (enemy.isProjection && enemy.parentMagician) {
+          const orbitCenter = enemy.parentMagician.position;
+          const orbitRadius = 150;
+          const orbitSpeed = 0.02;
+          const now = Date.now();
+          const angle = (now * orbitSpeed) / 1000 + (enemy.position.x % (Math.PI * 2));
+          
+          const targetX = orbitCenter.x + Math.cos(angle) * orbitRadius;
+          const targetY = orbitCenter.y + Math.sin(angle) * orbitRadius;
+          
+          const toTarget = { x: targetX - enemy.position.x, y: targetY - enemy.position.y };
+          enemy.velocity = multiply(normalize(toTarget), enemy.speed);
+        } else {
+          // Regular fragment movement
+          enemy.velocity = multiply(normalize(toPlayer), enemy.speed);
+        }
+        break;
+      }
+      
+      const now = Date.now();
+      
+      // Handle entrance animation - slow dramatic descent
+      if (enemy.isEntrancing && enemy.entranceAnimationEnd && now < enemy.entranceAnimationEnd) {
+        if (enemy.sniperTarget) {
+          const entranceStart = enemy.teleportStartTime || now;
+          const entranceDuration = enemy.entranceAnimationEnd - entranceStart;
+          const elapsed = now - entranceStart;
+          const progress = Math.min(elapsed / entranceDuration, 1);
+          
+          // Slow ease-in descent (starts slow, speeds up, then slows at end)
+          const easeProgress = progress < 0.5 
+            ? 2 * progress * progress 
+            : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+          
+          // Move toward target position
+          const targetY = enemy.sniperTarget.y;
+          const startY = targetY - 200; // Match the descent distance from BossAbilitySystem
+          enemy.position.y = startY + (targetY - startY) * easeProgress;
+          
+          // Small horizontal sway for dramatic effect
+          enemy.position.x = enemy.sniperTarget.x + Math.sin(progress * Math.PI * 2) * 20;
+          
+          enemy.velocity = { x: 0, y: 0 };
+        }
+        break;
+      }
+      
+      // Entrance complete - only run once
+      if (enemy.isEntrancing && !enemy.entranceCompleted && now >= (enemy.entranceAnimationEnd || 0)) {
+        enemy.isEntrancing = false;
+        // Lock in final position without using sniperTarget
+        const finalX = enemy.sniperTarget?.x ?? enemy.position.x;
+        const finalY = enemy.sniperTarget?.y ?? enemy.position.y;
+        enemy.position.x = finalX;
+        enemy.position.y = finalY;
+        enemy.sniperTarget = undefined; // Clear target completely
+        enemy.isTeleporting = false; // Ensure not teleporting
+        enemy.teleportStartTime = undefined; // Clear entrance animation timing
+        enemy.entranceCompleted = true; // Mark entrance as completed
+        // Set lastTeleport to now PLUS extra delay to prevent immediate teleport
+        enemy.lastTeleport = now + 2000; // Add 2 second grace period after entrance
+        
+        // Set velocity to zero and break to prevent movement this frame
+        enemy.velocity = { x: 0, y: 0 };
+        break;
+      }
+      
+      const architectDist = distance(enemy.position, player.position);
+      
+      // Phase-specific movement
+      if (enemy.bossPhase === 1) {
+        // Phase 1: Teleport around the arena with cooldown
+        // Initialize teleport cooldown if not set
+        if (!enemy.teleportCooldown) {
+          enemy.teleportCooldown = 4000; // 4 seconds between teleports
+        }
+        
+        // Initialize lastTeleport if not set (shouldn't happen after entrance)
+        if (!enemy.lastTeleport) {
+          enemy.lastTeleport = now;
+        }
+        
+        // Don't teleport if entrance was very recent or still in progress
+        const timeSinceEntranceEnd = enemy.entranceAnimationEnd ? now - enemy.entranceAnimationEnd : Infinity;
+        const entranceGracePeriod = timeSinceEntranceEnd < 2000; // 2 second grace period
+        
+        const timeSinceTeleport = now - enemy.lastTeleport;
+        const shouldTeleport = (architectDist < 200 || architectDist > 450) && 
+                               timeSinceTeleport >= enemy.teleportCooldown &&
+                               !entranceGracePeriod; // Don't teleport during grace period
+        
+        if (shouldTeleport && !enemy.isTeleporting) {
+          // Start teleport
+          enemy.isTeleporting = true;
+          enemy.teleportStartTime = now;
+          enemy.lastTeleport = now;
+          enemy.velocity = { x: 0, y: 0 };
+          
+          // Store target position
+          const angle = Math.random() * Math.PI * 2;
+          const teleportDist = 280 + Math.random() * 80;
+          const targetX = player.position.x + Math.cos(angle) * teleportDist;
+          const targetY = player.position.y + Math.sin(angle) * teleportDist;
+          
+          // Keep in bounds
+          enemy.sniperTarget = {
+            x: Math.max(80, Math.min(window.innerWidth - 80, targetX)),
+            y: Math.max(80, Math.min(window.innerHeight - 80, targetY))
+          };
+        }
+        
+        // Handle teleport animation
+        if (enemy.isTeleporting && enemy.teleportStartTime && enemy.sniperTarget) {
+          const teleportDuration = 400; // 400ms teleport animation
+          const elapsed = now - enemy.teleportStartTime;
+          
+          if (elapsed >= teleportDuration) {
+            // Complete teleport
+            enemy.position.x = enemy.sniperTarget.x;
+            enemy.position.y = enemy.sniperTarget.y;
+            enemy.isTeleporting = false;
+            enemy.teleportStartTime = undefined;
+            enemy.sniperTarget = undefined;
+          }
+          // During teleport, boss is invisible/intangible (handled in renderer)
+          enemy.velocity = { x: 0, y: 0 };
+        } else {
+          // Normal movement - float menacingly
+          const floatSpeed = enemy.speed * 0.4;
+          const time = now / 1000;
+          const floatX = Math.sin(time * 0.5) * floatSpeed;
+          const floatY = Math.cos(time * 0.7) * floatSpeed;
+          
+          // Slight drift toward player
+          const driftSpeed = enemy.speed * 0.2;
+          const driftVel = multiply(normalize(toPlayer), driftSpeed);
+          
+          enemy.velocity = { 
+            x: driftVel.x + floatX, 
+            y: driftVel.y + floatY 
+          };
+        }
+      } else if (enemy.bossPhase === 2) {
+        // Phase 2: Boss is hidden, fragments move
+        enemy.velocity = { x: 0, y: 0 };
+      } else if (enemy.bossPhase === 3) {
+        // Phase 3: Stay in center, occasional reposition
+        const centerX = window.innerWidth / 2;
+        const centerY = window.innerHeight / 2;
+        const toCenter = { x: centerX - enemy.position.x, y: centerY - enemy.position.y };
+        const distToCenter = Math.sqrt(toCenter.x * toCenter.x + toCenter.y * toCenter.y);
+        
+        if (distToCenter > 100) {
+          enemy.velocity = multiply(normalize(toCenter), enemy.speed * 0.5);
+        } else {
+          enemy.velocity = { x: 0, y: 0 };
+        }
+      }
+      break;
+    }
+    
     default:
       // Basic behavior
       enemy.velocity = multiply(normalize(toPlayer), enemy.speed * speedMultiplier);
@@ -340,13 +513,18 @@ export function spawnEnemiesForRound(
   const spawnCount = pattern.countFormula(round);
   
   // Check if this is a boss round
-  const bossRound = isBoss(EnemyType.OVERSEER) && round === 15;
+  const bossRound = (isBoss(EnemyType.OVERSEER) && round === 15) || 
+                    (isBoss(EnemyType.ARCHITECT) && round === 30);
 
-  // Track turret count to cap at 5 per round
-  let turretCount = 0;
-  const maxTurretsPerRound = 5;
+  // Boss rounds start with NO regular enemies - boss will summon them
+  if (bossRound) {
+    // Skip spawning regular enemies, only spawn the boss below
+  } else {
+    // Track turret count to cap at 5 per round
+    let turretCount = 0;
+    const maxTurretsPerRound = 5;
 
-  for (let i = 0; i < spawnCount; i++) {
+    for (let i = 0; i < spawnCount; i++) {
     // Select enemy type from pattern first
     let type = selectEnemyType(pattern);
     
@@ -447,14 +625,29 @@ export function spawnEnemiesForRound(
       enemies.push(partner);
       i++; // Skip next iteration since we spawned 2 enemies
     }
+    }
   }
 
   // Add boss on boss rounds
   if (bossRound) {
-    const boss = createEnemy(EnemyType.OVERSEER, {
-      x: canvasWidth / 2,
-      y: -100, // Spawn from top center
-    });
+    let boss: Enemy;
+    if (round === 15) {
+      boss = createEnemy(EnemyType.OVERSEER, {
+        x: canvasWidth / 2,
+        y: -100, // Spawn from top center
+      });
+    } else if (round === 30) {
+      boss = createEnemy(EnemyType.ARCHITECT, {
+        x: canvasWidth / 2,
+        y: 100, // Spawn at top of screen, visible during entrance
+      });
+    } else {
+      // Default boss spawn
+      boss = createEnemy(EnemyType.OVERSEER, {
+        x: canvasWidth / 2,
+        y: -100,
+      });
+    }
     initializeBoss(boss); // Initialize boss with configuration
     enemies.push(boss);
   }

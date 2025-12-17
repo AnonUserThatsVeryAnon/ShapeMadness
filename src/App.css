@@ -537,6 +537,19 @@
   opacity: 0.7;
 }
 
+.upgrade-card.locked {
+  border-color: #555;
+  background: linear-gradient(135deg, rgba(20, 20, 30, 0.7) 0%, rgba(15, 15, 25, 0.7) 100%);
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.upgrade-card.locked:hover {
+  transform: none;
+  border-color: #555;
+  box-shadow: none;
+}
+
 .upgrade-icon {
   font-size: 1.6rem;
   width: 36px;
@@ -597,6 +610,21 @@
   font-weight: bold;
   font-family: 'Courier New', monospace;
   text-shadow: 0 0 8px rgba(0, 255, 136, 0.4);
+}
+
+.upgrade-preview.unlock-requirement {
+  color: #ff6b6b;
+  text-shadow: 0 0 8px rgba(255, 107, 107, 0.4);
+  animation: lockPulse 2s ease-in-out infinite;
+}
+
+@keyframes lockPulse {
+  0%, 100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 .upgrade-level {
@@ -698,9 +726,12 @@
 
 .upgrade-button.max {
   background: linear-gradient(135deg, #4a4a4a 0%, #333 100%);
-  color: #ffaa00;
-  cursor: default;
-  box-shadow: 0 2px 8px rgba(255, 170, 0, 0.2);
+}
+
+.upgrade-button.locked {
+  background: linear-gradient(135deg, #3a3a3a 0%, #2a2a2a 100%);
+  color: #666;
+  cursor: not-allowed;
 }
 
 /* Final stats */

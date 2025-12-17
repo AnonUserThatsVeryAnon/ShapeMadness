@@ -9,6 +9,16 @@ export interface SpawnInstruction {
   position: Vector2;
 }
 
+export interface FloatingText {
+  position: { x: number; y: number };
+  text: string;
+  color: string;
+  size: number;
+  lifetime: number;
+  createdAt: number;
+  velocity: { x: number; y: number };
+}
+
 export interface GameContext {
   canvasWidth: number;
   canvasHeight: number;
@@ -19,6 +29,7 @@ export interface GameContext {
   addLasers?: (lasers: LaserBeam[]) => void;
   clearLasers?: () => void;
   triggerScreenShake?: (intensity: number) => void;
+  addFloatingText?: (text: FloatingText) => void;
 }
 
 export type AbilityExecutor = (

@@ -1,6 +1,6 @@
-import type { Player, PowerUp } from "../types/game";
+import type { Player, PowerUp, Wall } from "../types/game";
 import { PowerUpType } from "../types/game";
-import { clamp } from "../utils/helpers";
+import { clamp, checkWallCollision } from "../utils/helpers";
 
 const CANVAS_WIDTH = window.innerWidth;
 const CANVAS_HEIGHT = window.innerHeight;
@@ -18,6 +18,7 @@ export class PlayerSystem {
     deltaTime: number = 1/60, 
     now: number = Date.now(), 
     currentRound: number = 1,
+    walls: Wall[] = [],
     onDashStart?: () => void
   ) {
     // Handle dash state
@@ -141,6 +142,10 @@ export class PlayerSystem {
       player.velocity.y = (player.velocity.y / currentSpeed) * maxSpeed;
     }
 
+    // Store old position for collision rollback
+    const oldX = player.position.x;
+    const oldY = player.position.y;
+
     // Update position (frame-rate independent)
     player.position.x += player.velocity.x * deltaTime * 60;
     player.position.y += player.velocity.y * deltaTime * 60;
@@ -156,6 +161,31 @@ export class PlayerSystem {
       player.radius,
       CANVAS_HEIGHT - player.radius
     );
+
+    // Check wall collisions and push player out
+    for (const wall of walls) {
+      if (checkWallCollision(player.position.x, player.position.y, player.radius, wall)) {
+        // Collision detected - rollback and stop movement in that direction
+        player.position.x = oldX;
+        player.position.y = oldY;
+        
+        // Try sliding along wall by testing X and Y separately
+        const testX = oldX + player.velocity.x * deltaTime * 60;
+        if (!checkWallCollision(testX, oldY, player.radius, wall)) {
+          player.position.x = testX;
+        } else {
+          player.velocity.x = 0;
+        }
+        
+        const testY = oldY + player.velocity.y * deltaTime * 60;
+        if (!checkWallCollision(oldX, testY, player.radius, wall)) {
+          player.position.y = testY;
+        } else {
+          player.velocity.y = 0;
+        }
+        break; // Only handle one wall collision per frame
+      }
+    }
   }
 
   /**
