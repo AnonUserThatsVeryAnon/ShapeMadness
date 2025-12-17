@@ -110,6 +110,7 @@ export interface Bullet extends Entity {
   createdAt: number;
   hitCount?: number; // Track pierce hits for damage reduction
   hitEnemies?: Set<Enemy>; // Track which enemies have already been hit by this bullet
+  color?: string; // Optional bullet color for visual effects
 }
 
 export interface EnemyProjectile extends Entity {
@@ -264,4 +265,13 @@ export interface GameStats {
   comboMultiplier: number;
   highScore: number;
   lastComboTime: number;
+  // Extended statistics
+  damageDealt: number;
+  damageTaken: number;
+  moneyEarned: number;
+  moneySpent: number;
+  shotsFired: number;
+  shotsHit: number;
+  powerUpsCollected: number;
+  timePlayedMs: number;
 }

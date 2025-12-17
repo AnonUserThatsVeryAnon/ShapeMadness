@@ -81,6 +81,7 @@ export function GameCanvas({
       floatingTexts,
       lasers,
       iceZones,
+      walls,
       stats,
       playZone,
       screenShakeIntensity,

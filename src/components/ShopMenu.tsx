@@ -3,7 +3,7 @@
  * Displays upgrade shop between rounds
  */
 import { useEffect, useRef } from "react";
-import type { Player } from "../types/game";
+import type { Player, GameStats } from "../types/game";
 import { UPGRADES, purchaseUpgrade } from "../utils/upgrades";
 import { audioSystem } from "../utils/audio";
 
@@ -32,6 +32,7 @@ interface ShopMenuProps {
   onCloseShop?: () => void;
   canvasWidth?: number;
   canvasHeight?: number;
+  stats?: GameStats;
 }
 
 export function ShopMenu({
@@ -45,6 +46,7 @@ export function ShopMenu({
   onForceUpdate,
   isTestMode = false,
   onCloseShop,
+  stats,
 }: ShopMenuProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isDraggingRef = useRef(false);
@@ -113,7 +115,11 @@ export function ShopMenu({
   }, []);
 
   const handlePurchase = (upgrade: Upgrade) => {
+    const cost = upgrade.cost;
     if (purchaseUpgrade(upgrade, player)) {
+      if (stats) {
+        stats.moneySpent += cost;
+      }
       audioSystem.playPurchase();
       onForceUpdate();
     }

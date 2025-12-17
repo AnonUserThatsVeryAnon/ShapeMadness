@@ -169,8 +169,17 @@ function App() {
     comboMultiplier: 1,
     highScore: loadFromLocalStorage("highScore", 0),
     lastComboTime: 0,
+    damageDealt: 0,
+    damageTaken: 0,
+    moneyEarned: 0,
+    moneySpent: 0,
+    shotsFired: 0,
+    shotsHit: 0,
+    powerUpsCollected: 0,
+    timePlayedMs: 0,
   });
 
+  const gameStartTimeRef = useRef<number>(0);
   const keysRef = useRef<Set<string>>(new Set());
   const mouseRef = useRef({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 });
   const shakeRef = useRef({ x: 0, y: 0, intensity: 0 });
@@ -224,6 +233,14 @@ function App() {
       comboMultiplier: 1,
       highScore: loadFromLocalStorage("highScore", 0),
       lastComboTime: 0,
+      damageDealt: 0,
+      damageTaken: 0,
+      moneyEarned: 0,
+      moneySpent: 0,
+      shotsFired: 0,
+      shotsHit: 0,
+      powerUpsCollected: 0,
+      timePlayedMs: 0,
     };
 
     // Reset play zone to small starting size
@@ -252,6 +269,11 @@ function App() {
     statsRef.current.round++;
     const currentRound = statsRef.current.round;
     console.log("Starting round:", currentRound);
+
+    // Track game start time for the first round
+    if (currentRound === 1) {
+      gameStartTimeRef.current = Date.now();
+    }
 
     // Sync aim mode with system (persist across rounds)
     aimingSystemRef.current.setAimMode(aimMode);
@@ -644,7 +666,10 @@ function App() {
           player,
           aimDirection,
           now,
-          (bullet) => bulletsRef.current.push(bullet),
+          (bullet) => {
+            bulletsRef.current.push(bullet);
+            statsRef.current.shotsFired++;
+          },
           getUpgradeLevel
         );
       }
@@ -1285,7 +1310,7 @@ function App() {
               intensity
             );
           },
-          addFloatingText: (text) => {
+          addFloatingText: (text: FloatingText) => {
             floatingTextsRef.current.push(text);
           },
         };
@@ -1349,6 +1374,7 @@ function App() {
               audioSystem.playEnemyDeath();
               // Award money
               player.money += enemy.value;
+              statsRef.current.moneyEarned += enemy.value;
               floatingTextsRef.current.push({
                 position: { ...enemy.position },
                 text: `+$${enemy.value}`,
@@ -1630,7 +1656,11 @@ function App() {
               if (!piercing) {
                 bullet.active = false;
               }
-              bullet.hitCount = (bullet.hitCount || 0) + 1;
+              const prevHitCount = bullet.hitCount || 0;
+              bullet.hitCount = prevHitCount + 1;
+
+              // Track shot hit (only count first hit per bullet)
+              if (prevHitCount === 0) statsRef.current.shotsHit++;
 
               // CRITICAL: Skip all other processing for this bullet-enemy pair
               return;
@@ -1650,6 +1680,9 @@ function App() {
           const hitCount = bullet.hitCount || 0;
           const damageMultiplier = hitCount === 0 ? 1.0 : 0.5;
           bullet.hitCount = hitCount + 1;
+
+          // Track shot hit
+          if (hitCount === 0) statsRef.current.shotsHit++;
 
           damageEnemy(enemy, bullet.damage * damageMultiplier, now);
 
@@ -1697,6 +1730,9 @@ function App() {
           const hitCount = bullet.hitCount || 0;
           const damageMultiplier = hitCount === 0 ? 1.0 : 0.5;
           bullet.hitCount = hitCount + 1;
+
+          // Track shot hit (only count first hit per bullet)
+          if (hitCount === 0) statsRef.current.shotsHit++;
 
           // Use damageEnemy for full logic (combo, money, reflection)
           damageEnemy(enemy, bullet.damage * damageMultiplier, now);
@@ -1783,7 +1819,10 @@ function App() {
       now,
       particlesRef.current,
       stats.round,
-      () => setPowerUpInventory([...player.powerUpInventory])
+      () => {
+        setPowerUpInventory([...player.powerUpInventory]);
+        statsRef.current.powerUpsCollected++;
+      }
     );
 
     // Update particles
@@ -1927,6 +1966,7 @@ function App() {
       // Award bonus for completing first round
       if (stats.round === 1) {
         player.money += 100;
+        statsRef.current.moneyEarned += 100;
         floatingTextsRef.current.push({
           position: { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 },
           text: "First Round Bonus: +$100",
@@ -1959,6 +1999,10 @@ function App() {
         stats.highScore = stats.score;
         saveToLocalStorage("highScore", stats.highScore);
       }
+      // Calculate total time played
+      if (gameStartTimeRef.current > 0) {
+        stats.timePlayedMs = Date.now() - gameStartTimeRef.current;
+      }
       // Show name input screen before game over (only for non-debug runs)
       setShowNameInput(!isDebugRun && !isTestMode);
       setGameState(GameState.GAME_OVER);
@@ -1969,6 +2013,9 @@ function App() {
     const previousHealth = enemy.health;
     enemy.health -= damage;
     audioSystem.playHit();
+
+    // Track damage dealt
+    statsRef.current.damageDealt += damage;
 
     // Boss phase transition effects
     if (enemy.isBoss && enemy.type === EnemyType.OVERSEER) {
@@ -2152,6 +2199,7 @@ function App() {
       const earnedScore = Math.floor(baseValue * 10 * stats.comboMultiplier);
 
       player.money += earnedMoney;
+      statsRef.current.moneyEarned += earnedMoney;
       stats.score += earnedScore;
       stats.kills++;
 
@@ -2336,6 +2384,7 @@ function App() {
     const actualDamage = Math.ceil(damage * (1 - damageReduction));
 
     player.health -= actualDamage;
+    statsRef.current.damageTaken += actualDamage;
     player.invulnerable = true;
     player.invulnerableUntil = now + IFRAME_DURATION;
 
@@ -2746,6 +2795,7 @@ function App() {
           onForceUpdate={() => forceUpdate({})}
           isTestMode={isTestMode}
           onCloseShop={() => setGameState(GameState.PLAYING)}
+          stats={statsRef.current}
         />
       )}
       {/* Name Input Screen - Before Game Over */}
@@ -2765,6 +2815,14 @@ function App() {
             round={statsRef.current.round}
             kills={statsRef.current.kills}
             highScore={statsRef.current.highScore}
+            damageDealt={statsRef.current.damageDealt}
+            damageTaken={statsRef.current.damageTaken}
+            moneyEarned={statsRef.current.moneyEarned}
+            moneySpent={statsRef.current.moneySpent}
+            shotsFired={statsRef.current.shotsFired}
+            shotsHit={statsRef.current.shotsHit}
+            powerUpsCollected={statsRef.current.powerUpsCollected}
+            timePlayedMs={statsRef.current.timePlayedMs}
             onMainMenu={() => {
               initializePlayer();
               setGameState(GameState.MENU);

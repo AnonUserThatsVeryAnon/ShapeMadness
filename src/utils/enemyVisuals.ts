@@ -3,7 +3,7 @@ import { EnemyType } from '../types/game';
 
 export interface EnemyVisualInfo {
   icon: string;
-  pattern: 'dot' | 'lightning' | 'shield' | 'split' | 'crosshair' | 'cross' | 'star' | 'scope' | 'snowflake' | 'bomb' | 'rings' | 'clock' | 'chain' | 'skull' | 'wind' | 'eye';
+  pattern: 'dot' | 'lightning' | 'shield' | 'split' | 'crosshair' | 'cross' | 'star' | 'scope' | 'snowflake' | 'bomb' | 'rings' | 'clock' | 'chain' | 'skull' | 'wind' | 'eye' | 'geometric';
   description: string;
 }
 

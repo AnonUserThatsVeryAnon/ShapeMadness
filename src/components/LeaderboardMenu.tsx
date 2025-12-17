@@ -1,9 +1,5 @@
 import React, { useEffect, useState } from "react";
-import {
-  getTopScores,
-  getTotalEntries,
-  type LeaderboardEntry,
-} from "../config/supabase";
+import { getTopScores, type LeaderboardEntry } from "../config/supabase";
 import "./LeaderboardMenu.css";
 
 interface LeaderboardMenuProps {

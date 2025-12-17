@@ -252,6 +252,7 @@ export const ENEMY_BEHAVIORS: Record<EnemyType, EnemyBehavior> = {
   [EnemyType.LUFTI]: new FastBehavior(), // Reuse fast behavior
   [EnemyType.TURRET_SNIPER]: new ChaseBehavior(), // Stationary but needs behavior
   [EnemyType.OVERSEER]: new OverseerBehavior(), // BOSS
+  [EnemyType.ARCHITECT]: new ChaseBehavior(), // BOSS - placeholder behavior
 };
 
 /**
