@@ -64,6 +64,7 @@ import { GameMenu } from "./components/GameMenu";
 import { PauseMenu } from "./components/PauseMenu";
 import { GameOver } from "./components/GameOver";
 import { NameInputScreen } from "./components/NameInputScreen";
+import { LeaderboardMenu } from "./components/LeaderboardMenu";
 import { submitScore } from "./config/supabase";
 import "./App.css";
 
@@ -95,12 +96,14 @@ function App() {
   // Codex state for enemy discovery system
   const [showingCard, setShowingCard] = useState<EnemyType | null>(null);
   const [showCodex, setShowCodex] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
   const codexStateRef = useRef<CodexState>(getCodexState());
 
   // Debug mode state
   const [showDebugMenu, setShowDebugMenu] = useState(false);
   const [showSpawnMenu, setShowSpawnMenu] = useState(false);
   const [isTestMode, setIsTestMode] = useState(false);
+  const [isDebugRun, setIsDebugRun] = useState(false); // Track if started via debug mode
   const pendingDiscoveriesRef = useRef<EnemyType[]>([]); // Queue for end-of-round card display
   const hasDashUnlockedRef = useRef(false); // Track if dash ability notification shown
 
@@ -184,6 +187,9 @@ function App() {
 
   // Initialize player
   const initializePlayer = () => {
+    // Reset debug run flag for normal games
+    setIsDebugRun(false);
+
     playerRef.current = {
       position: { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 },
       velocity: { x: 0, y: 0 },
@@ -396,6 +402,9 @@ function App() {
     const player = playerRef.current;
     const stats = statsRef.current;
 
+    // Mark this as a debug run (no leaderboard)
+    setIsDebugRun(true);
+
     // Reset game state first
     resetUpgrades();
 
@@ -521,6 +530,9 @@ function App() {
     initializePlayer();
     const player = playerRef.current;
     const stats = statsRef.current;
+
+    // Mark this as a debug run (no leaderboard)
+    setIsDebugRun(true);
 
     // Give unlimited money
     player.money = 999999;
@@ -1947,8 +1959,8 @@ function App() {
         stats.highScore = stats.score;
         saveToLocalStorage("highScore", stats.highScore);
       }
-      // Show name input screen before game over
-      setShowNameInput(true);
+      // Show name input screen before game over (only for non-debug runs)
+      setShowNameInput(!isDebugRun && !isTestMode);
       setGameState(GameState.GAME_OVER);
     }
   };
@@ -2704,6 +2716,7 @@ function App() {
             startRound();
           }}
           onShowCodex={() => setShowCodex(true)}
+          onShowLeaderboard={() => setShowLeaderboard(true)}
           onDebugMode={() => setShowDebugMenu(true)}
         />
       )}{" "}
@@ -2716,6 +2729,7 @@ function App() {
             setAimMode(newMode);
           }}
           isTestMode={isTestMode}
+          isDebugRun={isDebugRun}
           powerUpInventory={powerUpInventory}
         />
       )}
@@ -2745,16 +2759,39 @@ function App() {
       )}
       {/* Game Over - Modular Component */}
       {gameState === GameState.GAME_OVER && !showNameInput && (
-        <GameOver
-          score={statsRef.current.score}
-          round={statsRef.current.round}
-          kills={statsRef.current.kills}
-          highScore={statsRef.current.highScore}
-          onMainMenu={() => {
-            initializePlayer();
-            setGameState(GameState.MENU);
-          }}
-        />
+        <>
+          <GameOver
+            score={statsRef.current.score}
+            round={statsRef.current.round}
+            kills={statsRef.current.kills}
+            highScore={statsRef.current.highScore}
+            onMainMenu={() => {
+              initializePlayer();
+              setGameState(GameState.MENU);
+            }}
+          />
+          {(isDebugRun || isTestMode) && (
+            <div
+              style={{
+                position: "fixed",
+                top: "20px",
+                left: "50%",
+                transform: "translateX(-50%)",
+                background: "rgba(255, 100, 0, 0.9)",
+                color: "white",
+                padding: "10px 20px",
+                borderRadius: "10px",
+                border: "2px solid #ff6600",
+                fontSize: "18px",
+                fontWeight: "bold",
+                zIndex: 10001,
+                boxShadow: "0 0 20px rgba(255, 100, 0, 0.5)",
+              }}
+            >
+              🧪 DEBUG MODE - Not eligible for leaderboard
+            </div>
+          )}
+        </>
       )}
       {/* Pause Menu - Modular Component */}
       {isPaused && gameState === GameState.PLAYING && !showingCard && (
@@ -2811,6 +2848,9 @@ function App() {
         />
       )}
       {showCodex && <CodexMenu onClose={() => setShowCodex(false)} />}
+      {showLeaderboard && (
+        <LeaderboardMenu onBack={() => setShowLeaderboard(false)} />
+      )}
       {/* Spawn Menu - Test Mode Only */}
       {showSpawnMenu && isTestMode && (
         <SpawnMenu

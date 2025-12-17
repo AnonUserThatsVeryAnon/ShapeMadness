@@ -27,12 +27,13 @@ export async function submitScore(playerName: string, score: number, wave: numbe
   return data;
 }
 
-export async function getTopScores(limit: number = 10) {
+export async function getTopScores(limit: number = 10, offset: number = 0) {
   const { data, error } = await supabase
     .from('leaderboard')
     .select('*')
+    .order('wave', { ascending: false })
     .order('score', { ascending: false })
-    .limit(limit);
+    .range(offset, offset + limit - 1);
 
   if (error) {
     console.error('Error fetching leaderboard:', error);
@@ -40,4 +41,17 @@ export async function getTopScores(limit: number = 10) {
   }
 
   return data as LeaderboardEntry[];
+}
+
+export async function getTotalEntries() {
+  const { count, error } = await supabase
+    .from('leaderboard')
+    .select('*', { count: 'exact', head: true });
+
+  if (error) {
+    console.error('Error fetching entry count:', error);
+    return 0;
+  }
+
+  return count || 0;
 }

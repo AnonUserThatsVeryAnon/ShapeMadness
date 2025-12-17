@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { getTopScores, type LeaderboardEntry } from "../config/supabase";
+import {
+  getTopScores,
+  getTotalEntries,
+  type LeaderboardEntry,
+} from "../config/supabase";
 import "./LeaderboardMenu.css";
 
 interface LeaderboardMenuProps {
@@ -9,16 +13,28 @@ interface LeaderboardMenuProps {
 export const LeaderboardMenu: React.FC<LeaderboardMenuProps> = ({ onBack }) => {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [pageSize] = useState(20);
 
-  const loadLeaderboard = async () => {
-    setLoading(true);
-    const data = await getTopScores(10);
-    setEntries(data);
-    setLoading(false);
+  const loadLeaderboard = async (reset: boolean = true) => {
+    if (reset) {
+      setLoading(true);
+      const data = await getTopScores(pageSize, 0);
+      setEntries(data);
+      setHasMore(data.length === pageSize);
+      setLoading(false);
+    } else {
+      setLoadingMore(true);
+      const data = await getTopScores(pageSize, entries.length);
+      setEntries([...entries, ...data]);
+      setHasMore(data.length === pageSize);
+      setLoadingMore(false);
+    }
   };
 
   useEffect(() => {
-    void loadLeaderboard();
+    void loadLeaderboard(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -35,6 +51,7 @@ export const LeaderboardMenu: React.FC<LeaderboardMenuProps> = ({ onBack }) => {
     <div className="leaderboard-menu">
       <div className="leaderboard-content">
         <h1 className="leaderboard-title">🏆 LEADERBOARD 🏆</h1>
+        <p className="leaderboard-subtitle">Ranked by highest wave reached</p>
 
         {loading ? (
           <div className="leaderboard-loading">Loading...</div>
@@ -69,10 +86,24 @@ export const LeaderboardMenu: React.FC<LeaderboardMenuProps> = ({ onBack }) => {
                 <span className="score-col">
                   {entry.score.toLocaleString()}
                 </span>
-                <span className="wave-col">{entry.wave}</span>
+                <span className="wave-col">Wave {entry.wave}</span>
                 <span className="date-col">{formatDate(entry.created_at)}</span>
               </div>
             ))}
+          </div>
+        )}
+
+        {!loading && entries.length > 0 && hasMore && (
+          <div className="leaderboard-load-more">
+            <button
+              className="btn btn-load-more"
+              onClick={() => loadLeaderboard(false)}
+              disabled={loadingMore}
+            >
+              {loadingMore
+                ? "Loading..."
+                : `Load More (${entries.length} shown)`}
+            </button>
           </div>
         )}
 
@@ -80,7 +111,10 @@ export const LeaderboardMenu: React.FC<LeaderboardMenuProps> = ({ onBack }) => {
           <button className="btn btn-back" onClick={onBack}>
             Back to Menu
           </button>
-          <button className="btn btn-refresh" onClick={loadLeaderboard}>
+          <button
+            className="btn btn-refresh"
+            onClick={() => loadLeaderboard(true)}
+          >
             Refresh
           </button>
         </div>

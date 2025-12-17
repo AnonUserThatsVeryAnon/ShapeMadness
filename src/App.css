@@ -708,12 +708,27 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   white-space: nowrap;
+  user-select: none;
 }
 
 .upgrade-button:hover:not(:disabled) {
   background: linear-gradient(135deg, #ffcc00 0%, #ffaa00 100%);
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(255, 170, 0, 0.5);
+}
+
+.upgrade-button:active:not(:disabled) {
+  animation: rapidPurchase 0.1s ease-in-out infinite;
+}
+
+@keyframes rapidPurchase {
+  0%, 100% {
+    transform: scale(1) translateY(-2px);
+  }
+  50% {
+    transform: scale(0.95) translateY(-2px);
+    box-shadow: 0 2px 8px rgba(255, 170, 0, 0.6);
+  }
 }
 
 .upgrade-button:disabled {
@@ -798,6 +813,13 @@
   display: flex;
   flex-direction: column;
   animation: slideInRight 0.5s ease-out;
+  transition: all 0.3s ease;
+}
+
+.menu-leaderboard-panel:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 5px 40px rgba(255, 215, 0, 0.5);
+  border-color: #ffed4e;
 }
 
 @keyframes slideInRight {
@@ -820,6 +842,28 @@
   font-weight: bold;
   text-transform: uppercase;
   letter-spacing: 1px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.view-all-hint {
+  font-size: 0.9rem;
+  color: #93a8ac;
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: normal;
+  text-shadow: none;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 .leaderboard-panel-loading,

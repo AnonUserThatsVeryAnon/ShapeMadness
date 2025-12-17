@@ -200,6 +200,7 @@ export interface Wall {
   targetY?: number;
   health?: number; // Walls can be destroyed
   maxHealth?: number;
+  spawnProgress?: number; // 0-1 for spawn animation
 }
 
 export const GameState = {

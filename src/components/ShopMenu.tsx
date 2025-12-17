@@ -51,6 +51,11 @@ export function ShopMenu({
   const startYRef = useRef(0);
   const scrollTopRef = useRef(0);
 
+  // Hold-to-buy state
+  const holdTimerRef = useRef<number | null>(null);
+  const rapidBuyIntervalRef = useRef<number | null>(null);
+  const currentUpgradeRef = useRef<Upgrade | null>(null);
+
   // Drag-to-scroll functionality
   useEffect(() => {
     const container = scrollContainerRef.current;
@@ -113,6 +118,46 @@ export function ShopMenu({
       onForceUpdate();
     }
   };
+
+  // Start hold-to-buy timer
+  const handleMouseDown = (upgrade: Upgrade) => {
+    currentUpgradeRef.current = upgrade;
+
+    // Initial purchase on mousedown
+    handlePurchase(upgrade);
+
+    // Start timer for rapid buying after 400ms hold
+    holdTimerRef.current = window.setTimeout(() => {
+      // Start rapid buying every 100ms
+      rapidBuyIntervalRef.current = window.setInterval(() => {
+        if (currentUpgradeRef.current) {
+          handlePurchase(currentUpgradeRef.current);
+        }
+      }, 100);
+    }, 400);
+  };
+
+  // Stop hold-to-buy
+  const handleMouseUp = () => {
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+    if (rapidBuyIntervalRef.current) {
+      clearInterval(rapidBuyIntervalRef.current);
+      rapidBuyIntervalRef.current = null;
+    }
+    currentUpgradeRef.current = null;
+  };
+
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+      if (rapidBuyIntervalRef.current)
+        clearInterval(rapidBuyIntervalRef.current);
+    };
+  }, []);
 
   // Shop is always fully visible - no fade effect needed
 
@@ -299,7 +344,11 @@ export function ShopMenu({
                       isLocked ? "locked" : ""
                     }`}
                     disabled={!canAfford || isMaxLevel || isLocked}
-                    onClick={() => handlePurchase(upgrade)}
+                    onMouseDown={() => handleMouseDown(upgrade)}
+                    onMouseUp={handleMouseUp}
+                    onMouseLeave={handleMouseUp}
+                    onTouchStart={() => handleMouseDown(upgrade)}
+                    onTouchEnd={handleMouseUp}
                   >
                     {isLocked ? "LOCKED" : isMaxLevel ? "MAXED" : "UPGRADE"}
                   </button>

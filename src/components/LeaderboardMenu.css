@@ -27,9 +27,17 @@
   text-align: center;
   color: #4ecca3;
   font-size: 3rem;
-  margin-bottom: 30px;
+  margin-bottom: 10px;
   text-shadow: 0 0 10px rgba(78, 204, 163, 0.5);
   font-weight: bold;
+}
+
+.leaderboard-subtitle {
+  text-align: center;
+  color: #93a8ac;
+  font-size: 1rem;
+  margin-bottom: 30px;
+  font-style: italic;
 }
 
 .leaderboard-loading,
@@ -46,7 +54,7 @@
 
 .leaderboard-header {
   display: grid;
-  grid-template-columns: 80px 1fr 120px 80px 120px;
+  grid-template-columns: 80px 1fr 120px 100px 120px;
   gap: 15px;
   padding: 15px 20px;
   background: rgba(78, 204, 163, 0.1);
@@ -59,7 +67,7 @@
 
 .leaderboard-entry {
   display: grid;
-  grid-template-columns: 80px 1fr 120px 80px 120px;
+  grid-template-columns: 80px 1fr 120px 100px 120px;
   gap: 15px;
   padding: 15px 20px;
   background: rgba(255, 255, 255, 0.05);
@@ -112,13 +120,20 @@
 
 .wave-col {
   text-align: center;
-  color: #93a8ac;
+  color: #ffd700;
+  font-weight: bold;
 }
 
 .date-col {
   text-align: right;
   color: #93a8ac;
   font-size: 0.9rem;
+}
+
+.leaderboard-load-more {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
 }
 
 .leaderboard-actions {
@@ -158,7 +173,23 @@
 
 .btn-refresh:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+  box-shadow: 0 6px 20px rgba(78, 204, 163, 0.4);
+}
+
+.btn-load-more {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.btn-load-more:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.btn-load-more:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* Responsive design */

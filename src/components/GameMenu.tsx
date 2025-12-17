@@ -5,6 +5,7 @@ interface GameMenuProps {
   highScore: number;
   onStartGame: () => void;
   onShowCodex: () => void;
+  onShowLeaderboard: () => void;
   onDebugMode?: () => void;
 }
 
@@ -12,6 +13,7 @@ export function GameMenu({
   highScore,
   onStartGame,
   onShowCodex,
+  onShowLeaderboard,
   onDebugMode,
 }: GameMenuProps) {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -85,8 +87,16 @@ export function GameMenu({
       </div>
 
       {/* Leaderboard Side Panel */}
-      <div className="menu-leaderboard-panel">
-        <h2 className="leaderboard-panel-title">🏆 TOP PLAYERS</h2>
+      <div
+        className="menu-leaderboard-panel"
+        onClick={onShowLeaderboard}
+        style={{ cursor: "pointer" }}
+        title="Click to view full leaderboard"
+      >
+        <h2 className="leaderboard-panel-title">
+          🏆 TOP PLAYERS
+          <span className="view-all-hint">Click to view all →</span>
+        </h2>
         {loading ? (
           <div className="leaderboard-panel-loading">Loading...</div>
         ) : leaderboard.length === 0 ? (
@@ -107,10 +117,10 @@ export function GameMenu({
                 <div className="panel-info">
                   <div className="panel-name">{entry.player_name}</div>
                   <div className="panel-stats">
+                    <span className="panel-wave">Wave {entry.wave}</span>
                     <span className="panel-score">
                       {entry.score.toLocaleString()}
                     </span>
-                    <span className="panel-wave">Wave {entry.wave}</span>
                     <span className="panel-date">
                       {formatDate(entry.created_at)}
                     </span>

@@ -168,6 +168,11 @@ function transitionToPhase(
   audioSystem.playBossPhaseChange();
   context.addParticles(createPhaseTransitionParticles(boss.position, newPhase.color));
   
+  // Screen shake for dramatic effect
+  if (context.triggerScreenShake) {
+    context.triggerScreenShake(25); // Heavy shake for phase transition
+  }
+  
   // Add phase change announcement
   if (context.addFloatingText) {
     let phaseName = `PHASE ${boss.bossPhase}`;

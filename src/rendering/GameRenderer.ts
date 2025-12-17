@@ -1652,26 +1652,63 @@ export class GameRenderer {
       const age = now - wall.createdAt;
       const pulse = Math.sin(now / 100) * 0.2 + 0.8;
       
+      // Update spawn animation progress
+      if (wall.spawnProgress !== undefined && wall.spawnProgress < 1) {
+        wall.spawnProgress = Math.min(1, age / 500); // 500ms spawn animation
+      }
+      
+      const spawnProgress = wall.spawnProgress ?? 1;
+      
       this.ctx.save();
       this.ctx.translate(wall.x, wall.y);
       this.ctx.rotate(wall.rotation);
+      
+      // Warning indicator (first 300ms before wall appears)
+      if (spawnProgress < 0.6) {
+        const warningAlpha = (0.6 - spawnProgress) / 0.6;
+        this.ctx.strokeStyle = `rgba(255, 200, 0, ${warningAlpha * 0.8})`;
+        this.ctx.lineWidth = 4;
+        this.ctx.setLineDash([10, 10]);
+        this.ctx.strokeRect(-wall.width / 2, -wall.height / 2, wall.width, wall.height);
+        this.ctx.setLineDash([]);
+        
+        // Warning particles
+        if (Math.random() < 0.3) {
+          const sparkX = (Math.random() - 0.5) * wall.width;
+          const sparkY = (Math.random() - 0.5) * wall.height;
+          this.ctx.fillStyle = `rgba(255, 200, 0, ${warningAlpha})`;
+          this.ctx.beginPath();
+          this.ctx.arc(sparkX, sparkY, 3, 0, Math.PI * 2);
+          this.ctx.fill();
+        }
+      }
+      
+      // Scale wall during spawn (grows from center)
+      const scale = spawnProgress;
+      const scaledWidth = wall.width * scale;
+      const scaledHeight = wall.height * scale;
 
       // Draw wall shadow
-      this.ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
-      this.ctx.fillRect(-wall.width / 2 + 4, -wall.height / 2 + 4, wall.width, wall.height);
+      this.ctx.fillStyle = `rgba(0, 0, 0, ${0.3 * spawnProgress})`;
+      this.ctx.fillRect(-scaledWidth / 2 + 4, -scaledHeight / 2 + 4, scaledWidth, scaledHeight);
 
       // Draw main wall body
       const baseColor = wall.color;
       this.ctx.fillStyle = baseColor;
-      this.ctx.fillRect(-wall.width / 2, -wall.height / 2, wall.width, wall.height);
+      this.ctx.globalAlpha = spawnProgress;
+      this.ctx.fillRect(-scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight);
+      this.ctx.globalAlpha = 1;
 
       // Draw wall border with glow
-      this.ctx.strokeStyle = `rgba(255, 255, 255, ${pulse * 0.6})`;
+      this.ctx.shadowBlur = 15 * pulse * spawnProgress;
+      this.ctx.shadowColor = wall.color;
+      this.ctx.strokeStyle = `rgba(255, 255, 255, ${pulse * 0.6 * spawnProgress})`;
       this.ctx.lineWidth = 3;
-      this.ctx.strokeRect(-wall.width / 2, -wall.height / 2, wall.width, wall.height);
+      this.ctx.strokeRect(-scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight);
+      this.ctx.shadowBlur = 0;
 
-      // Draw health bar if wall has health
-      if (wall.health !== undefined && wall.maxHealth !== undefined) {
+      // Draw health bar if wall has health (only when fully spawned)
+      if (wall.health !== undefined && wall.maxHealth !== undefined && spawnProgress >= 1) {
         const healthPercent = wall.health / wall.maxHealth;
         const barWidth = Math.min(wall.width, 100);
         const barHeight = 6;
@@ -1686,18 +1723,12 @@ export class GameRenderer {
         this.ctx.fillRect(-barWidth / 2, barY, barWidth * healthPercent, barHeight);
       }
 
-      // Energy lines for visual flair
-      if (age < 500) {
-        const spawnAlpha = (500 - age) / 500;
-        this.ctx.strokeStyle = `rgba(255, 255, 255, ${spawnAlpha * 0.8})`;
-        this.ctx.lineWidth = 2;
-        for (let i = 0; i < 3; i++) {
-          const offset = (i - 1) * 10;
-          this.ctx.beginPath();
-          this.ctx.moveTo(-wall.width / 2, offset);
-          this.ctx.lineTo(wall.width / 2, offset);
-          this.ctx.stroke();
-        }
+      // Spawn energy burst effect
+      if (spawnProgress > 0.9 && spawnProgress < 1) {
+        const burstAlpha = (1 - spawnProgress) * 10; // Flash at end of spawn
+        this.ctx.strokeStyle = `rgba(255, 255, 255, ${burstAlpha})`;
+        this.ctx.lineWidth = 4;
+        this.ctx.strokeRect(-scaledWidth / 2 - 10, -scaledHeight / 2 - 10, scaledWidth + 20, scaledHeight + 20);
       }
 
       this.ctx.restore();
@@ -1876,17 +1907,18 @@ export class GameRenderer {
     
     // Get boss config for phase info
     const bossConfig = boss.bossConfig;
-    const currentPhase = bossConfig?.phases[boss.bossPhase - 1];
+    const bossPhase = boss.bossPhase ?? 1;
+    const currentPhase = bossConfig?.phases[bossPhase - 1];
     const phaseColor = currentPhase?.color || '#5a1d7a';
     
     // Get phase name based on boss type
-    let phaseName = `PHASE ${boss.bossPhase}`;
+    let phaseName = `PHASE ${bossPhase}`;
     if (boss.type === 'OVERSEER') {
       const overseerPhases = ['THE SUMMONER', 'THE SNIPER', 'THE BERSERKER'];
-      phaseName = overseerPhases[boss.bossPhase - 1] || phaseName;
+      phaseName = overseerPhases[bossPhase - 1] || phaseName;
     } else if (boss.type === 'ARCHITECT') {
       const architectPhases = ['CONSTRUCTION', 'DECONSTRUCTION', 'RECONSTRUCTION'];
-      phaseName = architectPhases[boss.bossPhase - 1] || phaseName;
+      phaseName = architectPhases[bossPhase - 1] || phaseName;
     }
     
     // Background
@@ -1903,7 +1935,7 @@ export class GameRenderer {
     // Phase indicator
     this.ctx.fillStyle = phaseColor;
     this.ctx.font = 'bold 12px monospace';
-    this.ctx.fillText(`PHASE ${boss.bossPhase}: ${phaseName}`, this.canvasWidth / 2, barY + 28);
+    this.ctx.fillText(`PHASE ${bossPhase}: ${phaseName}`, this.canvasWidth / 2, barY + 28);
     
     // Health bar background
     this.ctx.fillStyle = '#333333';
@@ -1942,7 +1974,7 @@ export class GameRenderer {
     );
     
     // Pulsing glow effect based on phase
-    if (boss.bossPhase === 3) {
+    if (bossPhase === 3) {
       const pulse = Math.sin(Date.now() / 100) * 0.3 + 0.7;
       this.ctx.shadowBlur = 20 * pulse;
       this.ctx.shadowColor = phaseColor;

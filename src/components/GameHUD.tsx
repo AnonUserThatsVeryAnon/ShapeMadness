@@ -9,6 +9,7 @@ interface GameHUDProps {
   aimMode: AimMode;
   onToggleAimMode: () => void;
   isTestMode?: boolean;
+  isDebugRun?: boolean;
   powerUpInventory: (PowerUpType | null)[];
 }
 
@@ -28,6 +29,7 @@ export function GameHUD({
   aimMode,
   onToggleAimMode,
   isTestMode,
+  isDebugRun,
   powerUpInventory,
 }: GameHUDProps) {
   return (
@@ -66,53 +68,62 @@ export function GameHUD({
           </div>
         ))}
       </div>
-      {isTestMode && (
+      {(isTestMode || isDebugRun) && (
         <div
           style={{
             position: "fixed",
             bottom: "20px",
             left: "50%",
             transform: "translateX(-50%)",
-            backgroundColor: "rgba(78, 205, 203, 0.9)",
-            color: "#000",
+            backgroundColor: isTestMode
+              ? "rgba(78, 205, 203, 0.9)"
+              : "rgba(255, 100, 0, 0.9)",
+            color: isTestMode ? "#000" : "#fff",
             padding: "12px 24px",
             borderRadius: "8px",
             fontWeight: "bold",
             fontSize: "16px",
-            boxShadow: "0 0 20px rgba(78, 205, 203, 0.5)",
+            boxShadow: isTestMode
+              ? "0 0 20px rgba(78, 205, 203, 0.5)"
+              : "0 0 20px rgba(255, 100, 0, 0.5)",
             zIndex: 100,
             border: "2px solid rgba(255, 255, 255, 0.3)",
           }}
         >
-          🧪 SANDBOX MODE • Press{" "}
-          <kbd
-            style={{
-              background: "#fff",
-              padding: "2px 8px",
-              borderRadius: "4px",
-              fontFamily: "monospace",
-              fontSize: "14px",
-              boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-              marginRight: "4px",
-            }}
-          >
-            T
-          </kbd>{" "}
-          to spawn •{" "}
-          <kbd
-            style={{
-              background: "#fff",
-              padding: "2px 8px",
-              borderRadius: "4px",
-              fontFamily: "monospace",
-              fontSize: "14px",
-              boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-              marginLeft: "4px",
-            }}
-          >
-            B
-          </kbd>{" "}
-          for shop
+          {isTestMode ? "🧪 SANDBOX MODE" : "🧪 DEBUG MODE"}{" "}
+          {isTestMode && (
+            <>
+              <kbd
+                style={{
+                  background: "#fff",
+                  padding: "2px 8px",
+                  borderRadius: "4px",
+                  fontFamily: "monospace",
+                  fontSize: "14px",
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                  marginRight: "4px",
+                }}
+              >
+                T
+              </kbd>{" "}
+              to spawn •{" "}
+              <kbd
+                style={{
+                  background: "#fff",
+                  padding: "2px 8px",
+                  borderRadius: "4px",
+                  fontFamily: "monospace",
+                  fontSize: "14px",
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                  marginLeft: "4px",
+                }}
+              >
+                B
+              </kbd>{" "}
+              for shop
+            </>
+          )}
+          {isDebugRun && "Not eligible for leaderboard"}
         </div>
       )}
     </>

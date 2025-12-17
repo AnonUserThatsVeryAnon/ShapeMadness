@@ -46,6 +46,7 @@ function createWallSpawnAbility(): BossAbility {
           color: '#00d4ff',
           health: 100,
           maxHealth: 100,
+          spawnProgress: 0, // Start at 0 for animation
         };
         
         walls.push(wall);
